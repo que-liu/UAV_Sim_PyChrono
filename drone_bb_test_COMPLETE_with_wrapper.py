@@ -3675,46 +3675,6 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             if controller_type == 'PID':
                 
-                ############################### PID ###############################
-                # \\\\\\\\\\\\\\\\\\\\\\\ old data format \\\\\\\\\\\\\\\\\\\\\\\\\
-                # DATA_vector = np.zeros((size_DATA,1))
-                # DATA_vector[0] = time_now
-                # DATA_vector[1] = mu_x
-                # DATA_vector[2] = mu_y
-                # DATA_vector[3] = mu_z
-                # DATA_vector[4] = u1
-                # DATA_vector[5] = roll_ref
-                # DATA_vector[6] = pitch_ref
-                # DATA_vector[7] = roll_ref_dot
-                # DATA_vector[8] = pitch_ref_dot
-                # DATA_vector[9] = roll_ref_ddot
-                # DATA_vector[10] = pitch_ref_ddot
-                # DATA_vector[11:14] = angular_error_dot
-                # DATA_vector[14] = u2
-                # DATA_vector[15] = u3
-                # DATA_vector[16] = u4
-                # DATA_vector[17:25] = T.reshape(8,1)
-                # DATA_vector[25] = roll
-                # DATA_vector[26] = pitch
-                # DATA_vector[27] = yaw
-                # DATA_vector[28:31] = translational_position_in_I
-                # DATA_vector[31:34] = translational_velocity_in_I
-                # DATA_vector[34:37] = translational_position_error
-                # DATA_vector[37:40] = angular_error
-                # DATA_vector[40:43] = angular_velocity
-                # DATA_vector[43:46] = translational_position_in_I_user
-                # DATA_vector[46:49] = translational_velocity_in_I_user
-                # DATA_vector[49:52] = translational_acceleration_in_I_user
-                # DATA_vector[52] = yaw_ref
-                # DATA_vector[53] = yaw_ref_dot
-                # DATA_vector[54] = yaw_ref_ddot
-                # DATA_vector[55:58] = integral_position_tracking
-                # DATA_vector[58:61] = integral_angular_error
-                # DATA_vector[61:70] = Jacobian_matrix_inverse.reshape(9,1)
-                
-                # DATA = np.append(DATA,np.resize(DATA_vector,(size_DATA,1)), axis=1)
-                ###################################################################
-                
                 ############################## PID ###############################
                 DATA_vector = np.zeros((size_DATA,1))
                 DATA_vector[0] = time_now
@@ -3750,53 +3710,6 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                 ###################################################################
                      
             else: 
-                
-                ###################### MRAC WITH BASELINE #########################
-                # \\\\\\\\\\\\\\\\\\\\\\\ old data format \\\\\\\\\\\\\\\\\\\\\\\\\
-                # DATA_vector = np.zeros((size_DATA,1))
-                # DATA_vector[0] = time_now
-                # DATA_vector[1] = mu_x
-                # DATA_vector[2] = mu_y
-                # DATA_vector[3] = mu_z
-                # DATA_vector[4] = u1
-                # DATA_vector[5] = roll_ref
-                # DATA_vector[6] = pitch_ref
-                # DATA_vector[7] = roll_ref_dot
-                # DATA_vector[8] = pitch_ref_dot
-                # DATA_vector[9] = roll_ref_ddot
-                # DATA_vector[10] = pitch_ref_ddot
-                # DATA_vector[11:14] = angular_error_dot
-                # DATA_vector[14] = u2
-                # DATA_vector[15] = u3
-                # DATA_vector[16] = u4
-                # DATA_vector[17:25] = T.reshape(8,1)
-                # DATA_vector[25] = roll
-                # DATA_vector[26] = pitch
-                # DATA_vector[27] = yaw
-                # DATA_vector[28:31] = translational_position_in_I
-                # DATA_vector[31:34] = translational_velocity_in_I
-                # DATA_vector[34:37] = translational_position_error
-                # DATA_vector[37:40] = angular_error
-                # DATA_vector[40:43] = angular_velocity
-                # DATA_vector[43:46] = translational_position_in_I_user
-                # DATA_vector[46:49] = translational_velocity_in_I_user
-                # DATA_vector[49:52] = translational_acceleration_in_I_user
-                # DATA_vector[52] = yaw_ref
-                # DATA_vector[53] = yaw_ref_dot
-                # DATA_vector[54] = yaw_ref_ddot
-                # DATA_vector[55:58] = mu_baseline_tran
-                # DATA_vector[58:61] = mu_adaptive_tran
-                # DATA_vector[61:64] = mu_PD_baseline_tran
-                # DATA_vector[64:67] = Moment_baseline
-                # DATA_vector[67:70] = Moment_adaptive
-                # DATA_vector[70:73] = Moment_baseline_PI
-                # DATA_vector[73:82] = Jacobian_matrix_inverse.reshape(9,1)
-                # DATA_vector[82:85] = angular_position_dot
-                # DATA_vector[85:91] = x_ref_tran 
-                # DATA_vector[91:94] = omega_ref
-                
-                # DATA = np.append(DATA,np.resize(DATA_vector,(size_DATA,1)), axis=1)
-                ###################################################################
                 
                 ##################### MRAC WITH BASELINE #########################
                 DATA_vector = np.zeros((size_DATA,1))

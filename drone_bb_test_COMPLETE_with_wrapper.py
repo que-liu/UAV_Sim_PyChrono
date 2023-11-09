@@ -1257,7 +1257,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [0,  math.cos(roll), math.sin(roll) * math.cos(pitch)],
                                           [0, -math.sin(roll), math.cos(roll) * math.cos(pitch)]])
             
-            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error) + angular_position_ref_dot
+            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error + angular_position_ref_dot)
             omega_cmd_dot = Jacobian_matrix_dot * (-KP_rot*angular_error) + Jacobian_matrix * (-KP_rot*angular_error_dot) + angular_position_ref_ddot
             
             omega_ref_dot = -K_P_omega_ref*(omega_ref - omega_cmd) + omega_cmd_dot
@@ -1431,7 +1431,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [0,  math.cos(roll), math.sin(roll) * math.cos(pitch)],
                                           [0, -math.sin(roll), math.cos(roll) * math.cos(pitch)]])
             
-            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error) + angular_position_ref_dot
+            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error + angular_position_ref_dot)
             omega_cmd_dot = Jacobian_matrix_dot * (-KP_rot*angular_error) + Jacobian_matrix * (-KP_rot*angular_error_dot) + angular_position_ref_ddot
             
             omega_ref_dot = -K_P_omega_ref*(omega_ref - omega_cmd) + omega_cmd_dot
@@ -1605,7 +1605,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [0,  math.cos(roll), math.sin(roll) * math.cos(pitch)],
                                           [0, -math.sin(roll), math.cos(roll) * math.cos(pitch)]])
             
-            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error) + angular_position_ref_dot
+            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error + angular_position_ref_dot)
             omega_cmd_dot = Jacobian_matrix_dot * (-KP_rot*angular_error) + Jacobian_matrix * (-KP_rot*angular_error_dot) + angular_position_ref_ddot
             
             omega_ref_dot = -K_P_omega_ref*(omega_ref - omega_cmd) + omega_cmd_dot
@@ -1793,7 +1793,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [0,  math.cos(roll), math.sin(roll) * math.cos(pitch)],
                                           [0, -math.sin(roll), math.cos(roll) * math.cos(pitch)]])
             
-            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error) + angular_position_ref_dot
+            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error + angular_position_ref_dot)
             omega_cmd_dot = Jacobian_matrix_dot * (-KP_rot*angular_error) + Jacobian_matrix * (-KP_rot*angular_error_dot) + angular_position_ref_ddot
             
             omega_ref_dot = -K_P_omega_ref*(omega_ref - omega_cmd) + omega_cmd_dot
@@ -1970,7 +1970,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [0,  math.cos(roll), math.sin(roll) * math.cos(pitch)],
                                           [0, -math.sin(roll), math.cos(roll) * math.cos(pitch)]])
             
-            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error) + angular_position_ref_dot
+            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error + angular_position_ref_dot)
             omega_cmd_dot = Jacobian_matrix_dot * (-KP_rot*angular_error) + Jacobian_matrix * (-KP_rot*angular_error_dot) + angular_position_ref_ddot
             
             omega_ref_dot = -K_P_omega_ref*(omega_ref - omega_cmd) + omega_cmd_dot
@@ -2150,7 +2150,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [0,  math.cos(roll), math.sin(roll) * math.cos(pitch)],
                                           [0, -math.sin(roll), math.cos(roll) * math.cos(pitch)]])
             
-            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error) + angular_position_ref_dot
+            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error + angular_position_ref_dot)
             omega_cmd_dot = Jacobian_matrix_dot * (-KP_rot*angular_error) + Jacobian_matrix * (-KP_rot*angular_error_dot) + angular_position_ref_ddot
             
             omega_ref_dot = -K_P_omega_ref*(omega_ref - omega_cmd) + omega_cmd_dot
@@ -2330,7 +2330,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [0,  math.cos(roll), math.sin(roll) * math.cos(pitch)],
                                           [0, -math.sin(roll), math.cos(roll) * math.cos(pitch)]])
             
-            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error) + angular_position_ref_dot
+            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error + angular_position_ref_dot)
             omega_cmd_dot = Jacobian_matrix_dot * (-KP_rot*angular_error) + Jacobian_matrix * (-KP_rot*angular_error_dot) + angular_position_ref_ddot
             
             omega_ref_dot = -K_P_omega_ref*(omega_ref - omega_cmd) + omega_cmd_dot
@@ -2525,7 +2525,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [0,  math.cos(roll), math.sin(roll) * math.cos(pitch)],
                                           [0, -math.sin(roll), math.cos(roll) * math.cos(pitch)]])
             
-            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error) + angular_position_ref_dot
+            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error + angular_position_ref_dot)
             omega_cmd_dot = Jacobian_matrix_dot * (-KP_rot*angular_error) + Jacobian_matrix * (-KP_rot*angular_error_dot) + angular_position_ref_ddot
             
             omega_ref_dot = -K_P_omega_ref*(omega_ref - omega_cmd) + omega_cmd_dot

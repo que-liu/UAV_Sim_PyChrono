@@ -369,7 +369,6 @@ def rk4singlestep(fun, dt, t0, y0):
     yout = y0 + (dt / 6) * (f1 + 2 * f2 + 2 * f3 + f4)
     return yout
 
-
 def series_element(s):
     """
 
@@ -382,7 +381,6 @@ def series_element(s):
     element : output of the series
 
     """
-    
     alpha = 1.001
     element = 1/(s**alpha)
     
@@ -395,14 +393,13 @@ def find_s(s, weighted_e_squared):
     
     weighted_e_squared = e^T(t_j) P e(t_j)
     """
-    temporary_s = s+1
+
+    alpha = 1.001
     
-    while series_element(temporary_s) > weighted_e_squared:
-        temporary_s = temporary_s + 1
+    s = math.ceil(weighted_e_squared**(-1/alpha))
         
-    s = temporary_s
-    
     return s
+
 
 
 

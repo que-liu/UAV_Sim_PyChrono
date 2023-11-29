@@ -53,10 +53,12 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     global mu_x, mu_y, mu_z, u1, roll_ref, pitch_ref, roll_ref_dot, pitch_ref_dot, roll_ref_ddot, pitch_ref_ddot
     global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
     global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
-    global mu_PD_baseline_tran, Moment_baseline_PI
+    global mu_PD_baseline_tran, Moment_baseline_PI, e_tran, integral_eQe_tran, e_rot, integral_eQe_rot
+    global epsilon_tran, integral_epsQeps_tran, epsilon_rot, integral_epsQeps_rot, e_transient_tran
+    global integral_etQet_tran, e_transient_rot, integral_etQet_rot
     # The max simulation time needs to be set if Wrapper is not being executed
     if Wrapper_execution == False:
-        max_simulation_time = 10
+        max_simulation_time = 100
 
 
 
@@ -80,9 +82,9 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     #                     INCLUDE ENVIRONMENT
     # ----------------------------------------------------------------
     
-    environment_included = True
+    # environment_included = True
     
-    # environment_included = False
+    environment_included = False
     
     # ----------------------------------------------------------------
     #                     %%%%%%%%%%%%%%%%%%%%%%
@@ -351,11 +353,11 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           True,     # collision?
                                           contact_material_ball)  # contact material
     my_ball1.SetName('Ball_1')
-    my_ball1.SetPos(chrono.ChVectorD(-0.05,-0.15,0))
+    my_ball1.SetPos(chrono.ChVectorD(-0.05,-0.15,0.065)) # -0.05,-0.15,0
     # my_ball1.SetPos(chrono.ChVectorD(-0.05,1.4,0))
     my_ball1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/redwhite.png"))
     # my_ball1.GetVisualShape(0).SetColor(chrono.ChColor(0, 1, 0))
-    # my_system.Add(my_ball1)
+    my_system.Add(my_ball1)
     
     # my_ball1.SetPos_dt(chrono.ChVectorD(0,0,10))
     
@@ -365,11 +367,11 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           True,     # collision?
                                           contact_material_ball)  # contact material
     my_ball2.SetName('Ball_2')
-    my_ball2.SetPos(chrono.ChVectorD(0.05,-0.15,0))
+    my_ball2.SetPos(chrono.ChVectorD(0.05,-0.15,0.065))
     # my_ball2.SetPos(chrono.ChVectorD(0.05,1.4,0))
     my_ball2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/checker2.png"))
     # my_ball2.GetVisualShape(0).SetColor(chrono.ChColor(0, 0, 1))
-    # my_system.Add(my_ball2)
+    my_system.Add(my_ball2)
     
     # my_ball2.SetWvel_loc(chrono.ChVectorD(0,0,5))
     # my_ball2.SetPos_dt(chrono.ChVectorD(0,1,0))
@@ -387,28 +389,28 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     #     my_system.Add(my_ball3)
 
     #========================================================================================================================================
-    # Adding multiple balls    
-    def create_and_add_sphere_body(index, system, radius, density, visualize=True, collision=True, contact_material=None):
-        sphere_body = chrono.ChBodyEasySphere(radius, density, visualize, collision, contact_material)
-        sphere_body.SetName('Ball_3_{}'.format(index))  # Add a random number to the name
-        sphere_body.SetPos(chrono.ChVectorD(
-            # -0.05 + chrono.ChRandom() * 0.1,
-            # -0.2 + chrono.ChRandom() * 0.05,
-            # -0.05 + chrono.ChRandom() * 0.1
-            -0.05 + 0.035 * index * (index<5) + 0.035 * (index-5) * (index>=5),
-            -0.2,
-            -0.05+ 0.1 * (index>=5)
-        ))
-        sphere_body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/redwhite.png"))
-        system.Add(sphere_body)  # Add the sphere body to the provided system
-        return sphere_body
+    # # Adding multiple balls    
+    # def create_and_add_sphere_body(index, system, radius, density, visualize=True, collision=True, contact_material=None):
+    #     sphere_body = chrono.ChBodyEasySphere(radius, density, visualize, collision, contact_material)
+    #     sphere_body.SetName('Ball_3_{}'.format(index))  # Add a random number to the name
+    #     sphere_body.SetPos(chrono.ChVectorD(
+    #         # -0.05 + chrono.ChRandom() * 0.1,
+    #         # -0.2 + chrono.ChRandom() * 0.05,
+    #         # -0.05 + chrono.ChRandom() * 0.1
+    #         -0.05 + 0.035 * index * (index<5) + 0.035 * (index-5) * (index>=5),
+    #         -0.2,
+    #         -0.05+ 0.1 * (index>=5)
+    #     ))
+    #     sphere_body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/redwhite.png"))
+    #     system.Add(sphere_body)  # Add the sphere body to the provided system
+    #     return sphere_body
     
-    # my_ball3_1 = create_and_add_sphere_body(1, my_system, 0.015875, 7850, True, True, contact_material_ball)
-    # my_ball3_2 = create_and_add_sphere_body(2, my_system, 0.015875, 7850, True, True, contact_material_ball)
+    # # my_ball3_1 = create_and_add_sphere_body(1, my_system, 0.015875, 7850, True, True, contact_material_ball)
+    # # my_ball3_2 = create_and_add_sphere_body(2, my_system, 0.015875, 7850, True, True, contact_material_ball)
     
-    for i in range(0, 10):
-        variable_name = f'my_ball3_{i}'  # Construct the variable name
-        globals()[variable_name] = create_and_add_sphere_body(i, my_system, 0.015875, my_ball_density, True, True, contact_material_ball)
+    # for i in range(0, 10):
+    #     variable_name = f'my_ball3_{i}'  # Construct the variable name
+    #     globals()[variable_name] = create_and_add_sphere_body(i, my_system, 0.015875, my_ball_density, True, True, contact_material_ball)
     #========================================================================================================================================
         
     # print('Ball 3 mass in kg: ',my_ball3.GetMass())
@@ -796,7 +798,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     
     if trajectory_type == 'circular_trajectory':
         # Circular trajectory at constant altitude
-        radius_trajectory = 5 # 5
+        radius_trajectory = 3 # 5
         angular_velocity_trajectory = 0.2 # 0.2
         altitude_trajectory = -1 # -1
         
@@ -851,11 +853,17 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     elif trajectory_type == 'roundedRectangle_trajectory':
         # Rounded rectangle trajectory at a constant altitude
         # 22.5 seconds "Stadium": 5, 0, 2, 1, -1
-        length_horizontal = 4
+        length_horizontal = 7
         length_vertical = 0
-        rounding_radius = 0.3
-        linear_velocity_trajectory = 1.2 #1.2
+        rounding_radius = 1
+        linear_velocity_trajectory = 1.2 
         altitude_trajectory = -1.1
+        
+        # length_horizontal = 5
+        # length_vertical = 0
+        # rounding_radius = 2
+        # linear_velocity_trajectory = 1 
+        # altitude_trajectory = -1
         ##################################################################################################################################################################
         # Create a ChLinePath geometry, and insert sub-paths # ROUNDED RECTANGLE TRAJECTORY
         mpath = chrono.ChLinePath()
@@ -944,7 +952,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
 
     #%% Controller gains and TYPE
     
-    ##########################
+    ##########################!!!
     mass_total_estimated = 2.025 # [kg] 2.025
     # mass_total_estimated = 3.1 # [kg]
     I_matrix_estimated = np.matrix(Inertia_mat_pixhawk)
@@ -2590,7 +2598,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         
-    
+    my_frame_pos_GLOB = my_frame.GetPos()
 
     #%% Irrlicht visualization
     if visualization_flag == True:    
@@ -2604,7 +2612,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         vis.Initialize()
         vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
         vis.AddSkyBox()
-        vis.AddCamera(chrono.ChVectorD(2.5, 1.5, 0.5)) #(1,1,1) - (2.5,1.5,0.5) FIXED CAMERA
+        # vis.AddCamera(chrono.ChVectorD(2.5, 1.5, 0.5)) #(1,1,1) - (2.5,1.5,0.5) FIXED CAMERA
+        vis.AddCamera(chrono.ChVectorD(my_frame_pos_GLOB.x, 0, my_frame_pos_GLOB.z) + chrono.ChVectorD(-1.5, 2, 1.5), my_frame_pos_GLOB) # MOVING CAMERA (-0.5, 0.2, 0)
         vis.AddTypicalLights()
         # vis.AddLightWithShadow(chrono.ChVectorD(3,6,2),    # point
         #                               chrono.ChVectorD(0,0,0),    # aimpoint
@@ -2711,10 +2720,23 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             # vis.AddCamera(my_frame_pos_GLOB + chrono.ChVectorD(1.2, 0.9, 0.9), my_frame_pos_GLOB) # MOVING CAMERA (1.5, 1, 1)
             # vis.AddCamera(my_frame_pos_GLOB + chrono.ChVectorD(-0.8, 0.1, 0), my_frame_pos_GLOB) # MOVING CAMERA (-0.5, 0.2, 0)
             
-            vis.AddCamera(my_frame_pos_GLOB + chrono.ChVectorD(-0.8, 0.1, 0), my_frame_pos_GLOB) # MOVING CAMERA (-0.5, 0.2, 0)
+            # vis.AddCamera(my_frame_pos_GLOB + chrono.ChVectorD(2, 0.2, 1), my_frame_pos_GLOB) # MOVING CAMERA (-0.5, 0.2, 0)
             
-            if my_system.GetChTime() > 0.1:
-                vis.AddCamera(pixhawk_rotmat*(pos_pixhawk_LOC + chrono.ChVectorD(-0.55, 0, -0.1)), my_frame_pos_GLOB + chrono.ChVectorD(0, 0.05, 0)) # MOVING CAMERA (-0.5, 0.2, 0)
+            # vis.AddCamera(chrono.ChVectorD(my_frame_pos_GLOB.x, 0, my_frame_pos_GLOB.z) + chrono.ChVectorD(2, 2, -1), my_frame_pos_GLOB) # MOVING CAMERA (-0.5, 0.2, 0)
+            # vis.AddCamera(chrono.ChVectorD(my_frame_pos_GLOB.x, 0, my_frame_pos_GLOB.z) + chrono.ChVectorD(-1.5, 2, 1.5), my_frame_pos_GLOB) # MOVING CAMERA (-0.5, 0.2, 0)
+            
+            if my_system.GetChTime() < 6:
+                vis.AddCamera(chrono.ChVectorD(my_frame_pos_GLOB.x, 0, my_frame_pos_GLOB.z) + chrono.ChVectorD(-1.5, 2, 1.5), my_frame_pos_GLOB)
+            
+            if my_system.GetChTime() >= 6 and my_system.GetChTime() < 7:
+                vis.AddCamera(chrono.ChVectorD(my_frame_pos_GLOB.x, 0, my_frame_pos_GLOB.z) + chrono.ChVectorD(1.5, 2, -1.5), my_frame_pos_GLOB)
+            
+            # vis.AddCamera(chrono.ChVectorD(my_frame_pos_GLOB.x, 0, my_frame_pos_GLOB.z) + chrono.ChVectorD(-1.5, 2, 1.5), my_frame_pos_GLOB)
+            
+            # Camera fixed with drone orientation
+            # if my_system.GetChTime() > 0.1:
+            #     # vis.AddCamera(pixhawk_rotmat*(pos_pixhawk_LOC + chrono.ChVectorD(-0.55, 0, -0.1)), my_frame_pos_GLOB + chrono.ChVectorD(0, 0.05, 0)) # MOVING CAMERA
+            #     vis.AddCamera(pixhawk_rotmat*(pos_pixhawk_LOC + chrono.ChVectorD(-0.4, 0, -0.1)), my_frame_pos_GLOB + chrono.ChVectorD(0, 0.05, 0)) # MOVING CAMERA 
                 
             
             vis.Render()
@@ -3180,6 +3202,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                         print('FOUND s_tran')       
                         # update reference trajectory
                         jump_reference_trajectory_tran = (1 - math.sqrt(((np.matmul(e_tran.T,np.matmul(P_tran,e_tran))).item() - series_element(s_hybrid_tran)) / (np.matmul(e_tran.T,np.matmul(P_tran,e_tran))).item())) * e_tran
+                        # jump_reference_trajectory_tran = (1 - math.sqrt(max(0,((np.matmul(e_tran.T,np.matmul(P_tran,e_tran))).item() - series_element(s_hybrid_tran)) / (np.matmul(e_tran.T,np.matmul(P_tran,e_tran))).item()))) * e_tran
                         yout[4:10] = x_ref_tran + jump_reference_trajectory_tran # Update ref traj
     
                         yout[100] = integral_eQe_tran + (e_tran.T * Q_tran * e_tran - e_tran_previous.T * Q_tran * e_tran_previous)
@@ -3786,46 +3809,46 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             # omega_fun.Set_yconst(omega_8[0])
             # link_motor1.SetMotorFunction(chrono.ChFunction_Const(omega_fun))
         
-        # # Payload Dropping
-        # time_payloadDropping = 5
-        # if (time_now > time_payloadDropping): # 5
-        #     my_ball1.SetCollide(False)
-        #     my_ball2.SetCollide(False)
+        # Payload Dropping
+        time_payloadDropping = 7
+        if (time_now > time_payloadDropping): # 5
+            my_ball1.SetCollide(False)
+            my_ball2.SetCollide(False)
             
-        # if (time_now > (time_payloadDropping + 0.15)): # 5.15
-        #     my_ball1.SetCollide(True)
-        #     my_ball2.SetCollide(True)
+        if (time_now > (time_payloadDropping + 0.15)): # 5.15
+            my_ball1.SetCollide(True)
+            my_ball2.SetCollide(True)
             
-        # # Motor Failure
-        # if (time_now > 3):
-        #     motor_efficiency_matrix = np.matrix(np.diag([1, 0, 1, 1, 0.37, 1, 1, 1]))
+        # Motor Failure#!!!
+        if (time_now > 4):
+            motor_efficiency_matrix = np.matrix(np.diag([1, 1, 0, 1, 1, 1, 1, 0.5]))
     
     
     #========================================================================================================================================
-    # Dropping multiple balls one after the other
-        collision_states = [True] * 10
+    # # Dropping multiple balls one after the other
+    #     collision_states = [True] * 10
     
-        for i in range(0,10):
-            variable_name = f'my_ball3_{i}'  # Get the variable name of the current ball
-            if i>0:
-                variable_name_previous = f'my_ball3_{i-1}'  # Get the variable name of the current ball
+    #     for i in range(0,10):
+    #         variable_name = f'my_ball3_{i}'  # Get the variable name of the current ball
+    #         if i>0:
+    #             variable_name_previous = f'my_ball3_{i-1}'  # Get the variable name of the current ball
         
-            if variable_name in globals():
-                current_ball = globals()[variable_name]
-            if i>0:
-                if variable_name_previous in globals():
-                    previous_ball = globals()[variable_name_previous]
+    #         if variable_name in globals():
+    #             current_ball = globals()[variable_name]
+    #         if i>0:
+    #             if variable_name_previous in globals():
+    #                 previous_ball = globals()[variable_name_previous]
         
-            # Toggle collision state if the time condition is met
-            if time_now > 5.0 + i * 0.05:
-                collision_states[i] = False
-                # if i>0:
-                #     collision_states[i-1] = True
+    #         # Toggle collision state if the time condition is met
+    #         if time_now > 5.0 + i * 0.05:
+    #             collision_states[i] = False
+    #             # if i>0:
+    #             #     collision_states[i-1] = True
             
-            # Set the collision state based on the flag
-            current_ball.SetCollide(collision_states[i])
-            if i>0:
-                previous_ball.SetCollide(collision_states[i-1])
+    #         # Set the collision state based on the flag
+    #         current_ball.SetCollide(collision_states[i])
+    #         if i>0:
+    #             previous_ball.SetCollide(collision_states[i-1])
 #========================================================================================================================================
     # --------------------------------------------------  
         

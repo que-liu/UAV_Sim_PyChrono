@@ -369,6 +369,7 @@ def rk4singlestep(fun, dt, t0, y0):
     yout = y0 + (dt / 6) * (f1 + 2 * f2 + 2 * f3 + f4)
     return yout
 
+
 def series_element(s):
     """
 
@@ -400,6 +401,21 @@ def find_s(s, weighted_e_squared):
         
     return s
 
+# def find_s(s, weighted_e_squared):
+#     """"
+#     This function allows to compute s such that \sum s is convergent;
+#     see the comments after (40) in the paper.
+    
+#     weighted_e_squared = e^T(t_j) P e(t_j)
+#     """
+#     temporary_s = s+1
+    
+#     while series_element(temporary_s) > weighted_e_squared:
+#         temporary_s = temporary_s + 1
+        
+#     s = temporary_s
+    
+#     return s
 
 
 

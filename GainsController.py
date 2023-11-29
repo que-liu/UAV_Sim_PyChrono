@@ -23,7 +23,7 @@ class Gains:
         # **Translational** PID parameters 
         KP_tran = np.matrix(1 * np.diag([5,5,6]))
         KD_tran = np.matrix(1 * np.diag([8,8,3]))
-        KI_tran = np.matrix(1 * np.diag([1,1,0.1]))
+        KI_tran = np.matrix(1 * np.diag([1,1,1]))
 
         # **Rotational** PID parameters
         KP_rot = np.matrix(1 * np.diag([100,100,50]))
@@ -614,7 +614,7 @@ class Gains:
         summation_hybrid_P_rot = 0
         s_hybrid_tran = 0
         s_hybrid_rot = 0
-        tollerance_time_reset_series = 1e-1 # 5e-1
+        tollerance_time_reset_series = 1e-1 # 5e-1 1e-1
         
         return [number_of_states,size_DATA,KP_tran,KD_tran,KI_tran,KP_tran_PD_baseline,KD_tran_PD_baseline,KP_rot,KP_rot_PI_baseline,
                 KD_rot_PI_baseline,KI_rot_PI_baseline,K_P_omega_ref,A_tran,B_tran,A_tran_bar,Lambda_bar,Theta_tran_adaptive_bar,

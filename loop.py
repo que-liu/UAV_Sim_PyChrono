@@ -16,13 +16,16 @@ import datetime
 import pytz
 PI = math.pi
 
-time_max = 22.5
+time_max = 32.5
 
 
 # If wrapper needs to be run the Wrapper_execution should be True else False
-Wrapper_execution = True
+# Wrapper_execution = True
+Wrapper_execution = False
 # If you want to see the visualization then the flag should be True 
-visualization_flag = False
+visualization_flag = True
+# visualization_flag = False
+
 
 # ----------------------------------------------------------------
 #                     CHOOSE THE CONTROLLER
@@ -30,13 +33,13 @@ visualization_flag = False
 
 # controller_type = 'PID' # Check mass_total_estimated
 
-controller_type = 'MRACwithBASELINE'
+# controller_type = 'MRACwithBASELINE'
 
 # controller_type = 'TwoLayerMRACwithBASELINE'
 
 # controller_type = 'RobustMRACwithBASELINE'
 
-# controller_type = 'RobustTwoLayerMRACwithBASELINE'
+controller_type = 'RobustTwoLayerMRACwithBASELINE'
 
 # controller_type = 'HybridMRACwithBASELINE'
 
@@ -58,10 +61,10 @@ if Wrapper_execution == True:
     # Providing the folder path
     origin = os.getcwd()
     
-    # Here the folder name is Iteration_1 it can be changed
+    # Here the folder name is Wapper_folder_name it can be changed
     date = datetime.datetime.now(pytz.timezone('America/New_York'))
     date_folder_name = "_"+str(date.month)  + str(date.day)  + str(date.year)+"_"+ str(date.hour)+"_"+ str(date.minute)
-    Wapper_folder_name = "Random"
+    Wapper_folder_name = "Nominal_" + controller_type
     Wrapper_important_files = Wapper_folder_name+date_folder_name
     target = os.path.join(os.getcwd(), Wrapper_important_files)
     if not os.path.exists(target):
@@ -87,10 +90,10 @@ if Wrapper_execution == True:
     ball_volume = 4/3 * PI * (0.0508/2)**3
     
     payload_mass_array = np.linspace(0.005, 2.7405, 480) 
-    payload_density_array = payload_mass_array/(2 * ball_volume)
+    # payload_density_array = payload_mass_array/(2 * ball_volume)
     
     # #my_ball_density = 7850
-    # payload_density_array =[7850]
+    payload_density_array =[7850]
     #payload_density_array = np.ones(500)*7850
     control_variables = {"my_ball_density":round(payload_density_array[0])}
     #-----------------------------------------------------------------

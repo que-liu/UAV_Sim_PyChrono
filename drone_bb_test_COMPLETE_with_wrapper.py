@@ -1220,8 +1220,10 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             Jacobian_matrix_dot[2,2] = -math.cos(pitch) * math.sin(roll) * roll_dot - math.cos(roll) * math.sin(pitch) * pitch_dot
             
             r_tran = mass_total_estimated * (-KI_tran*integral_position_tracking_ref + translational_acceleration_in_I_user + KP_tran*translational_position_in_I_user + KD_tran*translational_velocity_in_I_user)
+
+            x_ref_tran_dot = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
             
-            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]))
+            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]) - x_ref_tran_dot[3:6])
             
             Phi_adaptive_tran_augmented = np.matrix(np.block([[mu_PD_baseline_tran],
                                                               [Phi_adaptive_tran]]))
@@ -1297,7 +1299,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             dy[0:2] = internal_state_differentiator_phi_ref_diff
             dy[2:4] = internal_state_differentiator_theta_ref_diff
-            dy[4:10] = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            dy[4:10] = x_ref_tran_dot
             dy[10:13] = translational_position_in_I_ref - translational_position_in_I_user
             dy[13:31] = K_hat_x_tran_dot.reshape(18,1)
             dy[31:40] = K_hat_r_tran_dot.reshape(9,1)
@@ -1394,7 +1396,9 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             r_tran = mass_total_estimated * (-KI_tran*integral_position_tracking_ref + translational_acceleration_in_I_user + KP_tran*translational_position_in_I_user + KD_tran*translational_velocity_in_I_user)
             
-            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]))
+            x_ref_tran_dot = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            
+            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]) - x_ref_tran_dot[3:6])
             
             Phi_adaptive_tran_augmented = np.matrix(np.block([[mu_PD_baseline_tran],
                                                               [Phi_adaptive_tran]]))
@@ -1473,7 +1477,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             dy[0:2] = internal_state_differentiator_phi_ref_diff
             dy[2:4] = internal_state_differentiator_theta_ref_diff
-            dy[4:10] = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            dy[4:10] = x_ref_tran_dot
             dy[10:13] = translational_position_in_I_ref - translational_position_in_I_user
             dy[13:31] = K_hat_x_tran_dot.reshape(18,1)
             dy[31:40] = K_hat_r_tran_dot.reshape(9,1)
@@ -1562,7 +1566,9 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             r_tran = mass_total_estimated * (-KI_tran*integral_position_tracking_ref + translational_acceleration_in_I_user + KP_tran*translational_position_in_I_user + KD_tran*translational_velocity_in_I_user)
             
-            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]))
+            x_ref_tran_dot = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            
+            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]) - x_ref_tran_dot[3:6])
             
             Phi_adaptive_tran_augmented = np.matrix(np.block([[mu_PD_baseline_tran],
                                                               [Phi_adaptive_tran]]))
@@ -1652,7 +1658,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             dy[0:2] = internal_state_differentiator_phi_ref_diff
             dy[2:4] = internal_state_differentiator_theta_ref_diff
-            dy[4:10] = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            dy[4:10] = x_ref_tran_dot
             dy[10:13] = translational_position_in_I_ref - translational_position_in_I_user
             dy[13:31] = K_hat_x_tran_dot.reshape(18,1)
             dy[31:40] = K_hat_r_tran_dot.reshape(9,1)
@@ -1748,7 +1754,9 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             r_tran = mass_total_estimated * (-KI_tran*integral_position_tracking_ref + translational_acceleration_in_I_user + KP_tran*translational_position_in_I_user + KD_tran*translational_velocity_in_I_user)
             
-            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]))
+            x_ref_tran_dot = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            
+            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]) - x_ref_tran_dot[3:6])
             
             Phi_adaptive_tran_augmented = np.matrix(np.block([[mu_PD_baseline_tran],
                                                               [Phi_adaptive_tran]]))
@@ -1843,7 +1851,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             dy[0:2] = internal_state_differentiator_phi_ref_diff
             dy[2:4] = internal_state_differentiator_theta_ref_diff
-            dy[4:10] = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            dy[4:10] = x_ref_tran_dot
             dy[10:13] = translational_position_in_I_ref - translational_position_in_I_user
             dy[13:31] = K_hat_x_tran_dot.reshape(18,1)
             dy[31:40] = K_hat_r_tran_dot.reshape(9,1)
@@ -1934,7 +1942,9 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             r_tran = mass_total_estimated * (-KI_tran*integral_position_tracking_ref + translational_acceleration_in_I_user + KP_tran*translational_position_in_I_user + KD_tran*translational_velocity_in_I_user)
             
-            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]))
+            x_ref_tran_dot = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            
+            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]) - x_ref_tran_dot[3:6])
             
             Phi_adaptive_tran_augmented = np.matrix(np.block([[mu_PD_baseline_tran],
                                                               [Phi_adaptive_tran]]))
@@ -2010,7 +2020,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             dy[0:2] = internal_state_differentiator_phi_ref_diff
             dy[2:4] = internal_state_differentiator_theta_ref_diff
-            dy[4:10] = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            dy[4:10] = x_ref_tran_dot
             dy[10:13] = translational_position_in_I_ref - translational_position_in_I_user
             dy[13:31] = K_hat_x_tran_dot.reshape(18,1)
             dy[31:40] = K_hat_r_tran_dot.reshape(9,1)
@@ -2113,8 +2123,9 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             r_tran = mass_total_estimated * (-KI_tran*integral_position_tracking_ref + translational_acceleration_in_I_user + KP_tran*translational_position_in_I_user + KD_tran*translational_velocity_in_I_user)
             
-            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]))
+            x_ref_tran_dot = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
             
+            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]) - x_ref_tran_dot[3:6])
             Phi_adaptive_tran_augmented = np.matrix(np.block([[mu_PD_baseline_tran],
                                                               [Phi_adaptive_tran]]))
             Theta_tran_adaptive_bar_augmented = np.matrix(np.block([[np.identity(3)],
@@ -2192,7 +2203,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             dy[0:2] = internal_state_differentiator_phi_ref_diff
             dy[2:4] = internal_state_differentiator_theta_ref_diff
-            dy[4:10] = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            dy[4:10] = x_ref_tran_dot
             dy[10:13] = translational_position_in_I_ref - translational_position_in_I_user
             dy[13:31] = K_hat_x_tran_dot.reshape(18,1)
             dy[31:40] = K_hat_r_tran_dot.reshape(9,1)
@@ -2287,7 +2298,9 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             r_tran = mass_total_estimated * (-KI_tran*integral_position_tracking_ref + translational_acceleration_in_I_user + KP_tran*translational_position_in_I_user + KD_tran*translational_velocity_in_I_user)
             
-            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]))
+            x_ref_tran_dot = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            
+            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]) - x_ref_tran_dot[3:6])
             
             Phi_adaptive_tran_augmented = np.matrix(np.block([[mu_PD_baseline_tran],
                                                               [Phi_adaptive_tran]]))
@@ -2377,7 +2390,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             dy[0:2] = internal_state_differentiator_phi_ref_diff
             dy[2:4] = internal_state_differentiator_theta_ref_diff
-            dy[4:10] = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            dy[4:10] = x_ref_tran_dot
             dy[10:13] = translational_position_in_I_ref - translational_position_in_I_user
             dy[13:31] = K_hat_x_tran_dot.reshape(18,1)
             dy[31:40] = K_hat_r_tran_dot.reshape(9,1)
@@ -2480,7 +2493,9 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             r_tran = mass_total_estimated * (-KI_tran*integral_position_tracking_ref + translational_acceleration_in_I_user + KP_tran*translational_position_in_I_user + KD_tran*translational_velocity_in_I_user)
             
-            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]))
+            x_ref_tran_dot = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            
+            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]) - x_ref_tran_dot[3:6])
             
             Phi_adaptive_tran_augmented = np.matrix(np.block([[mu_PD_baseline_tran],
                                                               [Phi_adaptive_tran]]))
@@ -2575,7 +2590,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             dy[0:2] = internal_state_differentiator_phi_ref_diff
             dy[2:4] = internal_state_differentiator_theta_ref_diff
-            dy[4:10] = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            dy[4:10] = x_ref_tran_dot
             dy[10:13] = translational_position_in_I_ref - translational_position_in_I_user
             dy[13:31] = K_hat_x_tran_dot.reshape(18,1)
             dy[31:40] = K_hat_r_tran_dot.reshape(9,1)

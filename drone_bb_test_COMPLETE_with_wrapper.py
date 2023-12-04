@@ -1278,7 +1278,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -1454,7 +1454,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -1630,7 +1630,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -1820,7 +1820,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -1999,7 +1999,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -2180,7 +2180,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -2362,7 +2362,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -2559,7 +2559,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))

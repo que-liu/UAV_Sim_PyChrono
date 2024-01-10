@@ -989,6 +989,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     
     # controller_type = 'FunnelMRACwithBASELINE'
     
+    # controller_type = 'FunnelTwoLayerMRACwithBASELINE'
+    
     # ----------------------------------------------------------------
     #                     %%%%%%%%%%%%%%%%%%%%%%
     # ----------------------------------------------------------------
@@ -1083,6 +1085,16 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         B_rot,A_ref_rot,B_ref_rot,Q_rot,P_rot,Gamma_x_rot,Gamma_r_rot,Gamma_Theta_rot,eta_max_funnel_tran,M_funnel_tran,u_max,u_min,
         Delta_u_min,nu_funnel_tran,eta_max_funnel_rot,M_funnel_rot,Moment_max,Moment_min,Delta_Moment_min,
         nu_funnel_rot] = Gains.FunnelMRACwithBASELINE(mass_total_estimated, air_density_estimated, surface_area_estimated, drag_coefficient_matrix_estimated)
+    
+    elif controller_type == 'FunnelTwoLayerMRACwithBASELINE':
+        # Gains Two-Layer MRAC with Baseline
+        [number_of_states,size_DATA,KP_tran,KD_tran,KI_tran,KP_tran_PD_baseline,KD_tran_PD_baseline,KP_rot,KP_rot_PI_baseline,
+        KD_rot_PI_baseline,KI_rot_PI_baseline,K_P_omega_ref,A_tran,B_tran,A_tran_bar,Lambda_bar,Theta_tran_adaptive_bar,
+        A_ref_tran,B_ref_tran,Gamma_x_tran,Gamma_r_tran,Gamma_Theta_tran,Gamma_Theta_tran,A_rot,B_rot,A_ref_rot,
+        B_ref_rot,Gamma_x_rot,Gamma_r_rot,Gamma_Theta_rot,A_transient_tran,Q_tran_2Layer,P_tran_2Layer,Gamma_g_tran,
+        A_transient_rot,Q_rot_2Layer,P_rot_2Layer,Gamma_g_rot,K_x_tran_bar,K_r_tran_bar,K_g_tran_bar,eta_max_funnel_tran,
+        M_funnel_tran,u_max,u_min,Delta_u_min,nu_funnel_tran,eta_max_funnel_rot,M_funnel_rot,Moment_max,Moment_min,
+        Delta_Moment_min,nu_funnel_rot] = Gains.TwoLayerMRACwithBASELINE(mass_total_estimated, air_density_estimated, surface_area_estimated, drag_coefficient_matrix_estimated)
     
     
     #%% Control Algorithms ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2804,6 +2816,206 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             return np.array(dy)
         
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        
+        def FunnelTwoLayerMRACwithBASELINE(t, y):
+            """
+            This function defines the system of equations of the Funnel 2-Layer MRAC with Baseline CONTROLLER that need to be integrated 
+        
+            """
+            global mu_x, mu_y, mu_z, u1, roll_ref, pitch_ref, roll_ref_dot, pitch_ref_dot, roll_ref_ddot, pitch_ref_ddot
+            global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
+            global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
+            global mu_PD_baseline_tran, Moment_baseline_PI
+        
+            
+            state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
+            state_theta_ref_diff = y[2:4] # State of the differentiator for theta_ref (pitch_ref)
+            x_ref_tran = y[4:10] # Reference model state
+            integral_position_tracking_ref = y[10:13] # Integral of ('translational_position_in_I_ref' - 'translational_position_in_I_user')
+            K_hat_x_tran = y[13:31] # \hat{K}_x (translational)
+            K_hat_r_tran = y[31:40] # \hat{K}_r (translational)
+            Theta_hat_tran = y[40:58] # \hat{\Theta} (translational)
+            omega_ref = y[58:61] # Reference model rotational dynamics
+            K_hat_x_rot = y[61:70] # \hat{K}_x (rotational)
+            K_hat_r_rot = y[70:79] # \hat{K}_r (rotational)
+            Theta_hat_rot = y[79:97] # \hat{\Theta} (rotational)
+            integral_e_rot = y[97:100] # Integral of 'e_rot' = (angular_velocity - omega_ref)
+            e_transient_tran = y[100:106] # Transient error dynamics translational (Two-layer) 
+            K_hat_g_tran = y[106:124] # \hat{K}_g translational (Two-layer) 
+            e_transient_rot = y[124:127] # Transient error dynamics rotational (Two-layer) 
+            K_hat_g_rot = y[127:136] # \hat{K}_g (rotational)(Two-layer)
+            eta_funnel_tran = y[136] # eta used to compute the translational dynamics funnel diameter
+            eta_funnel_rot = y[137] # eta used to compute the rotational dynamics funnel diameter
+            
+            K_hat_x_tran = np.matrix(K_hat_x_tran.reshape(6,3))
+            K_hat_r_tran = np.matrix(K_hat_r_tran.reshape(3,3))
+            Theta_hat_tran = np.matrix(Theta_hat_tran.reshape(6,3))
+            K_hat_x_rot = np.matrix(K_hat_x_rot.reshape(3,3))
+            K_hat_r_rot = np.matrix(K_hat_r_rot.reshape(3,3))
+            Theta_hat_rot = np.matrix(Theta_hat_rot.reshape(6,3))
+            K_hat_g_tran = np.matrix(K_hat_g_tran.reshape(6,3))
+            K_hat_g_rot = np.matrix(K_hat_g_rot.reshape(3,3))
+            
+            e_tran = x_tran - x_ref_tran
+            e_rot = angular_velocity - omega_ref
+            translational_position_in_I_ref = x_ref_tran[0:3]
+            
+            e_transient_tran_dot = A_transient_tran * e_transient_tran
+            epsilon_tran = e_tran - e_transient_tran
+            e_transient_rot_dot = A_transient_rot * e_transient_rot
+            epsilon_rot = e_rot - e_transient_rot
+            
+            R3 = np.matrix([[math.cos(yaw), -math.sin(yaw), 0],
+                            [math.sin(yaw),  math.cos(yaw), 0],
+                            [            0,              0, 1]])
+            
+            R2 = np.matrix([[ math.cos(pitch), 0, math.sin(pitch)],
+                            [               0, 1,               0],
+                            [-math.sin(pitch), 0, math.cos(pitch)]])
+            
+            R1 = np.matrix([[1,              0,               0],
+                            [0, math.cos(roll), -math.sin(roll)],
+                            [0, math.sin(roll),  math.cos(roll)]])
+            
+            R_from_loc_to_glob = R3*R2*R1
+            R_from_glob_to_loc = R_from_loc_to_glob.transpose()
+            
+            Phi_adaptive_tran = -0.5 * LA.norm(R_from_glob_to_loc * translational_velocity_in_I) * (R_from_glob_to_loc * translational_velocity_in_I)
+            
+            Jacobian_matrix_inverse = np.matrix([[1, (math.sin(roll)*math.sin(pitch))/math.cos(pitch), (math.cos(roll)*math.sin(pitch))/math.cos(pitch)],
+                                                  [0,                                   math.cos(roll),                                  -math.sin(roll)],
+                                                  [0,                   math.sin(roll)/math.cos(pitch),                   math.cos(roll)/math.cos(pitch)]])
+        
+            angular_position_dot = Jacobian_matrix_inverse * angular_velocity # Time derivative of the Euler angles
+            roll_dot = angular_position_dot[0] # phi_dot
+            pitch_dot = angular_position_dot[1] # theta_dot
+            # yaw_dot = angular_position_dot[2] # psi_dot
+            
+            Jacobian_matrix_dot = np.matrix(np.zeros((3,3)))
+            Jacobian_matrix_dot[0,2] = -math.cos(pitch) * pitch_dot
+            Jacobian_matrix_dot[1,1] = -math.sin(roll) * roll_dot
+            Jacobian_matrix_dot[1,2] = math.cos(roll) * math.cos(pitch) * roll_dot - math.sin(roll) * math.sin(pitch) * pitch_dot
+            Jacobian_matrix_dot[2,1] = -math.cos(roll) * roll_dot
+            Jacobian_matrix_dot[2,2] = -math.cos(pitch) * math.sin(roll) * roll_dot - math.cos(roll) * math.sin(pitch) * pitch_dot
+            
+            r_tran = mass_total_estimated * (-KI_tran*integral_position_tracking_ref + translational_acceleration_in_I_user + KP_tran*translational_position_in_I_user + KD_tran*translational_velocity_in_I_user)
+            
+            x_ref_tran_dot = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            
+            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]) - x_ref_tran_dot[3:6])
+            
+            Phi_adaptive_tran_augmented = np.matrix(np.block([[mu_PD_baseline_tran],
+                                                              [Phi_adaptive_tran]]))
+            Theta_tran_adaptive_bar_augmented = np.matrix(np.block([[np.identity(3)],
+                                                              [Theta_tran_adaptive_bar]]))
+            
+            mu_baseline_tran = K_x_tran_bar.T * x_tran + K_r_tran_bar.T * r_tran - Theta_tran_adaptive_bar_augmented.T * Phi_adaptive_tran_augmented + K_g_tran_bar.T * e_tran
+            mu_adaptive_tran = K_hat_x_tran.T * x_tran + K_hat_r_tran.T * r_tran - Theta_hat_tran.T * Phi_adaptive_tran_augmented + K_hat_g_tran.T * e_tran
+            mu_tran = mu_PD_baseline_tran + mu_baseline_tran + mu_adaptive_tran
+            
+            H_function_funnel_tran = eta_max_funnel_tran - eta_funnel_tran**2 - e_tran.T * M_funnel_tran * e_tran
+            Ve_funnel_tran = (epsilon_tran.T * P_tran_2Layer * epsilon_tran)/H_function_funnel_tran
+            
+            K_hat_x_tran_dot = -Gamma_x_tran * x_tran * epsilon_tran.T * (P_tran_2Layer + M_funnel_tran * Ve_funnel_tran.item()) * B_tran/H_function_funnel_tran
+            K_hat_r_tran_dot = -Gamma_r_tran * r_tran * epsilon_tran.T * (P_tran_2Layer + M_funnel_tran * Ve_funnel_tran.item()) * B_tran/H_function_funnel_tran
+            Theta_hat_tran_dot = Gamma_Theta_tran * Phi_adaptive_tran_augmented * epsilon_tran.T * (P_tran_2Layer + M_funnel_tran * Ve_funnel_tran.item()) * B_tran/H_function_funnel_tran
+            K_hat_g_tran_dot = -Gamma_g_tran * e_tran * epsilon_tran.T * (P_tran_2Layer + M_funnel_tran * Ve_funnel_tran.item()) * B_tran/H_function_funnel_tran
+     
+            mu_x = mu_tran[0].item()
+            mu_y = mu_tran[1].item()
+            mu_z = mu_tran[2].item()
+            
+            u1 = math.sqrt(mu_x ** 2 + mu_y ** 2 + (mass_total_estimated * G_acc - mu_z) ** 2)
+            
+            xi_funnel_tran_temp = (u_max - u1)/max(u1 - u_min, Delta_u_min)
+            xi_funnel_tran = (e_tran.T * Q_tran_2Layer * e_tran >= 2 * Ve_funnel_tran * eta_funnel_tran**2 * xi_funnel_tran_temp + nu_funnel_tran) * (H_function_funnel_tran > 0) * xi_funnel_tran_temp
+            
+            
+            calculation_var_A = -(1/u1) * (mu_x * math.sin(yaw_ref) - mu_y * math.cos(yaw_ref))
+            roll_ref = math.atan2(calculation_var_A, math.sqrt(1 - calculation_var_A ** 2))
+            
+            pitch_ref = math.atan2(-(mu_x * math.cos(yaw_ref) + mu_y * math.sin(yaw_ref)), (mass_total_estimated * G_acc - mu_z))
+            
+            internal_state_differentiator_phi_ref_diff = A_phi_ref * state_phi_ref_diff + B_phi_ref*roll_ref
+            internal_state_differentiator_theta_ref_diff = A_theta_ref * state_theta_ref_diff + B_theta_ref*pitch_ref
+            
+            roll_ref_dot = np.asarray(C_phi_ref*state_phi_ref_diff).item()
+            pitch_ref_dot = np.asarray(C_theta_ref*state_theta_ref_diff).item()
+            
+            roll_ref_ddot = np.asarray(C_phi_ref*internal_state_differentiator_phi_ref_diff).item()
+            pitch_ref_ddot = np.asarray(C_theta_ref*internal_state_differentiator_theta_ref_diff).item()
+            
+            angular_position_ref_dot = np.array([roll_ref_dot, pitch_ref_dot, yaw_ref_dot]).reshape(3,1)
+            angular_position_ref_ddot = np.array([roll_ref_ddot, pitch_ref_ddot, yaw_ref_ddot]).reshape(3,1)
+        
+            angular_error_dot = angular_position_dot - angular_position_ref_dot
+            
+            Jacobian_matrix = np.matrix([[1,               0,                 -math.sin(pitch)],
+                                          [0,  math.cos(roll), math.sin(roll) * math.cos(pitch)],
+                                          [0, -math.sin(roll), math.cos(roll) * math.cos(pitch)]])
+            
+            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error + angular_position_ref_dot)
+            omega_cmd_dot = Jacobian_matrix_dot * (-KP_rot*angular_error + angular_position_ref_dot) + Jacobian_matrix * (-KP_rot*angular_error_dot + angular_position_ref_ddot)
+            
+            omega_ref_dot = -K_P_omega_ref*(omega_ref - omega_cmd) + omega_cmd_dot
+            
+            r_rot = K_P_omega_ref * omega_cmd + omega_cmd_dot
+            
+            Phi_adaptive_rot = np.array([[angular_velocity[1].item() * angular_velocity[2].item()],
+                                          [angular_velocity[0].item() * angular_velocity[2].item()],
+                                          [angular_velocity[0].item() * angular_velocity[1].item()]])
+            
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
+            
+            Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
+                                                              [Phi_adaptive_rot]]))
+            
+            H_function_funnel_rot = eta_max_funnel_rot - eta_funnel_rot**2 - e_rot.T * M_funnel_rot * e_rot
+            Ve_funnel_rot = (epsilon_rot.T * P_rot_2Layer * epsilon_rot)/H_function_funnel_rot
+            
+            K_hat_x_rot_dot = -Gamma_x_rot * angular_velocity * epsilon_rot.T * (P_rot_2Layer + M_funnel_rot * Ve_funnel_rot.item()) * B_rot/H_function_funnel_rot
+            K_hat_r_rot_dot = -Gamma_r_rot * r_rot * epsilon_rot.T * (P_rot_2Layer + M_funnel_rot * Ve_funnel_rot.item()) * B_rot/H_function_funnel_rot
+            Theta_hat_rot_dot = Gamma_Theta_rot * Phi_adaptive_rot_augmented * epsilon_rot.T * (P_rot_2Layer + M_funnel_rot * Ve_funnel_rot.item()) * B_rot/H_function_funnel_rot
+            K_hat_g_rot_dot = -Gamma_g_rot * e_rot * epsilon_rot.T * (P_rot_2Layer + M_funnel_rot * Ve_funnel_rot.item()) * B_rot/H_function_funnel_rot
+            
+            Moment_baseline = np.cross(angular_velocity.ravel(), (I_matrix_estimated * angular_velocity).ravel()).reshape(3,1)
+            Moment_adaptive = K_hat_x_rot.T * angular_velocity + K_hat_r_rot.T * r_rot - Theta_hat_rot.T * Phi_adaptive_rot_augmented + K_hat_g_rot.T * e_rot
+            
+            Moment = Moment_baseline_PI + Moment_baseline + Moment_adaptive
+            
+            xi_funnel_rot_temp = (Moment_max - LA.norm(Moment))/max(LA.norm(Moment) - Moment_min, Delta_Moment_min)
+            xi_funnel_rot = (e_rot.T * Q_rot_2Layer * e_rot >= 2 * Ve_funnel_rot * eta_funnel_rot**2 * xi_funnel_rot_temp + nu_funnel_rot) * (H_function_funnel_rot > 0) * xi_funnel_rot_temp
+            
+            
+            u2 = Moment[0].item()
+            u3 = Moment[1].item()
+            u4 = Moment[2].item()
+            
+            
+            
+            dy[0:2] = internal_state_differentiator_phi_ref_diff
+            dy[2:4] = internal_state_differentiator_theta_ref_diff
+            dy[4:10] = x_ref_tran_dot
+            dy[10:13] = translational_position_in_I_ref - translational_position_in_I_user
+            dy[13:31] = K_hat_x_tran_dot.reshape(18,1)
+            dy[31:40] = K_hat_r_tran_dot.reshape(9,1)
+            dy[40:58] = Theta_hat_tran_dot.reshape(18,1)
+            dy[58:61] = omega_ref_dot
+            dy[61:70] = K_hat_x_rot_dot.reshape(9,1)
+            dy[70:79] = K_hat_r_rot_dot.reshape(9,1)
+            dy[79:97] = Theta_hat_rot_dot.reshape(18,1)
+            dy[97:100] = angular_velocity - omega_ref
+            dy[100:106] = e_transient_tran_dot
+            dy[106:124] = K_hat_g_tran_dot.reshape(18,1)
+            dy[124:127] = e_transient_rot_dot
+            dy[127:136] = K_hat_g_rot_dot.reshape(9,1)
+            dy[136] = eta_funnel_tran * xi_funnel_tran
+            dy[137] = eta_funnel_rot * xi_funnel_rot
+         
+            return np.array(dy)
+        
+        
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         
     my_frame_pos_GLOB = my_frame.GetPos()
@@ -3840,6 +4052,33 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                 eta_funnel_tran = yout[100] # eta used to compute the translational dynamics funnel diameter
                 eta_funnel_rot = yout[101] # eta used to compute the rotational dynamics funnel diameter
                 ###################################################################
+                
+            elif controller_type == 'FunnelTwoLayerMRACwithBASELINE':
+                # Integrating the ODEs through RK4 for Two-Layer MRAC with Baseline controller
+                yout = rk4singlestep(controller.TwoLayerMRACwithBASELINE, m_timestep, time_now, yin)
+                Y_list = np.append(Y_list,np.resize(yout,(number_of_states,1)), axis=1)
+                yin = yout
+                
+                ################### 2-LAYER MRAC WITH BASELINE ####################
+                state_phi_ref_diff = yout[0:2] # State of the differentiator for phi_ref (roll_ref)
+                state_theta_ref_diff = yout[2:4] # State of the differentiator for theta_ref (pitch_ref)
+                x_ref_tran = yout[4:10] # Reference model state
+                integral_position_tracking_ref = yout[10:13] # Integral of ('translational_position_in_I_ref' - 'translational_position_in_I_user')
+                K_hat_x_tran = yout[13:31] # \hat{K}_x (translational)
+                K_hat_r_tran = yout[31:40] # \hat{K}_r (translational)
+                Theta_hat_tran = yout[40:58] # \hat{\Theta} (translational)
+                omega_ref = yout[58:61] # Reference model rotational dynamics
+                K_hat_x_rot = yout[61:70] # \hat{K}_x (rotational)
+                K_hat_r_rot = yout[70:79] # \hat{K}_r (rotational)
+                Theta_hat_rot = yout[79:97] # \hat{\Theta} (rotational)
+                integral_e_rot = yout[97:100] # Integral of 'e_rot' = (angular_velocity - omega_ref)
+                e_transient_tran = yout[100:106] # Transient error dynamics translational (Two-layer) 
+                K_hat_g_tran = yout[106:124] # \hat{K}_g translational (Two-layer) 
+                e_transient_rot = yout[124:127] # Transient error dynamics rotational (Two-layer) 
+                K_hat_g_rot = yout[127:136] # \hat{K}_g (rotational)(Two-layer)
+                eta_funnel_tran = yout[136] # eta used to compute the translational dynamics funnel diameter
+                eta_funnel_rot = yout[137] # eta used to compute the rotational dynamics funnel diameter
+                ###################################################################
             
             # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
             
@@ -4329,6 +4568,13 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         elif controller_type == 'FunnelMRACwithBASELINE':
             # DATA saved in CSV file
             np.savetxt("DATA_FunnelMRACwithBASELINE.csv", 
+                        DATA,
+                        delimiter =", ",  
+                        fmt ='% s')
+            
+        elif controller_type == 'FunnelTwoLayerMRACwithBASELINE':
+            # DATA saved in CSV file
+            np.savetxt("DATA_FunnelTwoLayerMRACwithBASELINE.csv", 
                         DATA,
                         delimiter =", ",  
                         fmt ='% s')

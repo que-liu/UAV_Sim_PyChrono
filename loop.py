@@ -49,7 +49,9 @@ visualization_flag = True
 
 # controller_type = 'HybridRobustTwoLayerMRACwithBASELINE'
 
-controller_type = 'FunnelMRACwithBASELINE'
+# controller_type = 'FunnelMRACwithBASELINE'
+
+controller_type = 'FunnelTwoLayerMRACwithBASELINE'
 
 # ----------------------------------------------------------------
 #                     %%%%%%%%%%%%%%%%%%%%%%

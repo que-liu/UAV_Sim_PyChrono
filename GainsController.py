@@ -1189,6 +1189,149 @@ class Gains:
     # end of FUNNEL MRAC WITH BASELINE
     # ================================================================================================================================================================
 
+    # ================================================================================================================================================================
+    # FUNNEL TWO-LAYER MRAC WITH BASELINE
+    # ================================================================================================================================================================
+    def TwoLayerMRACwithBASELINE(mass_total_estimated,air_density_estimated,surface_area_estimated,drag_coefficient_matrix_estimated):
+        
+        # Number of states to be integrated by RK4
+        number_of_states = 138
+        # Length of the array vector that will be exported 
+        size_DATA = 74
+        # size_DATA = 94 # OLD data format
+        
+        # ----------------------------------------------------------------
+        #                     Baseline Parameters
+        # ----------------------------------------------------------------
+
+        # **Translational** baseline parameters to let the reference model follow the user-defined model (mu_baseline_tran)
+        KP_tran = np.matrix(1 * np.diag([5,5,6]))
+        KD_tran = np.matrix(1 * np.diag([8,8,3]))
+        KI_tran = np.matrix(1 * np.diag([1,1,0.1]))
+
+        # **Translational** parameters for the PD baseline controller (mu_PD_baseline_tran)
+        KP_tran_PD_baseline = np.matrix(1 * np.diag([5,5,6]))
+        KD_tran_PD_baseline = np.matrix(1 * np.diag([8,8,3]))
+
+        # **Rotational** baseline parameters
+        KP_rot = np.matrix(1 * np.diag([100,100,50]))
+
+        # **Rotational** parameters for the PID baseline controller (Moment_baseline_PI)
+        KP_rot_PI_baseline = np.matrix(2 * np.diag([1,1,0.5]))
+        KD_rot_PI_baseline = np.matrix(0.3 * np.diag([1,1,0.5]))
+        KI_rot_PI_baseline = np.matrix(1 * np.diag([1,1,0.5]))
+
+        K_P_omega_ref = np.matrix(1.5 * np.diag([5,5,2]))
+
+        # ----------------------------------------------------------------
+        #                   Translational Parameters MRAC
+        # ----------------------------------------------------------------
+
+        # Plant parameters **Translational** dynamics
+        A_tran = np.block([[np.zeros((3, 3)),   np.identity(3)],
+                           [np.zeros((3, 3)), np.zeros((3, 3))]])
+
+        B_tran = np.matrix(np.block([[np.zeros((3, 3))],
+                                         [np.identity(3)]]))
+
+        A_tran_bar = A_tran # Estimated A_tran matrix
+        Lambda_bar = (1/mass_total_estimated) * np.identity(3) # Estimate of \Lambda
+        Theta_tran_adaptive_bar = air_density_estimated * surface_area_estimated * drag_coefficient_matrix_estimated
+
+        # **Translational** reference model parameters and estimates
+        A_ref_tran = np.block([[np.zeros((3, 3)),  np.identity(3)],
+                               [        -KP_tran,        -KD_tran]])
+
+        B_ref_tran = np.matrix(np.block([[np.zeros((3, 3))],
+                                         [(1/mass_total_estimated)*np.identity(3)]]))
+
+        # **Translational** adaptive parameters
+        Gamma_x_tran = np.matrix(5e2 * np.diag([1,1,10,1,1,10])) # Adaptive rates
+        Gamma_r_tran = np.matrix(1e2 * np.diag([1,1,10])) # Adaptive rates
+        Gamma_Theta_tran = np.matrix(1e0 * np.diag([1,1,1,1,1,1])) # Adaptive rates
+
+        # ----------------------------------------------------------------
+        #                   Rotational Parameters MRAC
+        # ----------------------------------------------------------------
+
+        # Plant parameters **Rotational** dynamics
+        A_rot = np.matrix(np.zeros((3,3)))
+        B_rot = np.matrix(np.eye(3))
+
+        # **Rotational** reference model parameters
+        A_ref_rot = -K_P_omega_ref
+        B_ref_rot = np.matrix(np.eye(3))
+
+        # **Rotational** adaptive parameters
+        Gamma_x_rot = np.matrix(2e1 * np.diag([1,10,1])) # Adaptive rates
+        Gamma_r_rot = np.matrix(1e-3 * np.diag([1,1,1])) # Adaptive rates
+        Gamma_Theta_rot = np.matrix(1e0 * np.diag([1,1,1,1,1,1])) # Adaptive rates
+
+        # ----------------------------------------------------------------
+        #              Additional gains for 2-Layer MRAC
+        # ----------------------------------------------------------------
+
+        # **Translational** second layer parameters
+        poles_ref_tran = LA.eig(A_ref_tran)[0]
+        poles_transient_tran = poles_ref_tran + 2*np.min(np.real(poles_ref_tran))
+        K_transient_tran = scipy.signal.place_poles(A_tran, B_ref_tran, poles_transient_tran)
+        K_transient_tran = np.matrix(K_transient_tran.gain_matrix)
+        A_transient_tran = A_tran - B_ref_tran*K_transient_tran # Eigenvalues of A_transient should be further on the left in the complex plane of those of A_ref!!!!
+
+        Q_tran_2Layer = np.matrix(1e-2 * np.diag([1,1,12,1,1,2]))
+        P_tran_2Layer = np.matrix(linalg.solve_continuous_lyapunov(A_transient_tran.T, -Q_tran_2Layer))
+
+        Gamma_g_tran = np.matrix(1e1 * np.diag([1,1,1,1,1,1])) # Adaptive rates
+
+        # **Rotational** second layer parameters
+        poles_ref_rot = LA.eig(A_ref_rot)[0]
+        poles_transient_rot = poles_ref_rot + np.min(np.real(poles_ref_rot))
+        K_transient_rot = scipy.signal.place_poles(A_rot, B_ref_rot, poles_transient_rot)
+        K_transient_rot = np.matrix(K_transient_rot.gain_matrix)
+        A_transient_rot = A_rot - B_ref_rot*K_transient_rot # Eigenvalues of A_transient should be further on the left in the complex plane of those of A_ref!!!!
+
+        Q_rot_2Layer = np.matrix(8e-4 * np.diag([1,10,1]))
+        P_rot_2Layer = np.matrix(linalg.solve_continuous_lyapunov(A_transient_rot.T, -Q_rot_2Layer))
+
+        Gamma_g_rot = np.matrix(1e0 * np.diag([1,1,1])) # Adaptive rates
+
+        # Estimates of the matrices that verify the matching conditions for the **Translational** dynamics.
+        # Used for baseline controller and to center constraining ellipsoid when using projection operator
+        K_x_tran_bar = (LA.pinv(B_tran*Lambda_bar)*(A_ref_tran - A_tran_bar)).T * np.matrix(1*np.diag([1,1,1]))
+        K_r_tran_bar = (LA.pinv(B_tran*Lambda_bar)*B_ref_tran).T * np.matrix(1*np.diag([1,1,1]))
+        K_g_tran_bar = (LA.pinv(B_tran*Lambda_bar)*(A_transient_tran - A_ref_tran)).T * np.matrix(0.001*np.diag([1,1,1]))
+        
+        # ----------------------------------------------------------------
+        #                   Funnel Parameters MRAC
+        # ----------------------------------------------------------------
+        
+        # **Translational** Funnel parameters
+        eta_max_funnel_tran = 1
+        M_funnel_tran = np.matrix(1e0 * np.diag([1,1,1,1,1,1])) # n x n
+        u_max = 85
+        u_min = 0
+        Delta_u_min = 5
+        nu_funnel_tran = 0.01
+        
+        # **Rotational** Funnel parameters
+        eta_max_funnel_rot = 1
+        M_funnel_rot = np.matrix(1e0 * np.diag([1,1,1])) # n x n
+        Moment_max = 10
+        Moment_min = 0
+        Delta_Moment_min = 0.01
+        nu_funnel_rot = 0.01
+        
+        return [number_of_states,size_DATA,KP_tran,KD_tran,KI_tran,KP_tran_PD_baseline,KD_tran_PD_baseline,KP_rot,KP_rot_PI_baseline,
+                KD_rot_PI_baseline,KI_rot_PI_baseline,K_P_omega_ref,A_tran,B_tran,A_tran_bar,Lambda_bar,Theta_tran_adaptive_bar,
+                A_ref_tran,B_ref_tran,Gamma_x_tran,Gamma_r_tran,Gamma_Theta_tran,Gamma_Theta_tran,A_rot,B_rot,A_ref_rot,
+                B_ref_rot,Gamma_x_rot,Gamma_r_rot,Gamma_Theta_rot,A_transient_tran,Q_tran_2Layer,P_tran_2Layer,Gamma_g_tran,
+                A_transient_rot,Q_rot_2Layer,P_rot_2Layer,Gamma_g_rot,K_x_tran_bar,K_r_tran_bar,K_g_tran_bar,eta_max_funnel_tran,
+                M_funnel_tran,u_max,u_min,Delta_u_min,nu_funnel_tran,eta_max_funnel_rot,M_funnel_rot,Moment_max,Moment_min,
+                Delta_Moment_min,nu_funnel_rot]
+    # ================================================================================================================================================================
+    # end of FUNNEL TWO-LAYER MRAC WITH BASELINE
+    # ================================================================================================================================================================
+    
    
    
    

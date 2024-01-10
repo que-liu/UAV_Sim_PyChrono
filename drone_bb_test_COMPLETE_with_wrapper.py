@@ -1080,8 +1080,9 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         [number_of_states,size_DATA,KP_tran,KD_tran,KI_tran,KP_tran_PD_baseline,KD_tran_PD_baseline,KP_rot,KP_rot_PI_baseline,
         KD_rot_PI_baseline,KI_rot_PI_baseline,K_P_omega_ref,A_tran,B_tran,A_tran_bar,Lambda_bar,Theta_tran_adaptive_bar,
         A_ref_tran,B_ref_tran,Gamma_x_tran,Gamma_r_tran,Gamma_Theta_tran,Gamma_Theta_tran,Q_tran,P_tran,K_x_tran_bar,K_r_tran_bar,A_rot,
-        B_rot,A_ref_rot,B_ref_rot,Q_rot,P_rot,Gamma_x_rot,Gamma_r_rot,Gamma_Theta_rot,eta_bar_funnel,M_funnel,u_max,u_min,
-        Delta_u_min,nu_funnel] = Gains.FunnelMRACwithBASELINE(mass_total_estimated, air_density_estimated, surface_area_estimated, drag_coefficient_matrix_estimated)
+        B_rot,A_ref_rot,B_ref_rot,Q_rot,P_rot,Gamma_x_rot,Gamma_r_rot,Gamma_Theta_rot,eta_max_funnel_tran,M_funnel_tran,u_max,u_min,
+        Delta_u_min,nu_funnel_tran,eta_max_funnel_rot,M_funnel_rot,Moment_max,Moment_min,Delta_Moment_min,
+        nu_funnel_rot] = Gains.FunnelMRACwithBASELINE(mass_total_estimated, air_density_estimated, surface_area_estimated, drag_coefficient_matrix_estimated)
     
     
     #%% Control Algorithms ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2647,7 +2648,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             K_hat_r_rot = y[70:79] # \hat{K}_r (rotational)
             Theta_hat_rot = y[79:97] # \hat{\Theta} (rotational)
             integral_e_rot = y[97:100] # Integral of 'e_rot' = (angular_velocity - omega_ref)
-            eta_funnel = y[100] # eta used to compute the funnel diameter
+            eta_funnel_tran = y[100] # eta used to compute the translational dynamics funnel diameter
+            eta_funnel_rot = y[101] # eta used to compute the rotational dynamics funnel diameter
             
             K_hat_x_tran = np.matrix(K_hat_x_tran.reshape(6,3))
             K_hat_r_tran = np.matrix(K_hat_r_tran.reshape(3,3))
@@ -2708,12 +2710,12 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             mu_adaptive_tran = K_hat_x_tran.T * x_tran + K_hat_r_tran.T * r_tran - Theta_hat_tran.T * Phi_adaptive_tran_augmented
             mu_tran = mu_PD_baseline_tran + mu_baseline_tran + mu_adaptive_tran
             
-            H_function_funnel = eta_bar_funnel - eta_funnel**2 - e_tran.T * M_funnel * e_tran
-            Ve_funnel = (e_tran.T * P_tran * e_tran)/H_function_funnel
+            H_function_funnel_tran = eta_max_funnel_tran - eta_funnel_tran**2 - e_tran.T * M_funnel_tran * e_tran
+            Ve_funnel_tran = (e_tran.T * P_tran * e_tran)/H_function_funnel_tran
             
-            K_hat_x_tran_dot = -Gamma_x_tran * x_tran * e_tran.T * (P_tran + M_funnel * Ve_funnel.item()) * B_tran/H_function_funnel
-            K_hat_r_tran_dot = -Gamma_r_tran * r_tran * e_tran.T * (P_tran + M_funnel * Ve_funnel.item()) * B_tran/H_function_funnel
-            Theta_hat_tran_dot = Gamma_Theta_tran * Phi_adaptive_tran_augmented * e_tran.T * (P_tran + M_funnel * Ve_funnel.item()) * B_tran/H_function_funnel        
+            K_hat_x_tran_dot = -Gamma_x_tran * x_tran * e_tran.T * (P_tran + M_funnel_tran * Ve_funnel_tran.item()) * B_tran/H_function_funnel_tran
+            K_hat_r_tran_dot = -Gamma_r_tran * r_tran * e_tran.T * (P_tran + M_funnel_tran * Ve_funnel_tran.item()) * B_tran/H_function_funnel_tran
+            Theta_hat_tran_dot = Gamma_Theta_tran * Phi_adaptive_tran_augmented * e_tran.T * (P_tran + M_funnel_tran * Ve_funnel_tran.item()) * B_tran/H_function_funnel_tran        
      
             mu_x = mu_tran[0].item()
             mu_y = mu_tran[1].item()
@@ -2721,8 +2723,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             
             u1 = math.sqrt(mu_x ** 2 + mu_y ** 2 + (mass_total_estimated * G_acc - mu_z) ** 2)
             
-            xi_funnel_temp = (u_max - u1)/max(u1 - u_min, Delta_u_min)
-            xi_funnel = (e_tran.T * Q_tran * e_tran >= 2 * Ve_funnel * eta_funnel**2 * xi_funnel_temp + nu_funnel) * (H_function_funnel > 0) * xi_funnel_temp
+            xi_funnel_tran_temp = (u_max - u1)/max(u1 - u_min, Delta_u_min)
+            xi_funnel_tran = (e_tran.T * Q_tran * e_tran >= 2 * Ve_funnel_tran * eta_funnel_tran**2 * xi_funnel_tran_temp + nu_funnel_tran) * (H_function_funnel_tran > 0) * xi_funnel_tran_temp
             
             calculation_var_A = -(1/u1) * (mu_x * math.sin(yaw_ref) - mu_y * math.cos(yaw_ref))
             roll_ref = math.atan2(calculation_var_A, math.sqrt(1 - calculation_var_A ** 2))
@@ -2763,14 +2765,21 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
             
-            K_hat_x_rot_dot = -Gamma_x_rot * angular_velocity * e_rot.T * P_rot * B_rot
-            K_hat_r_rot_dot = -Gamma_r_rot * r_rot * e_rot.T * P_rot * B_rot
-            Theta_hat_rot_dot = Gamma_Theta_rot * Phi_adaptive_rot_augmented * e_rot.T * P_rot * B_rot
+            H_function_funnel_rot = eta_max_funnel_rot - eta_funnel_rot**2 - e_rot.T * M_funnel_rot * e_rot
+            Ve_funnel_rot = (e_rot.T * P_rot * e_rot)/H_function_funnel_rot
+            
+            K_hat_x_rot_dot = -Gamma_x_rot * angular_velocity * e_rot.T * (P_rot + M_funnel_rot * Ve_funnel_rot.item()) * B_rot/H_function_funnel_rot
+            K_hat_r_rot_dot = -Gamma_r_rot * r_rot * e_rot.T * (P_rot + M_funnel_rot * Ve_funnel_rot.item()) * B_rot/H_function_funnel_rot
+            Theta_hat_rot_dot = Gamma_Theta_rot * Phi_adaptive_rot_augmented * e_rot.T * (P_rot + M_funnel_rot * Ve_funnel_rot.item()) * B_rot/H_function_funnel_rot
             
             Moment_baseline = np.cross(angular_velocity.ravel(), (I_matrix_estimated * angular_velocity).ravel()).reshape(3,1)
             Moment_adaptive = K_hat_x_rot.T * angular_velocity + K_hat_r_rot.T * r_rot - Theta_hat_rot.T * Phi_adaptive_rot_augmented
             
             Moment = Moment_baseline_PI + Moment_baseline + Moment_adaptive
+            
+            xi_funnel_rot_temp = (Moment_max - LA.norm(Moment))/max(LA.norm(Moment) - Moment_min, Delta_Moment_min)
+            xi_funnel_rot = (e_rot.T * Q_rot * e_rot >= 2 * Ve_funnel_rot * eta_funnel_rot**2 * xi_funnel_rot_temp + nu_funnel_rot) * (H_function_funnel_rot > 0) * xi_funnel_rot_temp
+            
             
             u2 = Moment[0].item()
             u3 = Moment[1].item()
@@ -2789,7 +2798,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             dy[70:79] = K_hat_r_rot_dot.reshape(9,1)
             dy[79:97] = Theta_hat_rot_dot.reshape(18,1)
             dy[97:100] = angular_velocity - omega_ref
-            dy[100] = eta_funnel * xi_funnel
+            dy[100] = eta_funnel_tran * xi_funnel_tran
+            dy[101] = eta_funnel_rot * xi_funnel_rot
          
             return np.array(dy)
         
@@ -3827,7 +3837,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                 K_hat_r_rot = yout[70:79] # \hat{K}_r (rotational)
                 Theta_hat_rot = yout[79:97] # \hat{\Theta} (rotational)
                 integral_e_rot = yout[97:100] # Integral of 'e_rot' = (angular_velocity - omega_ref)
-                eta_funnel = yout[100] # eta used to compute the funnel diameter
+                eta_funnel_tran = yout[100] # eta used to compute the translational dynamics funnel diameter
+                eta_funnel_rot = yout[101] # eta used to compute the rotational dynamics funnel diameter
                 ###################################################################
             
             # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -4311,6 +4322,13 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         elif controller_type == 'HybridRobustTwoLayerMRACwithBASELINE':
             # DATA saved in CSV file
             np.savetxt("DATA_HybridRobustTwoLayerMRACwithBASELINE.csv", 
+                        DATA,
+                        delimiter =", ",  
+                        fmt ='% s')
+            
+        elif controller_type == 'FunnelMRACwithBASELINE':
+            # DATA saved in CSV file
+            np.savetxt("DATA_FunnelMRACwithBASELINE.csv", 
                         DATA,
                         delimiter =", ",  
                         fmt ='% s')

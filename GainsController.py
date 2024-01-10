@@ -1075,7 +1075,7 @@ class Gains:
     def FunnelMRACwithBASELINE(mass_total_estimated,air_density_estimated,surface_area_estimated,drag_coefficient_matrix_estimated):
          
         # Number of states to be integrated by RK4
-        number_of_states = 101
+        number_of_states = 102
         # Length of the array vector that will be exported 
         size_DATA = 74 
         # size_DATA = 94 # OLD data format
@@ -1164,18 +1164,27 @@ class Gains:
         #                   Funnel Parameters MRAC
         # ----------------------------------------------------------------
         
-        eta_bar_funnel = 1
-        M_funnel = np.matrix(1e0 * np.diag([1,1,1,1,1,1])) # n x n
+        # **Translational** Funnel parameters
+        eta_max_funnel_tran = 1
+        M_funnel_tran = np.matrix(1e0 * np.diag([1,1,1,1,1,1])) # n x n
         u_max = 85
         u_min = 0
         Delta_u_min = 5
-        nu_funnel = 0.01
+        nu_funnel_tran = 0.01
+        
+        # **Rotational** Funnel parameters
+        eta_max_funnel_rot = 1
+        M_funnel_rot = np.matrix(1e0 * np.diag([1,1,1])) # n x n
+        Moment_max = 10
+        Moment_min = 0
+        Delta_Moment_min = 0.01
+        nu_funnel_rot = 0.01
         
         return [number_of_states,size_DATA,KP_tran,KD_tran,KI_tran,KP_tran_PD_baseline,KD_tran_PD_baseline,KP_rot,KP_rot_PI_baseline,
                 KD_rot_PI_baseline,KI_rot_PI_baseline,K_P_omega_ref,A_tran,B_tran,A_tran_bar,Lambda_bar,Theta_tran_adaptive_bar,
                 A_ref_tran,B_ref_tran,Gamma_x_tran,Gamma_r_tran,Gamma_Theta_tran,Gamma_Theta_tran,Q_tran,P_tran,K_x_tran_bar,K_r_tran_bar,A_rot,
-                B_rot,A_ref_rot,B_ref_rot,Q_rot,P_rot,Gamma_x_rot,Gamma_r_rot,Gamma_Theta_rot,eta_bar_funnel,M_funnel,u_max,u_min,
-                Delta_u_min,nu_funnel]
+                B_rot,A_ref_rot,B_ref_rot,Q_rot,P_rot,Gamma_x_rot,Gamma_r_rot,Gamma_Theta_rot,eta_max_funnel_tran,M_funnel_tran,u_max,u_min,
+                Delta_u_min,nu_funnel_tran,eta_max_funnel_rot,M_funnel_rot,Moment_max,Moment_min,Delta_Moment_min,nu_funnel_rot]
     # ================================================================================================================================================================
     # end of FUNNEL MRAC WITH BASELINE
     # ================================================================================================================================================================

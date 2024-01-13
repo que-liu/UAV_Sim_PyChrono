@@ -1094,7 +1094,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         B_ref_rot,Gamma_x_rot,Gamma_r_rot,Gamma_Theta_rot,A_transient_tran,Q_tran_2Layer,P_tran_2Layer,Gamma_g_tran,
         A_transient_rot,Q_rot_2Layer,P_rot_2Layer,Gamma_g_rot,K_x_tran_bar,K_r_tran_bar,K_g_tran_bar,eta_max_funnel_tran,
         M_funnel_tran,u_max,u_min,Delta_u_min,nu_funnel_tran,eta_max_funnel_rot,M_funnel_rot,Moment_max,Moment_min,
-        Delta_Moment_min,nu_funnel_rot] = Gains.TwoLayerMRACwithBASELINE(mass_total_estimated, air_density_estimated, surface_area_estimated, drag_coefficient_matrix_estimated)
+        Delta_Moment_min,nu_funnel_rot] = Gains.FunnelTwoLayerMRACwithBASELINE(mass_total_estimated, air_density_estimated, surface_area_estimated, drag_coefficient_matrix_estimated)
     
     
     #%% Control Algorithms ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

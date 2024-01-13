@@ -1192,7 +1192,7 @@ class Gains:
     # ================================================================================================================================================================
     # FUNNEL TWO-LAYER MRAC WITH BASELINE
     # ================================================================================================================================================================
-    def TwoLayerMRACwithBASELINE(mass_total_estimated,air_density_estimated,surface_area_estimated,drag_coefficient_matrix_estimated):
+    def FunnelTwoLayerMRACwithBASELINE(mass_total_estimated,air_density_estimated,surface_area_estimated,drag_coefficient_matrix_estimated):
         
         # Number of states to be integrated by RK4
         number_of_states = 138

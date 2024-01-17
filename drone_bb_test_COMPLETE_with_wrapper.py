@@ -4054,8 +4054,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                 ###################################################################
                 
             elif controller_type == 'FunnelTwoLayerMRACwithBASELINE':
-                # Integrating the ODEs through RK4 for Two-Layer MRAC with Baseline controller
-                yout = rk4singlestep(controller.TwoLayerMRACwithBASELINE, m_timestep, time_now, yin)
+                # Integrating the ODEs through RK4 for Funnel Two-Layer MRAC with Baseline controller
+                yout = rk4singlestep(controller.FunnelTwoLayerMRACwithBASELINE, m_timestep, time_now, yin)
                 Y_list = np.append(Y_list,np.resize(yout,(number_of_states,1)), axis=1)
                 yin = yout
                 

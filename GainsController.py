@@ -60,14 +60,14 @@ class Gains:
         KD_tran_PD_baseline = np.matrix(1 * np.diag([8,8,3]))
 
         # **Rotational** baseline parameters
-        KP_rot = np.matrix(1 * np.diag([100,100,50]))
+        KP_rot = np.matrix(1e2 * np.diag([1,1,0.5]))
 
         # **Rotational** parameters for the PI baseline controller (Moment_baseline_PI)       
-        KP_rot_PI_baseline = np.matrix(40 * np.diag([1,1,0.5]))
+        KP_rot_PI_baseline = np.matrix(40 * np.diag([1,1,1]))
         KD_rot_PI_baseline = np.matrix(0 * np.diag([1,1,0.5]))
         KI_rot_PI_baseline = np.matrix(0.1 * np.diag([1,1,0.5]))
 
-        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,2]))
+        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,10]))
 
         # ----------------------------------------------------------------
         #                   Translational Parameters MRAC
@@ -118,11 +118,11 @@ class Gains:
         B_ref_rot = np.matrix(np.eye(3))
 
         # **Rotational** parameters Lyapunov equation
-        Q_rot = np.matrix(7e-3 * np.diag([1,1,1]))
+        Q_rot = np.matrix(7e-3 * np.diag([1,1,2]))
         P_rot = np.matrix(linalg.solve_continuous_lyapunov(A_ref_rot.T, -Q_rot))
 
         # **Rotational** adaptive parameters
-        Gamma_x_rot = np.matrix(1e1 * np.diag([1,1,1])) # Adaptive rates
+        Gamma_x_rot = np.matrix(1e1 * np.diag([1,1,10])) # Adaptive rates
         Gamma_r_rot = np.matrix(1e-4 * np.diag([1,1,1])) # Adaptive rates
         Gamma_Theta_rot = np.matrix(1e0 * np.diag([1,1,1,1,1,1])) # Adaptive rates
         
@@ -166,7 +166,7 @@ class Gains:
         KD_rot_PI_baseline = np.matrix(0 * np.diag([1,1,0.5]))
         KI_rot_PI_baseline = np.matrix(10 * np.diag([1,1,0.5]))
 
-        K_P_omega_ref = np.matrix(5e-3 * np.diag([5,5,2]))
+        K_P_omega_ref = np.matrix(5e-3 * np.diag([5,5,10]))
 
         # ----------------------------------------------------------------
         #                   Translational Parameters MRAC
@@ -287,7 +287,7 @@ class Gains:
         KD_rot_PI_baseline = np.matrix(0 * np.diag([1,1,0.5]))
         KI_rot_PI_baseline = np.matrix(0.1 * np.diag([1,1,0.5]))
 
-        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,2]))
+        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,10]))
 
         # ----------------------------------------------------------------
         #                   Translational Parameters MRAC
@@ -402,7 +402,7 @@ class Gains:
         KD_rot_PI_baseline = np.matrix(0 * np.diag([1,1,0.5]))
         KI_rot_PI_baseline = np.matrix(0.1 * np.diag([1,1,0.5]))
 
-        K_P_omega_ref = np.matrix(1.5e-2 * np.diag([5,5,2]))
+        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,10]))
 
         # ----------------------------------------------------------------
         #                   Translational Parameters MRAC
@@ -472,7 +472,7 @@ class Gains:
         K_transient_rot = np.matrix(K_transient_rot.gain_matrix)
         A_transient_rot = A_rot - B_ref_rot*K_transient_rot # Eigenvalues of A_transient should be further on the left in the complex plane of those of A_ref!!!!
 
-        Q_rot_2Layer = np.matrix(8e-4 * np.diag([1,10,1]))
+        Q_rot_2Layer = np.matrix(8e-4 * np.diag([1,1,1]))
         P_rot_2Layer = np.matrix(linalg.solve_continuous_lyapunov(A_transient_rot.T, -Q_rot_2Layer))
 
         Gamma_g_rot = np.matrix(1e1 * np.diag([1,1,1])) # Adaptive rates
@@ -542,7 +542,7 @@ class Gains:
         KD_rot_PI_baseline = np.matrix(0 * np.diag([1,1,0.5]))
         KI_rot_PI_baseline = np.matrix(0.1 * np.diag([1,1,0.5]))
 
-        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,2]))
+        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,10]))
 
         # ----------------------------------------------------------------
         #                   Translational Parameters MRAC
@@ -658,7 +658,7 @@ class Gains:
         KD_rot_PI_baseline = np.matrix(0 * np.diag([1,1,0.5]))
         KI_rot_PI_baseline = np.matrix(10 * np.diag([1,1,0.5]))
 
-        K_P_omega_ref = np.matrix(5e-3 * np.diag([5,5,2]))
+        K_P_omega_ref = np.matrix(5e-1 * np.diag([5,5,10]))
 
         # ----------------------------------------------------------------
         #                   Translational Parameters MRAC
@@ -804,7 +804,7 @@ class Gains:
         KD_rot_PI_baseline = np.matrix(0 * np.diag([1,1,0.5]))
         KI_rot_PI_baseline = np.matrix(0.1 * np.diag([1,1,0.5]))
 
-        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,2]))
+        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,10]))
 
         # ----------------------------------------------------------------
         #                   Translational Parameters MRAC
@@ -935,7 +935,7 @@ class Gains:
         KD_rot_PI_baseline = np.matrix(0 * np.diag([1,1,0.5]))
         KI_rot_PI_baseline = np.matrix(10 * np.diag([1,1,0.5]))
 
-        K_P_omega_ref = np.matrix(5e-3 * np.diag([5,5,2]))
+        K_P_omega_ref = np.matrix(5e-1 * np.diag([5,5,10]))
 
         # ----------------------------------------------------------------
         #                   Translational Parameters MRAC
@@ -1099,7 +1099,7 @@ class Gains:
         KD_rot_PI_baseline = np.matrix(0 * np.diag([1,1,0.5]))
         KI_rot_PI_baseline = np.matrix(0.1 * np.diag([1,1,0.5]))
 
-        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,2]))
+        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,10]))
 
         # ----------------------------------------------------------------
         #                   Translational Parameters MRAC
@@ -1172,7 +1172,7 @@ class Gains:
         
         # **Rotational** Funnel parameters
         eta_max_funnel_rot = 1
-        M_funnel_rot = np.matrix(1e-2 * np.diag([1,1,1])) # n x n
+        M_funnel_rot = np.matrix(1e-3 * np.diag([1,1,1])) # n x n
         Moment_max = 5
         Moment_min = 0
         Delta_Moment_min = 0.01
@@ -1219,7 +1219,7 @@ class Gains:
         KD_rot_PI_baseline = np.matrix(0 * np.diag([1,1,0.5]))
         KI_rot_PI_baseline = np.matrix(10 * np.diag([1,1,0.5]))
 
-        K_P_omega_ref = np.matrix(5e-3 * np.diag([5,5,2]))
+        K_P_omega_ref = np.matrix(5e-1 * np.diag([5,5,10]))
 
         # ----------------------------------------------------------------
         #                   Translational Parameters MRAC
@@ -1355,14 +1355,14 @@ class Gains:
         KD_tran_PD_baseline = np.matrix(1 * np.diag([8,8,3]))
 
         # **Rotational** baseline parameters
-        KP_rot = np.matrix(1 * np.diag([100,100,50]))
+        KP_rot = np.matrix(1e2 * np.diag([1,1,0.5]))
 
-        # **Rotational** parameters for the PID baseline controller (Moment_baseline_PI)
-        KP_rot_PI_baseline = np.matrix(40 * np.diag([1,1,0.5]))
+        # **Rotational** parameters for the PI baseline controller (Moment_baseline_PI)       
+        KP_rot_PI_baseline = np.matrix(40 * np.diag([1,1,1]))
         KD_rot_PI_baseline = np.matrix(0 * np.diag([1,1,0.5]))
         KI_rot_PI_baseline = np.matrix(0.1 * np.diag([1,1,0.5]))
 
-        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,2]))
+        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,10]))
 
         # ----------------------------------------------------------------
         #                   Translational Parameters MRAC
@@ -1413,11 +1413,11 @@ class Gains:
         B_ref_rot = np.matrix(np.eye(3))
 
         # **Rotational** parameters Lyapunov equation
-        Q_rot = np.matrix(7e-3 * np.diag([1,1,1]))
+        Q_rot = np.matrix(7e-3 * np.diag([1,1,2]))
         P_rot = np.matrix(linalg.solve_continuous_lyapunov(A_ref_rot.T, -Q_rot))
 
         # **Rotational** adaptive parameters
-        Gamma_x_rot = np.matrix(1e1 * np.diag([1,1,1])) # Adaptive rates
+        Gamma_x_rot = np.matrix(1e1 * np.diag([1,1,10])) # Adaptive rates
         Gamma_r_rot = np.matrix(1e-4 * np.diag([1,1,1])) # Adaptive rates
         Gamma_Theta_rot = np.matrix(1e0 * np.diag([1,1,1,1,1,1])) # Adaptive rates
         
@@ -1427,16 +1427,16 @@ class Gains:
         
         # Mu - sphere intersection
         sphereEpsilon = 1e-2
-        maximumThrust = 85 # [N]
+        maximumThrust = 85 # [N] 85
         
         # Mu - elliptic cone intersection
         EllipticConeEpsilon = 1e-2
-        maximumRollAngle = math.radians(30) # [rad]
-        maximumPitchAngle = math.radians(45) # [rad]
+        maximumRollAngle = math.radians(20) # [rad] 25
+        maximumPitchAngle = math.radians(20) # [rad] 25
         
         # Mu - plane intersection
         planeEpsilon = 1e-2
-        alphaPlane = 0.9 # [-] coefficient for setting the 'height' of the bottom plane. Must be >0 and <1.
+        alphaPlane = 0.95 # [-] coefficient for setting the 'height' of the bottom plane. Must be >0 and <1.
         
         
         return [number_of_states,size_DATA,KP_tran,KD_tran,KI_tran,KP_tran_PD_baseline,KD_tran_PD_baseline,KP_rot,KP_rot_PI_baseline,

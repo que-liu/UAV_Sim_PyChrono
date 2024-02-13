@@ -55,7 +55,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
     global mu_PD_baseline_tran, Moment_baseline_PI, e_tran, integral_eQe_tran, e_rot, integral_eQe_rot
     global epsilon_tran, integral_epsQeps_tran, epsilon_rot, integral_epsQeps_rot, e_transient_tran
-    global integral_etQet_tran, e_transient_rot, integral_etQet_rot
+    global integral_etQet_tran, e_transient_rot, integral_etQet_rot, omega_ref_dot
     # The max simulation time needs to be set if Wrapper is not being executed
     if Wrapper_execution == False:
         max_simulation_time = 100
@@ -71,7 +71,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     m_timestep = 0.005 #0.005 - 0.01
     m_length = 1.0
     m_visualization = "irrlicht"
-    m_datapath = "C:/Users/mgramuglia/.conda/envs/chrono/Library/data/"  # change this accordingly to where you saved chrono data
+    # m_datapath = "C:/workspace/chrono/data/"  # change this accordingly to where you saved chrono data
+    m_datapath = "C:/ProgramData/Anaconda/envs/chrono/Library/data/"  # change this accordingly to where you saved chrono data
     
     # m_filename_env = "environment3.py"
     m_filename_env = "environmentA.py"
@@ -344,6 +345,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     mfloor.SetPos(chrono.ChVectorD(0,-0.3,0))
     # mfloor.SetPos(chrono.ChVectorD(0,-0.5,0))
     mfloor.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/light_gray.png"))
+    # mfloor.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
     # mfloor.GetVisualShape(0).SetColor(chrono.ChColor(1, 1, 1))
     my_system.Add(mfloor)
     
@@ -354,7 +356,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           contact_material_ball)  # contact material
     my_ball1.SetName('Ball_1')
     my_ball1.SetPos(chrono.ChVectorD(-0.05,-0.15,0.065)) # -0.05,-0.15,0
-    # my_ball1.SetPos(chrono.ChVectorD(-0.05,1.4,0))
+    # my_ball1.SetPos(chrono.ChVectorD(-0.05,-0.15,0))
     my_ball1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/redwhite.png"))
     # my_ball1.GetVisualShape(0).SetColor(chrono.ChColor(0, 1, 0))
     my_system.Add(my_ball1)
@@ -368,7 +370,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           contact_material_ball)  # contact material
     my_ball2.SetName('Ball_2')
     my_ball2.SetPos(chrono.ChVectorD(0.05,-0.15,0.065))
-    # my_ball2.SetPos(chrono.ChVectorD(0.05,1.4,0))
+    # my_ball2.SetPos(chrono.ChVectorD(0.05,-0.15,0))
     my_ball2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/checker2.png"))
     # my_ball2.GetVisualShape(0).SetColor(chrono.ChColor(0, 0, 1))
     my_system.Add(my_ball2)
@@ -913,6 +915,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     Moment_baseline = np.zeros((3,1))
     Moment_adaptive = np.zeros((3,1))
     
+    omega_ref_dot = np.zeros((3,1))
+    
     
     # Maximum thrust produced by a single motor = 1355 grams = 1.355 kg = 1.355 kg * 9.81 m/s^2 = 13.28 N
     # Maximum thrust produced by a motors'couple without loss of efficiency due to propeller interaction = 13.28 * 2 = 26.56 N
@@ -990,6 +994,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     # controller_type = 'FunnelMRACwithBASELINE'
     
     # controller_type = 'FunnelTwoLayerMRACwithBASELINE'
+    
+    # controller_type = 'MRACwithBASELINE_SafetyMechanism'
     
     # ----------------------------------------------------------------
     #                     %%%%%%%%%%%%%%%%%%%%%%
@@ -1095,6 +1101,15 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         A_transient_rot,Q_rot_2Layer,P_rot_2Layer,Gamma_g_rot,K_x_tran_bar,K_r_tran_bar,K_g_tran_bar,eta_max_funnel_tran,
         M_funnel_tran,u_max,u_min,Delta_u_min,nu_funnel_tran,eta_max_funnel_rot,M_funnel_rot,Moment_max,Moment_min,
         Delta_Moment_min,nu_funnel_rot] = Gains.FunnelTwoLayerMRACwithBASELINE(mass_total_estimated, air_density_estimated, surface_area_estimated, drag_coefficient_matrix_estimated)
+        
+    elif controller_type == 'MRACwithBASELINE_SafetyMechanism':
+        # Gains MRAC with Baseline
+        [number_of_states,size_DATA,KP_tran,KD_tran,KI_tran,KP_tran_PD_baseline,KD_tran_PD_baseline,KP_rot,KP_rot_PI_baseline,
+        KD_rot_PI_baseline,KI_rot_PI_baseline,K_P_omega_ref,A_tran,B_tran,A_tran_bar,Lambda_bar,Theta_tran_adaptive_bar,
+        A_ref_tran,B_ref_tran,Gamma_x_tran,Gamma_r_tran,Gamma_Theta_tran,Gamma_Theta_tran,Q_tran,P_tran,K_x_tran_bar,K_r_tran_bar,A_rot,
+        B_rot,A_ref_rot,B_ref_rot,Q_rot,P_rot,Gamma_x_rot,Gamma_r_rot,Gamma_Theta_rot,sphereEpsilon,maximumThrust,
+        EllipticConeEpsilon,maximumRollAngle,maximumPitchAngle,planeEpsilon,
+        alphaPlane] = Gains.MRACwithBASELINE_SafetyMechanism(mass_total_estimated, air_density_estimated, surface_area_estimated, drag_coefficient_matrix_estimated)
     
     
     #%% Control Algorithms ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1183,7 +1198,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             global mu_x, mu_y, mu_z, u1, roll_ref, pitch_ref, roll_ref_dot, pitch_ref_dot, roll_ref_ddot, pitch_ref_ddot
             global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
             global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
-            global mu_PD_baseline_tran, Moment_baseline_PI
+            global mu_PD_baseline_tran, Moment_baseline_PI, omega_ref_dot
         
             
             state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
@@ -1301,8 +1316,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             Phi_adaptive_rot = np.array([[angular_velocity[1].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
-            
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
+
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -1347,7 +1362,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             global mu_x, mu_y, mu_z, u1, roll_ref, pitch_ref, roll_ref_dot, pitch_ref_dot, roll_ref_ddot, pitch_ref_ddot
             global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
             global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
-            global mu_PD_baseline_tran, Moment_baseline_PI
+            global mu_PD_baseline_tran, Moment_baseline_PI, omega_ref_dot
         
             
             state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
@@ -1478,7 +1493,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -1528,7 +1543,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             global mu_x, mu_y, mu_z, u1, roll_ref, pitch_ref, roll_ref_dot, pitch_ref_dot, roll_ref_ddot, pitch_ref_ddot
             global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
             global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
-            global mu_PD_baseline_tran, Moment_baseline_PI
+            global mu_PD_baseline_tran, Moment_baseline_PI, omega_ref_dot
         
             
             state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
@@ -1654,7 +1669,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -1705,7 +1720,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             global mu_x, mu_y, mu_z, u1, roll_ref, pitch_ref, roll_ref_dot, pitch_ref_dot, roll_ref_ddot, pitch_ref_ddot
             global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
             global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
-            global mu_PD_baseline_tran, Moment_baseline_PI
+            global mu_PD_baseline_tran, Moment_baseline_PI, omega_ref_dot
         
             
             state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
@@ -1844,7 +1859,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -1902,7 +1917,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             global mu_x, mu_y, mu_z, u1, roll_ref, pitch_ref, roll_ref_dot, pitch_ref_dot, roll_ref_ddot, pitch_ref_ddot
             global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
             global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
-            global mu_PD_baseline_tran, Moment_baseline_PI, e_tran, integral_eQe_tran, e_rot, integral_eQe_rot
+            global mu_PD_baseline_tran, Moment_baseline_PI, e_tran, integral_eQe_tran, e_rot, integral_eQe_rot, omega_ref_dot
         
             
             state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
@@ -2023,7 +2038,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -2070,7 +2085,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
             global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
             global mu_PD_baseline_tran, Moment_baseline_PI, epsilon_tran, integral_epsQeps_tran, epsilon_rot, integral_epsQeps_rot
-            global e_transient_tran, integral_etQet_tran, e_transient_rot, integral_etQet_rot
+            global e_transient_tran, integral_etQet_tran, e_transient_rot, integral_etQet_rot, omega_ref_dot
         
             
             state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
@@ -2204,7 +2219,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -2258,7 +2273,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             global mu_x, mu_y, mu_z, u1, roll_ref, pitch_ref, roll_ref_dot, pitch_ref_dot, roll_ref_ddot, pitch_ref_ddot
             global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
             global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
-            global mu_PD_baseline_tran, Moment_baseline_PI, e_tran, integral_eQe_tran, e_rot, integral_eQe_rot
+            global mu_PD_baseline_tran, Moment_baseline_PI, e_tran, integral_eQe_tran, e_rot, integral_eQe_rot, omega_ref_dot
         
             
             state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
@@ -2386,7 +2401,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -2440,7 +2455,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
             global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
             global mu_PD_baseline_tran, Moment_baseline_PI, epsilon_tran, integral_epsQeps_tran, epsilon_rot, integral_epsQeps_rot
-            global e_transient_tran, integral_etQet_tran, e_transient_rot, integral_etQet_rot
+            global e_transient_tran, integral_etQet_tran, e_transient_rot, integral_etQet_rot, omega_ref_dot
         
             
             state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
@@ -2583,7 +2598,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -2645,7 +2660,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             global mu_x, mu_y, mu_z, u1, roll_ref, pitch_ref, roll_ref_dot, pitch_ref_dot, roll_ref_ddot, pitch_ref_ddot
             global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
             global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
-            global mu_PD_baseline_tran, Moment_baseline_PI
+            global mu_PD_baseline_tran, Moment_baseline_PI, omega_ref_dot
         
             
             state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
@@ -2772,7 +2787,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -2825,7 +2840,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             global mu_x, mu_y, mu_z, u1, roll_ref, pitch_ref, roll_ref_dot, pitch_ref_dot, roll_ref_ddot, pitch_ref_ddot
             global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
             global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
-            global mu_PD_baseline_tran, Moment_baseline_PI
+            global mu_PD_baseline_tran, Moment_baseline_PI, omega_ref_dot
         
             
             state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
@@ -2965,7 +2980,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[1].item()]])
             
-            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KD_rot_PI_baseline*(angular_acceleration - omega_ref_dot) + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
             
             Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
                                                               [Phi_adaptive_rot]]))
@@ -3017,6 +3032,224 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         
         # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        
+        def MRACwithBASELINE_SafetyMechanism(t, y):
+            """
+            This function defines the system of equations of the MRAC with Baseline CONTROLLER that need to be integrated 
+        
+            """
+            global mu_x, mu_y, mu_z, u1, roll_ref, pitch_ref, roll_ref_dot, pitch_ref_dot, roll_ref_ddot, pitch_ref_ddot
+            global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
+            global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
+            global mu_PD_baseline_tran, Moment_baseline_PI, omega_ref_dot
+        
+            
+            state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
+            state_theta_ref_diff = y[2:4] # State of the differentiator for theta_ref (pitch_ref)
+            x_ref_tran = y[4:10] # Reference model state
+            integral_position_tracking_ref = y[10:13] # Integral of ('translational_position_in_I_ref' - 'translational_position_in_I_user')
+            K_hat_x_tran = y[13:31] # \hat{K}_x (translational)
+            K_hat_r_tran = y[31:40] # \hat{K}_r (translational)
+            Theta_hat_tran = y[40:58] # \hat{\Theta} (translational)
+            omega_ref = y[58:61] # Reference model rotational dynamics
+            K_hat_x_rot = y[61:70] # \hat{K}_x (rotational)
+            K_hat_r_rot = y[70:79] # \hat{K}_r (rotational)
+            Theta_hat_rot = y[79:97] # \hat{\Theta} (rotational)
+            integral_e_rot = y[97:100] # Integral of 'e_rot' = (angular_velocity - omega_ref)
+            
+            K_hat_x_tran = np.matrix(K_hat_x_tran.reshape(6,3))
+            K_hat_r_tran = np.matrix(K_hat_r_tran.reshape(3,3))
+            Theta_hat_tran = np.matrix(Theta_hat_tran.reshape(6,3))
+            K_hat_x_rot = np.matrix(K_hat_x_rot.reshape(3,3))
+            K_hat_r_rot = np.matrix(K_hat_r_rot.reshape(3,3))
+            Theta_hat_rot = np.matrix(Theta_hat_rot.reshape(6,3))
+            
+            e_tran = x_tran - x_ref_tran
+            e_rot = angular_velocity - omega_ref
+            translational_position_in_I_ref = x_ref_tran[0:3]
+            
+            R3 = np.matrix([[math.cos(yaw), -math.sin(yaw), 0],
+                            [math.sin(yaw),  math.cos(yaw), 0],
+                            [            0,              0, 1]])
+            
+            R2 = np.matrix([[ math.cos(pitch), 0, math.sin(pitch)],
+                            [               0, 1,               0],
+                            [-math.sin(pitch), 0, math.cos(pitch)]])
+            
+            R1 = np.matrix([[1,              0,               0],
+                            [0, math.cos(roll), -math.sin(roll)],
+                            [0, math.sin(roll),  math.cos(roll)]])
+            
+            R_from_loc_to_glob = R3*R2*R1
+            R_from_glob_to_loc = R_from_loc_to_glob.transpose()
+            
+            Phi_adaptive_tran = -0.5 * LA.norm(R_from_glob_to_loc * translational_velocity_in_I) * (R_from_glob_to_loc * translational_velocity_in_I)
+            
+            Jacobian_matrix_inverse = np.matrix([[1, (math.sin(roll)*math.sin(pitch))/math.cos(pitch), (math.cos(roll)*math.sin(pitch))/math.cos(pitch)],
+                                                  [0,                                   math.cos(roll),                                  -math.sin(roll)],
+                                                  [0,                   math.sin(roll)/math.cos(pitch),                   math.cos(roll)/math.cos(pitch)]])
+        
+            angular_position_dot = Jacobian_matrix_inverse * angular_velocity # Time derivative of the Euler angles
+            roll_dot = angular_position_dot[0] # phi_dot
+            pitch_dot = angular_position_dot[1] # theta_dot
+            # yaw_dot = angular_position_dot[2] # psi_dot
+            
+            Jacobian_matrix_dot = np.matrix(np.zeros((3,3)))
+            Jacobian_matrix_dot[0,2] = -math.cos(pitch) * pitch_dot
+            Jacobian_matrix_dot[1,1] = -math.sin(roll) * roll_dot
+            Jacobian_matrix_dot[1,2] = math.cos(roll) * math.cos(pitch) * roll_dot - math.sin(roll) * math.sin(pitch) * pitch_dot
+            Jacobian_matrix_dot[2,1] = -math.cos(roll) * roll_dot
+            Jacobian_matrix_dot[2,2] = -math.cos(pitch) * math.sin(roll) * roll_dot - math.cos(roll) * math.sin(pitch) * pitch_dot
+            
+            r_tran = mass_total_estimated * (-KI_tran*integral_position_tracking_ref + translational_acceleration_in_I_user + KP_tran*translational_position_in_I_user + KD_tran*translational_velocity_in_I_user)
+        
+            x_ref_tran_dot = A_ref_tran*x_ref_tran + B_ref_tran*r_tran
+            
+            mu_PD_baseline_tran = -mass_total_estimated * (KP_tran_PD_baseline * (translational_position_in_I - translational_position_in_I_ref) + KD_tran_PD_baseline * (translational_velocity_in_I - x_ref_tran[3:6]) - x_ref_tran_dot[3:6])
+            
+            Phi_adaptive_tran_augmented = np.matrix(np.block([[mu_PD_baseline_tran],
+                                                              [Phi_adaptive_tran]]))
+            Theta_tran_adaptive_bar_augmented = np.matrix(np.block([[np.identity(3)],
+                                                              [Theta_tran_adaptive_bar]]))
+            
+            mu_baseline_tran = K_x_tran_bar.T * x_tran + K_r_tran_bar.T * r_tran - Theta_tran_adaptive_bar_augmented.T * Phi_adaptive_tran_augmented
+            mu_adaptive_tran = K_hat_x_tran.T * x_tran + K_hat_r_tran.T * r_tran - Theta_hat_tran.T * Phi_adaptive_tran_augmented
+            mu_tran_raw = mu_PD_baseline_tran + mu_baseline_tran + mu_adaptive_tran
+            
+            K_hat_x_tran_dot = -Gamma_x_tran * x_tran * e_tran.T * P_tran * B_tran
+            K_hat_r_tran_dot = -Gamma_r_tran * r_tran * e_tran.T * P_tran * B_tran
+            Theta_hat_tran_dot = Gamma_Theta_tran * Phi_adaptive_tran_augmented * e_tran.T * P_tran * B_tran
+        
+            mu_x_raw = mu_tran_raw[0].item()
+            mu_y_raw = mu_tran_raw[1].item()
+            mu_z_raw = mu_tran_raw[2].item()
+            #----------------
+            # Safety Mechanism
+            
+            # Mu - sphere intersection
+            tSphereVector = np.zeros((2,1))
+            if LA.norm(mu_tran_raw) >= sphereEpsilon:
+                tSphereVector[0] = (mu_z_raw*mass_total_estimated*G_acc + math.sqrt((mu_z_raw*mass_total_estimated*G_acc)**2 +
+                                    LA.norm(mu_tran_raw)**2 * (maximumThrust**2 - (mass_total_estimated*G_acc)**2)))/LA.norm(mu_tran_raw)**2
+                tSphereVector[1] = (mu_z_raw*mass_total_estimated*G_acc - math.sqrt((mu_z_raw*mass_total_estimated*G_acc)**2 +
+                                    LA.norm(mu_tran_raw)**2 * (maximumThrust**2 - (mass_total_estimated*G_acc)**2)))/LA.norm(mu_tran_raw)**2
+            else:
+                tSphereVector[0] = math.nan
+                tSphereVector[1] = math.nan
+            
+            # Mu - elliptic cone intersection
+            tEllipticConeVector = np.zeros((2,1))
+            if abs(mu_z_raw + math.sqrt((mu_x_raw/math.tan(maximumPitchAngle))**2 +
+                                        (mu_y_raw/math.tan(maximumRollAngle))**2)) >= EllipticConeEpsilon:
+                tEllipticConeVector[0] = (mass_total_estimated*G_acc)/(mu_z_raw + 
+                                          math.sqrt((mu_x_raw/math.tan(maximumPitchAngle))**2 + (mu_y_raw/math.tan(maximumRollAngle))**2))
+            else:
+                tEllipticConeVector[0] = math.nan
+                
+            if abs(-mu_z_raw + math.sqrt((mu_x_raw/math.tan(maximumPitchAngle))**2 +
+                                        (mu_y_raw/math.tan(maximumRollAngle))**2)) >= EllipticConeEpsilon:
+                tEllipticConeVector[1] = -(mass_total_estimated*G_acc)/(-mu_z_raw + 
+                                          math.sqrt((mu_x_raw/math.tan(maximumPitchAngle))**2 + (mu_y_raw/math.tan(maximumRollAngle))**2))
+            else:
+                tEllipticConeVector[1] = math.nan
+                
+            # Mu - plane intersection
+            if abs(mu_z_raw) >= planeEpsilon:
+                tPlane = alphaPlane*mass_total_estimated*G_acc/mu_z_raw
+            else:
+                tPlane = math.nan
+                
+            tVector = np.array([tSphereVector[0].item(),tSphereVector[1].item(),
+                                tEllipticConeVector[0].item(),tEllipticConeVector[1].item(),tPlane])
+            for i in range(0,tVector.size):
+                if tVector[i] < 0:
+                    tVector[i] = math.nan
+                    
+            tValue = min(tVector)
+            
+            if tValue > 1:
+                tValue = 1
+                
+            mu_tran = tValue * mu_tran_raw
+            mu_x = mu_tran[0].item()
+            mu_y = mu_tran[1].item()
+            mu_z = mu_tran[2].item()
+            
+            
+            #----------------
+            
+            u1 = math.sqrt(mu_x ** 2 + mu_y ** 2 + (mass_total_estimated * G_acc - mu_z) ** 2)
+            
+            calculation_var_A = -(1/u1) * (mu_x * math.sin(yaw_ref) - mu_y * math.cos(yaw_ref))
+            roll_ref = math.atan2(calculation_var_A, math.sqrt(1 - calculation_var_A ** 2))
+            
+            pitch_ref = math.atan2(-(mu_x * math.cos(yaw_ref) + mu_y * math.sin(yaw_ref)), (mass_total_estimated * G_acc - mu_z))
+            
+            internal_state_differentiator_phi_ref_diff = A_phi_ref * state_phi_ref_diff + B_phi_ref*roll_ref
+            internal_state_differentiator_theta_ref_diff = A_theta_ref * state_theta_ref_diff + B_theta_ref*pitch_ref
+            
+            roll_ref_dot = np.asarray(C_phi_ref*state_phi_ref_diff).item()
+            pitch_ref_dot = np.asarray(C_theta_ref*state_theta_ref_diff).item()
+            
+            roll_ref_ddot = np.asarray(C_phi_ref*internal_state_differentiator_phi_ref_diff).item()
+            pitch_ref_ddot = np.asarray(C_theta_ref*internal_state_differentiator_theta_ref_diff).item()
+            
+            angular_position_ref_dot = np.array([roll_ref_dot, pitch_ref_dot, yaw_ref_dot]).reshape(3,1)
+            angular_position_ref_ddot = np.array([roll_ref_ddot, pitch_ref_ddot, yaw_ref_ddot]).reshape(3,1)
+        
+            angular_error_dot = angular_position_dot - angular_position_ref_dot
+            
+            Jacobian_matrix = np.matrix([[1,               0,                 -math.sin(pitch)],
+                                          [0,  math.cos(roll), math.sin(roll) * math.cos(pitch)],
+                                          [0, -math.sin(roll), math.cos(roll) * math.cos(pitch)]])
+            
+            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error + angular_position_ref_dot)
+            omega_cmd_dot = Jacobian_matrix_dot * (-KP_rot*angular_error + angular_position_ref_dot) + Jacobian_matrix * (-KP_rot*angular_error_dot + angular_position_ref_ddot)
+            
+            omega_ref_dot = -K_P_omega_ref*(omega_ref - omega_cmd) + omega_cmd_dot
+            
+            r_rot = K_P_omega_ref * omega_cmd + omega_cmd_dot
+            
+            Phi_adaptive_rot = np.array([[angular_velocity[1].item() * angular_velocity[2].item()],
+                                          [angular_velocity[0].item() * angular_velocity[2].item()],
+                                          [angular_velocity[0].item() * angular_velocity[1].item()]])
+            
+            Moment_baseline_PI = -I_matrix_estimated * (KP_rot_PI_baseline*e_rot + KI_rot_PI_baseline*integral_e_rot - omega_ref_dot)
+            
+            Phi_adaptive_rot_augmented = np.matrix(np.block([[Moment_baseline_PI],
+                                                              [Phi_adaptive_rot]]))
+            
+            K_hat_x_rot_dot = -Gamma_x_rot * angular_velocity * e_rot.T * P_rot * B_rot
+            K_hat_r_rot_dot = -Gamma_r_rot * r_rot * e_rot.T * P_rot * B_rot
+            Theta_hat_rot_dot = Gamma_Theta_rot * Phi_adaptive_rot_augmented * e_rot.T * P_rot * B_rot
+            
+            Moment_baseline = np.cross(angular_velocity.ravel(), (I_matrix_estimated * angular_velocity).ravel()).reshape(3,1)
+            Moment_adaptive = K_hat_x_rot.T * angular_velocity + K_hat_r_rot.T * r_rot - Theta_hat_rot.T * Phi_adaptive_rot_augmented
+            
+            Moment = Moment_baseline_PI + Moment_baseline + Moment_adaptive
+            
+            u2 = Moment[0].item()
+            u3 = Moment[1].item()
+            u4 = Moment[2].item()
+            
+            
+            dy[0:2] = internal_state_differentiator_phi_ref_diff
+            dy[2:4] = internal_state_differentiator_theta_ref_diff
+            dy[4:10] = x_ref_tran_dot
+            dy[10:13] = translational_position_in_I_ref - translational_position_in_I_user
+            dy[13:31] = K_hat_x_tran_dot.reshape(18,1)
+            dy[31:40] = K_hat_r_tran_dot.reshape(9,1)
+            dy[40:58] = Theta_hat_tran_dot.reshape(18,1)
+            dy[58:61] = omega_ref_dot
+            dy[61:70] = K_hat_x_rot_dot.reshape(9,1)
+            dy[70:79] = K_hat_r_rot_dot.reshape(9,1)
+            dy[79:97] = Theta_hat_rot_dot.reshape(18,1)
+            dy[97:100] = angular_velocity - omega_ref
+         
+            return np.array(dy)
+        
+        # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         
     my_frame_pos_GLOB = my_frame.GetPos()
 
@@ -3145,11 +3378,11 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             # vis.AddCamera(chrono.ChVectorD(my_frame_pos_GLOB.x, 0, my_frame_pos_GLOB.z) + chrono.ChVectorD(2, 2, -1), my_frame_pos_GLOB) # MOVING CAMERA (-0.5, 0.2, 0)
             # vis.AddCamera(chrono.ChVectorD(my_frame_pos_GLOB.x, 0, my_frame_pos_GLOB.z) + chrono.ChVectorD(-1.5, 2, 1.5), my_frame_pos_GLOB) # MOVING CAMERA (-0.5, 0.2, 0)
             
-            if my_system.GetChTime() < 6:
-                vis.AddCamera(chrono.ChVectorD(my_frame_pos_GLOB.x, 0, my_frame_pos_GLOB.z) + chrono.ChVectorD(-1.5, 2, 1.5), my_frame_pos_GLOB)
+            # if my_system.GetChTime() < 6:
+            #     vis.AddCamera(chrono.ChVectorD(my_frame_pos_GLOB.x, 0, my_frame_pos_GLOB.z) + chrono.ChVectorD(-1.5, 2, 1.5), my_frame_pos_GLOB)
             
-            if my_system.GetChTime() >= 6 and my_system.GetChTime() < 7:
-                vis.AddCamera(chrono.ChVectorD(my_frame_pos_GLOB.x, 0, my_frame_pos_GLOB.z) + chrono.ChVectorD(1.5, 2, -1.5), my_frame_pos_GLOB)
+            # if my_system.GetChTime() >= 6 and my_system.GetChTime() < 7:
+            #     vis.AddCamera(chrono.ChVectorD(my_frame_pos_GLOB.x, 0, my_frame_pos_GLOB.z) + chrono.ChVectorD(1.5, 2, -1.5), my_frame_pos_GLOB)
             
             # vis.AddCamera(chrono.ChVectorD(my_frame_pos_GLOB.x, 0, my_frame_pos_GLOB.z) + chrono.ChVectorD(-1.5, 2, 1.5), my_frame_pos_GLOB)
             
@@ -4079,6 +4312,27 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                 eta_funnel_tran = yout[136] # eta used to compute the translational dynamics funnel diameter
                 eta_funnel_rot = yout[137] # eta used to compute the rotational dynamics funnel diameter
                 ###################################################################
+                
+            elif controller_type == 'MRACwithBASELINE_SafetyMechanism':
+                # Integrating the ODEs through RK4 for MRAC with Baseline controller
+                yout = rk4singlestep(controller.MRACwithBASELINE_SafetyMechanism, m_timestep, time_now, yin)
+                Y_list = np.append(Y_list,np.resize(yout,(number_of_states,1)), axis=1)
+                yin = yout
+                
+                ###################### MRAC WITH BASELINE #########################
+                state_phi_ref_diff = yout[0:2] # State of the differentiator for phi_ref (roll_ref)
+                state_theta_ref_diff = yout[2:4] # State of the differentiator for theta_ref (pitch_ref)
+                x_ref_tran = yout[4:10] # Reference model state
+                integral_position_tracking_ref = yout[10:13] # Integral of ('translational_position_in_I_ref' - 'translational_position_in_I_user')
+                K_hat_x_tran = yout[13:31] # \hat{K}_x (translational)
+                K_hat_r_tran = yout[31:40] # \hat{K}_r (translational)
+                Theta_hat_tran = yout[40:58] # \hat{\Theta} (translational)
+                omega_ref = yout[58:61] # Reference model rotational dynamics
+                K_hat_x_rot = yout[61:70] # \hat{K}_x (rotational)
+                K_hat_r_rot = yout[70:79] # \hat{K}_r (rotational)
+                Theta_hat_rot = yout[79:97] # \hat{\Theta} (rotational)
+                integral_e_rot = yout[97:100] # Integral of 'e_rot' = (angular_velocity - omega_ref)
+                ###################################################################
             
             # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
             
@@ -4280,7 +4534,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             # link_motor1.SetMotorFunction(chrono.ChFunction_Const(omega_fun))
         
         # Payload Dropping
-        time_payloadDropping = 7
+        time_payloadDropping = 3 # 7AIAA, 11 
         if (time_now > time_payloadDropping): # 5
             my_ball1.SetCollide(False)
             my_ball2.SetCollide(False)
@@ -4289,9 +4543,9 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             my_ball1.SetCollide(True)
             my_ball2.SetCollide(True)
             
-        # Motor Failure#!!!
-        if (time_now > 4):
-            motor_efficiency_matrix = np.matrix(np.diag([1, 1, 0, 1, 1, 1, 1, 0.5]))
+        # # Motor Failure#!!!
+        # if (time_now > 4): # 4AIAA
+        #     motor_efficiency_matrix = np.matrix(np.diag([1, 1, 0, 1, 1, 1, 1, 0.5]))
     
     
     #========================================================================================================================================
@@ -4327,6 +4581,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         print ('\nSimulation time: ', time_now)
     
         
+        print('omega_ref_dot: ', omega_ref_dot)
         # print('z - z_ref: ', pos_pixhawk_LOC_to_GLOB_NED.z - z_ref)
         print('Z_onboard: ', '%.4f'%pos_pixhawk_LOC_to_GLOB_NED.z)
         # print('(G_acc - controller_z_output)*mass_total: ', (G_acc + controller_z_output)*mass_total)

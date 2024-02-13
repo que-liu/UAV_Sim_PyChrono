@@ -16,7 +16,7 @@ import datetime
 import pytz
 PI = math.pi
 
-time_max = 32.5
+time_max = 18
 
 
 # If wrapper needs to be run the Wrapper_execution should be True else False
@@ -51,7 +51,9 @@ visualization_flag = True
 
 # controller_type = 'FunnelMRACwithBASELINE'
 
-controller_type = 'FunnelTwoLayerMRACwithBASELINE'
+# controller_type = 'FunnelTwoLayerMRACwithBASELINE'
+
+controller_type = 'MRACwithBASELINE_SafetyMechanism'
 
 # ----------------------------------------------------------------
 #                     %%%%%%%%%%%%%%%%%%%%%%
@@ -68,7 +70,7 @@ if Wrapper_execution == True:
     # Here the folder name is Wapper_folder_name it can be changed
     date = datetime.datetime.now(pytz.timezone('America/New_York'))
     date_folder_name = "_"+str(date.month)  + str(date.day)  + str(date.year)+"_"+ str(date.hour)+"_"+ str(date.minute)
-    Wapper_folder_name = "Nominal_" + controller_type
+    Wapper_folder_name = "AIAAmission_" + controller_type
     Wrapper_important_files = Wapper_folder_name+date_folder_name
     target = os.path.join(os.getcwd(), Wrapper_important_files)
     if not os.path.exists(target):
@@ -114,7 +116,8 @@ if Wrapper_execution == True:
     # Iterating through the control parameters
     for var,val in control_variables.items():
         # Naming the folder  after the controller_type and control parameter 
-        folder_name = var + "_" + controller_type
+        # folder_name = var + "_" + controller_type
+        folder_name = "data_" + controller_type # Modified by Mattia
         for i in range(len(payload_density_array)):
             payload_density_current = round(payload_density_array[i])
             control_variables[var] = payload_density_current

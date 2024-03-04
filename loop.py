@@ -8,7 +8,7 @@ Created on Sun Sep 10 11:15:48 2023
 import os
 import csv
 import shutil
-import drone_bb_test_COMPLETE_with_wrapper
+import drone_bb_simulator
 import numpy as np
 import math
 import time
@@ -16,7 +16,7 @@ import datetime
 import pytz
 PI = math.pi
 
-time_max = 18
+time_max = 60
 
 
 # If wrapper needs to be run the Wrapper_execution should be True else False
@@ -33,7 +33,7 @@ visualization_flag = True
 
 # controller_type = 'PID' # Check mass_total_estimated
 
-# controller_type = 'MRACwithBASELINE'
+controller_type = 'MRACwithBASELINE'
 
 # controller_type = 'TwoLayerMRACwithBASELINE'
 
@@ -53,7 +53,7 @@ visualization_flag = True
 
 # controller_type = 'FunnelTwoLayerMRACwithBASELINE'
 
-controller_type = 'MRACwithBASELINE_SafetyMechanism'
+# controller_type = 'MRACwithBASELINE_SafetyMechanism'
 
 # ----------------------------------------------------------------
 #                     %%%%%%%%%%%%%%%%%%%%%%
@@ -67,11 +67,11 @@ if Wrapper_execution == True:
     # Providing the folder path
     origin = os.getcwd()
     
-    # Here the folder name is Wapper_folder_name it can be changed
+    # Here the folder name is Wrapper_folder_name, it can be changed
     date = datetime.datetime.now(pytz.timezone('America/New_York'))
     date_folder_name = "_"+str(date.month)  + str(date.day)  + str(date.year)+"_"+ str(date.hour)+"_"+ str(date.minute)
-    Wapper_folder_name = "AIAAmission_" + controller_type
-    Wrapper_important_files = Wapper_folder_name+date_folder_name
+    Wrapper_folder_name = "SafetyMech_" + controller_type
+    Wrapper_important_files = Wrapper_folder_name+date_folder_name
     target = os.path.join(os.getcwd(), Wrapper_important_files)
     if not os.path.exists(target):
         os.mkdir(target)
@@ -122,10 +122,11 @@ if Wrapper_execution == True:
             payload_density_current = round(payload_density_array[i])
             control_variables[var] = payload_density_current
             file_name = "value_" + str(i+1)
-            drone_bb_test_COMPLETE_with_wrapper.WrapperMain_function(target, controller_type, control_variables,folder_name, file_name, time_max, csv_file_path_abnormalities, Wrapper_execution, visualization_flag)
+            drone_bb_simulator.WrapperMain_function(target, controller_type, control_variables,folder_name, file_name,
+                                                           time_max, csv_file_path_abnormalities, Wrapper_execution, visualization_flag)
 
 else:
     ball_density = 7850
     control_variables = {"my_ball_density":ball_density}
-    drone_bb_test_COMPLETE_with_wrapper.WrapperMain_function(None, controller_type, 
-        control_variables,None, None, None, None, Wrapper_execution, visualization_flag)
+    drone_bb_simulator.WrapperMain_function(None, controller_type, 
+        control_variables,None, None, time_max, None, Wrapper_execution, visualization_flag)

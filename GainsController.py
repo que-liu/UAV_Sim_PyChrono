@@ -30,7 +30,25 @@ class Gains:
         KD_rot = np.matrix(1 * np.diag([50,50,50]))
         KI_rot = np.matrix(1 * np.diag([20,20,10]))
         
-        return [number_of_states,size_DATA,KP_tran,KD_tran,KI_tran,KP_rot,KD_rot,KI_rot]
+        # ----------------------------------------------------------------
+        #                   Safety Mechanism Parameters
+        # ----------------------------------------------------------------
+        
+        # Mu - sphere intersection
+        sphereEpsilon = 1e-2
+        maximumThrust = 85 # [N] 85
+        
+        # Mu - elliptic cone intersection
+        EllipticConeEpsilon = 1e-2
+        maximumRollAngle = math.radians(32) # [rad] 25
+        maximumPitchAngle = math.radians(32) # [rad] 25
+        
+        # Mu - plane intersection
+        planeEpsilon = 1e-2
+        alphaPlane = 0.95 # [-] coefficient for setting the 'height' of the bottom plane. Must be >0 and <1.
+        
+        return [number_of_states,size_DATA,KP_tran,KD_tran,KI_tran,KP_rot,KD_rot,KI_rot,sphereEpsilon,maximumThrust,
+        EllipticConeEpsilon,maximumRollAngle,maximumPitchAngle,planeEpsilon,alphaPlane]
     # ================================================================================================================================================================
     # end of PID
     # ================================================================================================================================================================
@@ -1431,8 +1449,8 @@ class Gains:
         
         # Mu - elliptic cone intersection
         EllipticConeEpsilon = 1e-2
-        maximumRollAngle = math.radians(20) # [rad] 25
-        maximumPitchAngle = math.radians(20) # [rad] 25
+        maximumRollAngle = math.radians(80) # [rad] 25 - 32
+        maximumPitchAngle = math.radians(80) # [rad] 25 - 32
         
         # Mu - plane intersection
         planeEpsilon = 1e-2

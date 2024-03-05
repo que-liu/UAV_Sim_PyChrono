@@ -137,6 +137,14 @@ class traj_functions:
     yaw_dot_dot = (jerk_norm * math.sin(jerk_angle - yaw) - 
                    2*velocity_norm_prime*yaw_dot)/velocity_norm
     return yaw_dot_dot
+  
+  def SamplingTimeVector(waypointTimes, samplingTime):
+    "Create a vector with a defined sampling time to draw the trajectory"
+    
+    sampling_time_vector = np.arange(waypointTimes[0],
+                                     waypointTimes[-1] + samplingTime,
+                                     samplingTime)
+    return sampling_time_vector
     
     
     

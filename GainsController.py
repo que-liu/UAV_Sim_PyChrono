@@ -1449,8 +1449,8 @@ class Gains:
         
         # Mu - elliptic cone intersection
         EllipticConeEpsilon = 1e-2
-        maximumRollAngle = math.radians(80) # [rad] 25 - 32
-        maximumPitchAngle = math.radians(80) # [rad] 25 - 32
+        maximumRollAngle = math.radians(60) # [rad] 25 - 32
+        maximumPitchAngle = math.radians(60) # [rad] 25 - 32
         
         # Mu - plane intersection
         planeEpsilon = 1e-2

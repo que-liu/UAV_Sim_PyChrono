@@ -57,7 +57,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
     global mu_PD_baseline_tran, Moment_baseline_PI, e_tran, integral_eQe_tran, e_rot, integral_eQe_rot
     global epsilon_tran, integral_epsQeps_tran, epsilon_rot, integral_epsQeps_rot, e_transient_tran
-    global integral_etQet_tran, e_transient_rot, integral_etQet_rot, omega_ref_dot
+    global integral_etQet_tran, e_transient_rot, integral_etQet_rot, omega_ref_dot, omega_cmd, omega_cmd_dot
+    global Jacobian_matrix, Jacobian_matrix_dot
 
     #%% File settings
     
@@ -336,7 +337,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     mfloor = chrono.ChBodyEasyBox(50, 0.1, 50, 1000,True,True, contact_material_floor)
     mfloor.SetName('Floor')
     mfloor.SetBodyFixed(True)
-    mfloor.SetPos(chrono.ChVectorD(0,-0.3,0))
+    mfloor_Yposition = 0.3
+    mfloor.SetPos(chrono.ChVectorD(0,-mfloor_Yposition,0))
     # mfloor.SetPos(chrono.ChVectorD(0,-0.5,0))
     mfloor.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/light_gray.png"))
     # mfloor.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
@@ -900,13 +902,34 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         ####################################################################################################################################################################
         
     elif trajectory_type == 'piecewisePolynomial_trajectory':
-        pp_coefficients = np.loadtxt(open("trajectory_PolynomialCoefficientMatrix.csv",
-                                          "rb"), delimiter=",", skiprows=0)
+        pp_coefficients = np.loadtxt(open(
+                                  "trajectory_PolynomialCoefficientMatrix.csv",
+                                  "rb"), delimiter=",", skiprows=0)
         waypointTimes = np.loadtxt(open("trajectory_WaypointTimes.csv", "rb"),
                                    delimiter=",", skiprows=0)
         
         trajectory_instance = piecewisePolynomial_trajectory()
-        trajectory_instance.set_parameters(pp_coefficients)
+        trajectory_instance.set_parameters(pp_coefficients, waypointTimes)
+        
+        # Create a ChLinePath geometry, and insert sub-paths
+        mpath = chrono.ChLinePath()
+        [pos_x, pos_y, pos_z] = trajectory_instance.ComputePositionVector(0.01)
+        
+        for i in range(pos_x.size - 1):
+          mpath.AddSubLine(chrono.ChLineSegment(
+            chrono.ChVectorD(pos_x[i],
+                             -pos_z[i] + mfloor_Yposition,
+                             pos_y[i]),
+            chrono.ChVectorD(pos_x[i+1],
+                             -pos_z[i+1] + mfloor_Yposition,
+                             pos_y[i+1])))
+        
+        # Create a ChLineShape, a visualization asset for lines.
+        # The ChLinePath is a special type of ChLine and it can be visualized.
+        mpathasset = chrono.ChLineShape()
+        mpathasset.SetLineGeometry(mpath)
+        mpathasset.SetColor(chrono.ChColor(0,0,0))
+        mfloor.AddVisualShape(mpathasset)
 
     #%% Controller Inizialization
     
@@ -926,6 +949,11 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     Moment_adaptive = np.zeros((3,1))
     
     omega_ref_dot = np.zeros((3,1))
+    omega_ref = np.zeros((3,1))
+    omega_cmd = np.zeros((3,1))
+    omega_cmd_dot = np.zeros((3,1))
+    Jacobian_matrix = np.matrix(np.zeros((3,3)))
+    Jacobian_matrix_dot = np.matrix(np.zeros((3,3)))
     
     
     # Maximum thrust produced by a single motor = 1355 grams = 1.355 kg = 1.355 kg * 9.81 m/s^2 = 13.28 N
@@ -1260,7 +1288,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             global mu_x, mu_y, mu_z, u1, roll_ref, pitch_ref, roll_ref_dot, pitch_ref_dot, roll_ref_ddot, pitch_ref_ddot
             global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
             global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
-            global mu_PD_baseline_tran, Moment_baseline_PI, omega_ref_dot
+            global mu_PD_baseline_tran, Moment_baseline_PI, omega_ref_dot, omega_cmd, omega_cmd_dot, Jacobian_matrix
+            global Jacobian_matrix_dot
         
             
             state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
@@ -3104,7 +3133,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             global mu_x, mu_y, mu_z, u1, roll_ref, pitch_ref, roll_ref_dot, pitch_ref_dot, roll_ref_ddot, pitch_ref_ddot
             global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
             global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
-            global mu_PD_baseline_tran, Moment_baseline_PI, omega_ref_dot
+            global mu_PD_baseline_tran, Moment_baseline_PI, omega_ref_dot, omega_cmd, omega_cmd_dot, Jacobian_matrix
+            global Jacobian_matrix_dot
         
             
             state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
@@ -3263,7 +3293,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             Jacobian_matrix = np.matrix([[1,               0,                 -math.sin(pitch)],
                                           [0,  math.cos(roll), math.sin(roll) * math.cos(pitch)],
                                           [0, -math.sin(roll), math.cos(roll) * math.cos(pitch)]])
-            
+            print('HELLO Jacobian_matrix')
             omega_cmd = Jacobian_matrix * (-KP_rot*angular_error + angular_position_ref_dot)
             omega_cmd_dot = Jacobian_matrix_dot * (-KP_rot*angular_error + angular_position_ref_dot) + Jacobian_matrix * (-KP_rot*angular_error_dot + angular_position_ref_ddot)
             
@@ -3673,8 +3703,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             [translational_position_in_I_user,
              translational_velocity_in_I_user,
              translational_acceleration_in_I_user] = (trajectory_instance.
-                    user_defined_trajectory(time_now - controller_start_time,
-                                            waypointTimes))
+                     user_defined_trajectory(time_now - controller_start_time))
             [yaw_ref,
              yaw_ref_dot,
              yaw_ref_ddot] = trajectory_instance.user_defined_yaw()
@@ -4657,7 +4686,16 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         print ('\nSimulation time: ', time_now)
     
         
-        print('omega_ref_dot: ', omega_ref_dot)
+        print('omega_ref_dot: ', '%.4f'%omega_ref_dot[0], '%.4f'%omega_ref_dot[1], '%.4f'%omega_ref_dot[2])
+        print('omega_ref: ', '%.4f'%omega_ref[0], '%.4f'%omega_ref[1], '%.4f'%omega_ref[2])
+        print('omega_cmd_dot: ', '%.8f'%omega_cmd_dot[0],
+                                 '%.8f'%omega_cmd_dot[1],
+                                 '%.8f'%omega_cmd_dot[2])
+        print('omega_cmd: ', '%.4f'%omega_cmd[0], '%.4f'%omega_cmd[1], '%.4f'%omega_cmd[2])
+        print('Jacobian_matrix_dot: ', Jacobian_matrix_dot)
+        print('Jacobian_matrix: ', Jacobian_matrix)
+        
+        
         # print('z - z_ref: ', pos_pixhawk_LOC_to_GLOB_NED.z - z_ref)
         print('Z_onboard: ', '%.4f'%pos_pixhawk_LOC_to_GLOB_NED.z)
         # print('(G_acc - controller_z_output)*mass_total: ', (G_acc + controller_z_output)*mass_total)
@@ -4709,11 +4747,13 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                 
         
         # print('Pixhawk LOCAL Position: ', chvector_to_list(pos_pixhawk_LOC))
-        print('Pixhawk GLOBAL Position: ', chcoordsys_to_list(coord_pixhawk_GLOB)[0])
+        print('Pixhawk GLOBAL Position: ', '%.4f'%chcoordsys_to_list(coord_pixhawk_GLOB)[0][0],
+                                           '%.4f'%chcoordsys_to_list(coord_pixhawk_GLOB)[0][1],
+                                           '%.4f'%chcoordsys_to_list(coord_pixhawk_GLOB)[0][2])
         # print('Pixhawk GLOBAL Velocity: ', chcoordsys_to_list(coord_dt_pixhawk_GLOB)[0])
         # print('Pixhawk LOCAL  Velocity_T: ', chvector_to_list(vel_pixhawk_LOC_T))
         # print('Pixhawk LOCAL  Velocity: ', chvector_to_list(vel_pixhawk_LOC))
-        print('Pixhawk GLOBAL Velocity NORM: ', LA.norm(np.asarray(chcoordsys_to_list(coord_dt_pixhawk_GLOB)[0])))
+        print('Pixhawk GLOBAL Velocity NORM: ', '%.4f'%LA.norm(np.asarray(chcoordsys_to_list(coord_dt_pixhawk_GLOB)[0])))
         # print('Pixhawk LOCAL Velocity_T NORM: ', LA.norm(np.asarray(chvector_to_list(vel_pixhawk_LOC_T))))
         # print('Pixhawk LOCAL Velocity NORM: ', LA.norm(np.asarray(chvector_to_list(vel_pixhawk_LOC))),'\n')
         

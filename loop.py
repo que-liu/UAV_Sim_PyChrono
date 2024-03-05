@@ -33,7 +33,7 @@ visualization_flag = True
 
 # controller_type = 'PID' # Check mass_total_estimated
 
-controller_type = 'MRACwithBASELINE'
+# controller_type = 'MRACwithBASELINE'
 
 # controller_type = 'TwoLayerMRACwithBASELINE'
 
@@ -53,7 +53,7 @@ controller_type = 'MRACwithBASELINE'
 
 # controller_type = 'FunnelTwoLayerMRACwithBASELINE'
 
-# controller_type = 'MRACwithBASELINE_SafetyMechanism'
+controller_type = 'MRACwithBASELINE_SafetyMechanism'
 
 # ----------------------------------------------------------------
 #                     %%%%%%%%%%%%%%%%%%%%%%

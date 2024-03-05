@@ -13,14 +13,13 @@ traj.wpts = [0  5  20  20   0  0;
              0 -1  -1  -1  -1 -1];
 
 % Coefficient to scale the waypoints' times
-% traj.alphaFactor = 1;
-traj.alphaFactor = 0.5;
-
-% traj.tpts = traj.alphaFactor*[0 6 10 16 22 32]';
+traj.alphaFactor = 1.5;
+% traj.alphaFactor = 0.5;
 
 % Waypoints' times
 % traj.tpts = traj.alphaFactor*[0 4 8 14 20 30]';
-traj.tpts = traj.alphaFactor*[0 4 8 11 15 22]';
+% traj.tpts = traj.alphaFactor*[0 4 8 11 15 22]';
+traj.tpts = traj.alphaFactor*[0 2 5 10 16 28]';
 
 % Number of samples used to evaluate the trajectory
 traj.numsamples = 200;

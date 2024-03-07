@@ -16,7 +16,7 @@ import datetime
 import pytz
 PI = math.pi
 
-time_max = 60
+time_max = 11.24
 
 
 # If wrapper needs to be run the Wrapper_execution should be True else False

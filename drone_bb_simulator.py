@@ -58,7 +58,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     global mu_PD_baseline_tran, Moment_baseline_PI, e_tran, integral_eQe_tran, e_rot, integral_eQe_rot
     global epsilon_tran, integral_epsQeps_tran, epsilon_rot, integral_epsQeps_rot, e_transient_tran
     global integral_etQet_tran, e_transient_rot, integral_etQet_rot, omega_ref_dot, omega_cmd, omega_cmd_dot
-    global Jacobian_matrix, Jacobian_matrix_dot
+    global Jacobian_matrix, Jacobian_matrix_dot, angular_error
 
     #%% File settings
     
@@ -778,7 +778,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     #%% Trajectory parameters
     
     # ----------------------------------------------------------------
-    #                     CHOOSE THE TRAJECTORY
+    #!!!                     CHOOSE THE TRAJECTORY
     # ----------------------------------------------------------------
     
     # trajectory_type = 'circular_trajectory'
@@ -954,6 +954,12 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
     omega_cmd_dot = np.zeros((3,1))
     Jacobian_matrix = np.matrix(np.zeros((3,3)))
     Jacobian_matrix_dot = np.matrix(np.zeros((3,3)))
+    angular_error = np.zeros((3,1))
+    angular_error_dot = np.zeros((3,1))
+    integral_angular_error = np.zeros((3,1))
+    
+    e_omega_ref_cmd = np.zeros((3,1))
+    integral_e_omega_ref_cmd = np.zeros((3,1))
     
     
     # Maximum thrust produced by a single motor = 1355 grams = 1.355 kg = 1.355 kg * 9.81 m/s^2 = 13.28 N
@@ -1142,8 +1148,8 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         
     elif controller_type == 'MRACwithBASELINE_SafetyMechanism':
         # Gains MRAC with Baseline
-        [number_of_states,size_DATA,KP_tran,KD_tran,KI_tran,KP_tran_PD_baseline,KD_tran_PD_baseline,KP_rot,KP_rot_PI_baseline,
-        KD_rot_PI_baseline,KI_rot_PI_baseline,K_P_omega_ref,A_tran,B_tran,A_tran_bar,Lambda_bar,Theta_tran_adaptive_bar,
+        [number_of_states,size_DATA,KP_tran,KD_tran,KI_tran,KP_tran_PD_baseline,KD_tran_PD_baseline,KP_rot,KI_rot,KP_rot_PI_baseline,
+        KD_rot_PI_baseline,KI_rot_PI_baseline,K_P_omega_ref,K_I_omega_ref,A_tran,B_tran,A_tran_bar,Lambda_bar,Theta_tran_adaptive_bar,
         A_ref_tran,B_ref_tran,Gamma_x_tran,Gamma_r_tran,Gamma_Theta_tran,Gamma_Theta_tran,Q_tran,P_tran,K_x_tran_bar,K_r_tran_bar,A_rot,
         B_rot,A_ref_rot,B_ref_rot,Q_rot,P_rot,Gamma_x_rot,Gamma_r_rot,Gamma_Theta_rot,sphereEpsilon,maximumThrust,
         EllipticConeEpsilon,maximumRollAngle,maximumPitchAngle,planeEpsilon,
@@ -3134,7 +3140,7 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             global angular_position_ref_dot, angular_position_ref_ddot, Jacobian_matrix_inverse, angular_position_dot
             global angular_error_dot, u2, u3, u4, mu_baseline_tran, mu_adaptive_tran, Moment_baseline, Moment_adaptive
             global mu_PD_baseline_tran, Moment_baseline_PI, omega_ref_dot, omega_cmd, omega_cmd_dot, Jacobian_matrix
-            global Jacobian_matrix_dot
+            global Jacobian_matrix_dot, angular_error
         
             
             state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
@@ -3150,12 +3156,16 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             Theta_hat_rot = y[79:97] # \hat{\Theta} (rotational)
             integral_e_rot = y[97:100] # Integral of 'e_rot' = (angular_velocity - omega_ref)
             
+            integral_angular_error = y[100:103] # Integral of angular_error = attitude - attitude_ref
+            integral_e_omega_ref_cmd = y[103:106] #Integral of (omega_ref - omega_cmd)
+            
             K_hat_x_tran = np.matrix(K_hat_x_tran.reshape(6,3))
             K_hat_r_tran = np.matrix(K_hat_r_tran.reshape(3,3))
             Theta_hat_tran = np.matrix(Theta_hat_tran.reshape(6,3))
             K_hat_x_rot = np.matrix(K_hat_x_rot.reshape(3,3))
             K_hat_r_rot = np.matrix(K_hat_r_rot.reshape(3,3))
             Theta_hat_rot = np.matrix(Theta_hat_rot.reshape(6,3))
+            
             
             e_tran = x_tran - x_ref_tran
             e_rot = angular_velocity - omega_ref
@@ -3293,13 +3303,30 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             Jacobian_matrix = np.matrix([[1,               0,                 -math.sin(pitch)],
                                           [0,  math.cos(roll), math.sin(roll) * math.cos(pitch)],
                                           [0, -math.sin(roll), math.cos(roll) * math.cos(pitch)]])
-            print('HELLO Jacobian_matrix')
-            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error + angular_position_ref_dot)
-            omega_cmd_dot = Jacobian_matrix_dot * (-KP_rot*angular_error + angular_position_ref_dot) + Jacobian_matrix * (-KP_rot*angular_error_dot + angular_position_ref_ddot)
+            # print('HELLO Jacobian_matrix')
+            # omega_cmd = Jacobian_matrix * (-KP_rot*angular_error + angular_position_ref_dot)
+            # omega_cmd_dot = Jacobian_matrix_dot * (-KP_rot*angular_error + angular_position_ref_dot) + Jacobian_matrix * (-KP_rot*angular_error_dot + angular_position_ref_ddot)
             
-            omega_ref_dot = -K_P_omega_ref*(omega_ref - omega_cmd) + omega_cmd_dot
+            omega_cmd = Jacobian_matrix * (-KP_rot*angular_error 
+                                           -KI_rot*integral_angular_error 
+                                           + angular_position_ref_dot)
+            omega_cmd_dot = (Jacobian_matrix_dot * (-KP_rot*angular_error 
+                                                 -KI_rot*integral_angular_error 
+                                                 + angular_position_ref_dot)
+                          + Jacobian_matrix * (-KP_rot*angular_error_dot 
+                                               -KI_rot*angular_error 
+                                               + angular_position_ref_ddot))
             
-            r_rot = K_P_omega_ref * omega_cmd + omega_cmd_dot
+            
+            # omega_ref_dot = -K_P_omega_ref*(omega_ref - omega_cmd) + omega_cmd_dot
+            
+            # r_rot = K_P_omega_ref * omega_cmd + omega_cmd_dot
+            
+            omega_ref_dot = (-K_P_omega_ref*(omega_ref - omega_cmd) 
+                              -K_I_omega_ref*integral_e_omega_ref_cmd
+                              + omega_cmd_dot)
+            
+            r_rot = K_P_omega_ref * omega_cmd -K_I_omega_ref*integral_e_omega_ref_cmd + omega_cmd_dot
             
             Phi_adaptive_rot = np.array([[angular_velocity[1].item() * angular_velocity[2].item()],
                                           [angular_velocity[0].item() * angular_velocity[2].item()],
@@ -3336,6 +3363,9 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
             dy[70:79] = K_hat_r_rot_dot.reshape(9,1)
             dy[79:97] = Theta_hat_rot_dot.reshape(18,1)
             dy[97:100] = angular_velocity - omega_ref
+            
+            dy[100:103] = angular_error
+            dy[103:106] = omega_ref - omega_cmd
          
             return np.array(dy)
         
@@ -3749,20 +3779,38 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                                         "mu_x[N]", "mu_y[N]","mu_z[N]","U1[N]", "U2[Nm]","U3[Nm]", "U4[Nm]","Thrust1[N]","Thrust2[N]","Thrust3[N]","Thrust4[N]","Thrust5[N]","Thrust6[N]","Thrust7[N]","Thrust8[N]"]
                 
                 else:   
+                    # header_csv = ["Real Time[s]","Simulation time[s]", "translational_position_in_Ix[m]","translational_position_in_Iy[m]","translational_position_in_Iz[m]",
+                    #                      "translational_velocity_in_Ix[m/s]","translational_velocity_in_Iy[m/s]","translational_velocity_in_Iz[m/s]", "roll[rad]","pitch[rad]","yaw[rad]",
+                    #                      "angular_velocity_x[rad/s]","angular_velocity_y[rad/s]","angular_velocity_z[rad/s]",
+                    #                      "x_ref_tran1[m]", "x_ref_tran2[m]", "x_ref_tran3[m]", "x_ref_tran4[m]", "x_ref_tran5[m]", "x_ref_tran6[m]",
+                    #                      "roll_ref[rad]","pitch_ref[rad]", "yaw_ref[rad]",
+                    #                      "roll_ref_dot[rad/s]", "pitch_ref_dot[rad/s]", "yaw_ref_dot[rad/s]","roll_ref_ddot[rad/s^2]", "pitch_ref_ddot[rad/s^2]", "yaw_ref_ddot[rad/s^2]",
+                    #                      "omega_ref_x[rad/s]", "omega_ref_y[rad/s]", "omega_ref_z[rad/s]", "translational_position_in_I_user_x[m]","translational_position_in_I_user_y[m]","translational_position_in_I_user_z[m]",
+                    #                      "translational_velocity_in_I_user_x[m/s]","translational_velocity_in_I_user_y[m/s]","translational_velocity_in_I_user_z[m/s]",
+                    #                      "translational_acceleration_in_I_user_x[m/s^2]","translational_acceleration_in_I_user_y[m/s^2]","translational_acceleration_in_I_user_z[m/s^2]",
+                    #                      "mu_x[N]", "mu_y[N]","mu_z[N]","U1[N]", "U2[Nm]","U3[Nm]", "U4[Nm]","Thrust1[N]","Thrust2[N]","Thrust3[N]","Thrust4[N]","Thrust5[N]","Thrust6[N]","Thrust7[N]","Thrust8[N]",
+                    #                      "mu_baseline_tran_x[N]", "mu_baseline_tran_y[N]", "mu_baseline_tran_z[N]", 
+                    #                      "mu_adaptive_tran_x[N]", "mu_adaptive_tran_y[N]", "mu_adaptive_tran_z[N]","mu_PD_baseline_tran_x[N]", "mu_PD_baseline_tran_y[N]", "mu_PD_baseline_tran_z[N]",
+                    #                      "Moment_baseline_x[Nm]", "Moment_baseline_y[Nm]", "Moment_baseline_z[Nm]","Moment_adaptive_x[Nm]", "Moment_adaptive_y[Nm]", "Moment_adaptive_z[Nm]",
+                    #                      "Moment_baseline_PI_x[Nm]", "Moment_baseline_PI_y[Nm]", "Moment_baseline_PI_z[Nm]"]
                     header_csv = ["Real Time[s]","Simulation time[s]", "translational_position_in_Ix[m]","translational_position_in_Iy[m]","translational_position_in_Iz[m]",
-                                         "translational_velocity_in_Ix[m/s]","translational_velocity_in_Iy[m/s]","translational_velocity_in_Iz[m/s]", "roll[rad]","pitch[rad]","yaw[rad]",
-                                         "angular_velocity_x[rad/s]","angular_velocity_y[rad/s]","angular_velocity_z[rad/s]",
-                                         "x_ref_tran1[m]", "x_ref_tran2[m]", "x_ref_tran3[m]", "x_ref_tran4[m]", "x_ref_tran5[m]", "x_ref_tran6[m]",
-                                         "roll_ref[rad]","pitch_ref[rad]", "yaw_ref[rad]",
-                                         "roll_ref_dot[rad/s]", "pitch_ref_dot[rad/s]", "yaw_ref_dot[rad/s]","roll_ref_ddot[rad/s^2]", "pitch_ref_ddot[rad/s^2]", "yaw_ref_ddot[rad/s^2]",
-                                         "omega_ref_x[rad/s]", "omega_ref_y[rad/s]", "omega_ref_z[rad/s]", "translational_position_in_I_user_x[m]","translational_position_in_I_user_y[m]","translational_position_in_I_user_z[m]",
-                                         "translational_velocity_in_I_user_x[m/s]","translational_velocity_in_I_user_y[m/s]","translational_velocity_in_I_user_z[m/s]",
-                                         "translational_acceleration_in_I_user_x[m/s^2]","translational_acceleration_in_I_user_y[m/s^2]","translational_acceleration_in_I_user_z[m/s^2]",
-                                         "mu_x[N]", "mu_y[N]","mu_z[N]","U1[N]", "U2[Nm]","U3[Nm]", "U4[Nm]","Thrust1[N]","Thrust2[N]","Thrust3[N]","Thrust4[N]","Thrust5[N]","Thrust6[N]","Thrust7[N]","Thrust8[N]",
-                                         "mu_baseline_tran_x[N]", "mu_baseline_tran_y[N]", "mu_baseline_tran_z[N]", 
-                                         "mu_adaptive_tran_x[N]", "mu_adaptive_tran_y[N]", "mu_adaptive_tran_z[N]","mu_PD_baseline_tran_x[N]", "mu_PD_baseline_tran_y[N]", "mu_PD_baseline_tran_z[N]",
-                                         "Moment_baseline_x[Nm]", "Moment_baseline_y[Nm]", "Moment_baseline_z[Nm]","Moment_adaptive_x[Nm]", "Moment_adaptive_y[Nm]", "Moment_adaptive_z[Nm]",
-                                         "Moment_baseline_PI_x[Nm]", "Moment_baseline_PI_y[Nm]", "Moment_baseline_PI_z[Nm]"]
+                                  "translational_velocity_in_Ix[m/s]","translational_velocity_in_Iy[m/s]","translational_velocity_in_Iz[m/s]", "roll[rad]","pitch[rad]","yaw[rad]",
+                                  "angular_velocity_x[rad/s]","angular_velocity_y[rad/s]","angular_velocity_z[rad/s]",
+                                  "x_ref_tran1[m]", "x_ref_tran2[m]", "x_ref_tran3[m]", "x_ref_tran4[m]", "x_ref_tran5[m]", "x_ref_tran6[m]",
+                                  "roll_ref[rad]","pitch_ref[rad]", "yaw_ref[rad]",
+                                  "roll_ref_dot[rad/s]", "pitch_ref_dot[rad/s]", "yaw_ref_dot[rad/s]","roll_ref_ddot[rad/s^2]", "pitch_ref_ddot[rad/s^2]", "yaw_ref_ddot[rad/s^2]",
+                                  "omega_ref_x[rad/s]", "omega_ref_y[rad/s]", "omega_ref_z[rad/s]", "translational_position_in_I_user_x[m]","translational_position_in_I_user_y[m]","translational_position_in_I_user_z[m]",
+                                  "translational_velocity_in_I_user_x[m/s]","translational_velocity_in_I_user_y[m/s]","translational_velocity_in_I_user_z[m/s]",
+                                  "translational_acceleration_in_I_user_x[m/s^2]","translational_acceleration_in_I_user_y[m/s^2]","translational_acceleration_in_I_user_z[m/s^2]",
+                                  "mu_x[N]", "mu_y[N]","mu_z[N]","U1[N]", "U2[Nm]","U3[Nm]", "U4[Nm]","Thrust1[N]","Thrust2[N]","Thrust3[N]","Thrust4[N]","Thrust5[N]","Thrust6[N]","Thrust7[N]","Thrust8[N]",
+                                  "mu_baseline_tran_x[N]", "mu_baseline_tran_y[N]", "mu_baseline_tran_z[N]", 
+                                  "mu_adaptive_tran_x[N]", "mu_adaptive_tran_y[N]", "mu_adaptive_tran_z[N]","mu_PD_baseline_tran_x[N]", "mu_PD_baseline_tran_y[N]", "mu_PD_baseline_tran_z[N]",
+                                  "Moment_baseline_x[Nm]", "Moment_baseline_y[Nm]", "Moment_baseline_z[Nm]","Moment_adaptive_x[Nm]", "Moment_adaptive_y[Nm]", "Moment_adaptive_z[Nm]",
+                                  "Moment_baseline_PI_x[Nm]", "Moment_baseline_PI_y[Nm]", "Moment_baseline_PI_z[Nm]",
+                                  "omega_ref_dot_x[rad/s^2]", "omega_ref_dot_y[rad/s^2]", "omega_ref_dot_z[rad/s^2]",
+                                  "omega_cmd_dot_x[rad/s^2]", "omega_cmd_dot_y[rad/s^2]", "omega_cmd_dot_z[rad/s^2]",
+                                  "omega_cmd_x[rad/s]", "omega_cmd_y[rad/s]", "omega_cmd_z[rad/s]",
+                                  "angular_position_dot_x[rad/s]", "angular_position_dot_y[rad/s]", "angular_position_dot_z[rad/s]"]
             
                 
                 len_header = len(header_csv) +1
@@ -4433,6 +4481,10 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                 K_hat_r_rot = yout[70:79] # \hat{K}_r (rotational)
                 Theta_hat_rot = yout[79:97] # \hat{\Theta} (rotational)
                 integral_e_rot = yout[97:100] # Integral of 'e_rot' = (angular_velocity - omega_ref)
+                
+                integral_angular_error = yout[100:103] # Integral of angular_error = attitude - attitude_ref
+                integral_e_omega_ref_cmd = yout[103:106] #Integral of e_omega_ref_cmd = omega_ref - omega_cmd
+                
                 ###################################################################
             
             # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -4597,6 +4649,11 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                 DATA_vector[65:68] = Moment_baseline
                 DATA_vector[68:71] = Moment_adaptive
                 DATA_vector[71:74] = Moment_baseline_PI
+                
+                DATA_vector[74:77] = omega_ref_dot
+                DATA_vector[77:80] = omega_cmd_dot
+                DATA_vector[80:83] = omega_cmd
+                DATA_vector[83:86] = angular_position_dot
     
                 DATA = np.append(DATA,np.resize(DATA_vector,(size_DATA,1)), axis=1)
                 ###################################################################
@@ -4685,15 +4742,17 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         # Print data to Console -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         print ('\nSimulation time: ', time_now)
     
-        
         print('omega_ref_dot: ', '%.4f'%omega_ref_dot[0], '%.4f'%omega_ref_dot[1], '%.4f'%omega_ref_dot[2])
         print('omega_ref: ', '%.4f'%omega_ref[0], '%.4f'%omega_ref[1], '%.4f'%omega_ref[2])
         print('omega_cmd_dot: ', '%.8f'%omega_cmd_dot[0],
                                  '%.8f'%omega_cmd_dot[1],
                                  '%.8f'%omega_cmd_dot[2])
         print('omega_cmd: ', '%.4f'%omega_cmd[0], '%.4f'%omega_cmd[1], '%.4f'%omega_cmd[2])
-        print('Jacobian_matrix_dot: ', Jacobian_matrix_dot)
-        print('Jacobian_matrix: ', Jacobian_matrix)
+        # print('Jacobian_matrix_dot: ', Jacobian_matrix_dot)
+        # print('Jacobian_matrix: ', Jacobian_matrix)
+        print('integral_angular_error: ', '%.4f'%integral_angular_error[0], '%.4f'%integral_angular_error[1], '%.4f'%integral_angular_error[2])
+        print('angular_error: ', '%.4f'%angular_error[0], '%.4f'%angular_error[1], '%.4f'%angular_error[2])
+        print('angular_error_dot: ', '%.4f'%angular_error_dot[0], '%.4f'%angular_error_dot[1], '%.4f'%angular_error_dot[2])
         
         
         # print('z - z_ref: ', pos_pixhawk_LOC_to_GLOB_NED.z - z_ref)

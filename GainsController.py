@@ -1354,10 +1354,11 @@ class Gains:
     def MRACwithBASELINE_SafetyMechanism(mass_total_estimated,air_density_estimated,surface_area_estimated,drag_coefficient_matrix_estimated):
         
         # Number of states to be integrated by RK4
-        number_of_states = 100
+        # number_of_states = 100
+        number_of_states = 106
         # Length of the array vector that will be exported 
-        size_DATA = 74 
-        # size_DATA = 94 # OLD data format
+        # size_DATA = 74 
+        size_DATA = 86 
         
         # ----------------------------------------------------------------
         #                     Baseline Parameters
@@ -1373,14 +1374,23 @@ class Gains:
         KD_tran_PD_baseline = np.matrix(1 * np.diag([8,8,3]))
 
         # **Rotational** baseline parameters
-        KP_rot = np.matrix(1e2 * np.diag([1,1,0.5]))
+        # KP_rot = np.matrix(1e2 * np.diag([1,1,0.5]))
+        # KP_rot = np.matrix(5e1 * np.diag([0.1,0.1,0.5]))
+        KP_rot = np.matrix(5e1 * np.diag([0.05,0.05,0.5]))
+        # KI_rot = np.matrix(1e2 * np.diag([1,1,1]))
+        KI_rot = np.matrix(1e2 * np.diag([1,1,1]))
 
         # **Rotational** parameters for the PI baseline controller (Moment_baseline_PI)       
-        KP_rot_PI_baseline = np.matrix(40 * np.diag([1,1,1]))
+        # KP_rot_PI_baseline = np.matrix(40 * np.diag([1,1,1]))
+        # KD_rot_PI_baseline = np.matrix(0 * np.diag([1,1,0.5]))
+        # KI_rot_PI_baseline = np.matrix(1e-1 * np.diag([1,1,0.5]))
+        KP_rot_PI_baseline = np.matrix(200 * np.diag([1,1,0.3]))
         KD_rot_PI_baseline = np.matrix(0 * np.diag([1,1,0.5]))
-        KI_rot_PI_baseline = np.matrix(0.1 * np.diag([1,1,0.5]))
+        KI_rot_PI_baseline = np.matrix(1e2 * np.diag([10,10,0.5]))
 
-        K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,10]))
+        # K_P_omega_ref = np.matrix(1.5e-1 * np.diag([5,5,10]))
+        K_P_omega_ref = np.matrix(1.5e0 * np.diag([50,50,10]))
+        K_I_omega_ref = np.matrix(1e2 * np.diag([1,1,1]))
 
         # ----------------------------------------------------------------
         #                   Translational Parameters MRAC
@@ -1431,13 +1441,17 @@ class Gains:
         B_ref_rot = np.matrix(np.eye(3))
 
         # **Rotational** parameters Lyapunov equation
-        Q_rot = np.matrix(7e-3 * np.diag([1,1,2]))
+        # Q_rot = np.matrix(7e-3 * np.diag([1,1,2]))
+        Q_rot = np.matrix(7e-3 * np.diag([2,2,2]))
         P_rot = np.matrix(linalg.solve_continuous_lyapunov(A_ref_rot.T, -Q_rot))
 
         # **Rotational** adaptive parameters
-        Gamma_x_rot = np.matrix(1e1 * np.diag([1,1,10])) # Adaptive rates
-        Gamma_r_rot = np.matrix(1e-4 * np.diag([1,1,1])) # Adaptive rates
-        Gamma_Theta_rot = np.matrix(1e0 * np.diag([1,1,1,1,1,1])) # Adaptive rates
+        # Gamma_x_rot = np.matrix(1e1 * np.diag([1,1,10])) # Adaptive rates
+        # Gamma_r_rot = np.matrix(1e-4 * np.diag([1,1,1])) # Adaptive rates
+        # Gamma_Theta_rot = np.matrix(1e0 * np.diag([1,1,1,1,1,1])) # Adaptive rates
+        Gamma_x_rot = np.matrix(1e4 * np.diag([1,1,1])) # Adaptive rates
+        Gamma_r_rot = np.matrix(1e1 * np.diag([1,1,1])) # Adaptive rates
+        Gamma_Theta_rot = np.matrix(1e2 * np.diag([1,1,1,1,1,1])) # Adaptive rates
         
         # ----------------------------------------------------------------
         #                   Safety Mechanism Parameters
@@ -1457,8 +1471,8 @@ class Gains:
         alphaPlane = 0.95 # [-] coefficient for setting the 'height' of the bottom plane. Must be >0 and <1.
         
         
-        return [number_of_states,size_DATA,KP_tran,KD_tran,KI_tran,KP_tran_PD_baseline,KD_tran_PD_baseline,KP_rot,KP_rot_PI_baseline,
-                KD_rot_PI_baseline,KI_rot_PI_baseline,K_P_omega_ref,A_tran,B_tran,A_tran_bar,Lambda_bar,Theta_tran_adaptive_bar,
+        return [number_of_states,size_DATA,KP_tran,KD_tran,KI_tran,KP_tran_PD_baseline,KD_tran_PD_baseline,KP_rot,KI_rot,KP_rot_PI_baseline,
+                KD_rot_PI_baseline,KI_rot_PI_baseline,K_P_omega_ref,K_I_omega_ref,A_tran,B_tran,A_tran_bar,Lambda_bar,Theta_tran_adaptive_bar,
                 A_ref_tran,B_ref_tran,Gamma_x_tran,Gamma_r_tran,Gamma_Theta_tran,Gamma_Theta_tran,Q_tran,P_tran,K_x_tran_bar,K_r_tran_bar,A_rot,
                 B_rot,A_ref_rot,B_ref_rot,Q_rot,P_rot,Gamma_x_rot,Gamma_r_rot,Gamma_Theta_rot,sphereEpsilon,maximumThrust,
                 EllipticConeEpsilon,maximumRollAngle,maximumPitchAngle,planeEpsilon,alphaPlane]

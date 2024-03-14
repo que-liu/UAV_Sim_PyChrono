@@ -383,11 +383,12 @@ def series_element(s):
 
     """
     alpha = 1.001
+    # alpha = 2
     element = 1/(s**alpha)
     
     return element
 
-def find_s(s, weighted_e_squared):
+def find_s(s_prev, weighted_e_squared):
     """"
     This function allows to compute s such that \sum s is convergent;
     see the comments after (40) in the paper.
@@ -396,10 +397,26 @@ def find_s(s, weighted_e_squared):
     """
 
     alpha = 1.001
+    # alpha = 2
     
-    s = math.ceil(weighted_e_squared**(-1/alpha))
+    s = max(math.ceil(weighted_e_squared**(-1/alpha)), s_prev + 1)
         
     return s
+
+# def find_s(s, weighted_e_squared):
+#     """"
+#     This function allows to compute s such that \sum s is convergent;
+#     see the comments after (40) in the paper.
+    
+#     weighted_e_squared = e^T(t_j) P e(t_j)
+#     """
+
+#     alpha = 1.001
+#     # alpha = 2
+    
+#     s = math.ceil(weighted_e_squared**(-1/alpha))
+        
+#     return s
 
 # def find_s(s, weighted_e_squared):
 #     """"

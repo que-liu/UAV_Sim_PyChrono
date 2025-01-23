@@ -1,5 +1,7 @@
 import math
 import numpy as np
+from numpy.polynomial import polynomial
+from trajectory_functions import traj_functions
 
 PI = math.pi
 
@@ -392,18 +394,159 @@ class roundedRectangle_trajectory:
             psi_ref_ddot = 0
             
         else:
-            # 7 Left vertical segment
             psi_ref = 0
             psi_ref_dot = 0
             psi_ref_ddot = 0
         
         return [psi_ref, psi_ref_dot, psi_ref_ddot]
+      
+# ==============================================================================================================================
+# 
+# ==============================================================================================================================    
 
 
+class piecewisePolynomial_trajectory:
+  def __init__(self):
+    self.translational_position_in_I_user = np.zeros((3,1))
+    self.translational_velocity_in_I_user = np.zeros((3,1))
+    self.translational_acceleration_in_I_user = np.zeros((3,1))
+    self.t_adjusted = 0
+    self.segment = 0
+    self.velocity_norm2D = 0
+    self.psi_ref = 0
+    self.psi_ref_dot = 0
+    self.psi_ref_ddot = 0
+    self.psi_ref_previous = 0
+    
+  def set_parameters(self, pp_coefficients, waypointTimes):
+    
+    self.waypointTimes = waypointTimes
+    
+    [self.position_coef_x,
+     self.position_coef_y,
+     self.position_coef_z] = traj_functions.PolyCoefAssigning(pp_coefficients)
+    
+    self.velocity_coef_x = traj_functions.PolyderMatrix(self.position_coef_x)
+    self.velocity_coef_y = traj_functions.PolyderMatrix(self.position_coef_y)
+    self.velocity_coef_z = traj_functions.PolyderMatrix(self.position_coef_z)
 
+    self.acceleration_coef_x = traj_functions.PolyderMatrix(self.velocity_coef_x)
+    self.acceleration_coef_y = traj_functions.PolyderMatrix(self.velocity_coef_y)
+    self.acceleration_coef_z = traj_functions.PolyderMatrix(self.velocity_coef_z)
 
+    self.jerk_coef_x = traj_functions.PolyderMatrix(self.acceleration_coef_x)
+    self.jerk_coef_y = traj_functions.PolyderMatrix(self.acceleration_coef_y)
+    self.jerk_coef_z = traj_functions.PolyderMatrix(self.acceleration_coef_z)
+    
+  def user_defined_trajectory(self, t):
+      """Piecewise polynomial trajectory.
+      t: current simulation time
+      pp_coefficients: matrix of the coefficients of the piecewise polynomial
+                       trajectory
+      waypointTimes: times of the waypoints
+      """
+      
+      [self.t_adjusted,
+       self.segment] = traj_functions.PolyTimeAdjusted(self.waypointTimes, t)
 
+      self.translational_position_in_I_user[0] = polynomial.polyval(
+                                          self.t_adjusted,
+                                          self.position_coef_x[self.segment,:])
+      self.translational_position_in_I_user[1] = polynomial.polyval(
+                                          self.t_adjusted,
+                                          self.position_coef_y[self.segment,:])
+      self.translational_position_in_I_user[2] = polynomial.polyval(
+                                          self.t_adjusted,
+                                          self.position_coef_z[self.segment,:])
+      
+      self.translational_velocity_in_I_user[0] = polynomial.polyval(
+                                          self.t_adjusted,
+                                          self.velocity_coef_x[self.segment,:])
+      self.translational_velocity_in_I_user[1] = polynomial.polyval(
+                                          self.t_adjusted,
+                                          self.velocity_coef_y[self.segment,:])
+      self.translational_velocity_in_I_user[2] = polynomial.polyval(
+                                          self.t_adjusted,
+                                          self.velocity_coef_z[self.segment,:])
+      
+      self.translational_acceleration_in_I_user[0] = polynomial.polyval(
+                                      self.t_adjusted,
+                                      self.acceleration_coef_x[self.segment,:])
+      self.translational_acceleration_in_I_user[1] = polynomial.polyval(
+                                      self.t_adjusted,
+                                      self.acceleration_coef_y[self.segment,:])
+      self.translational_acceleration_in_I_user[2] = polynomial.polyval(
+                                      self.t_adjusted,
+                                      self.acceleration_coef_z[self.segment,:])
 
+      return [self.translational_position_in_I_user,
+              self.translational_velocity_in_I_user,
+              self.translational_acceleration_in_I_user]
+    
+  def user_defined_yaw(self):
+    "User-defined reference yaw angle"
+    
+    self.velocity_norm2D = traj_functions.Norm2D(
+                                          self.velocity_coef_x[self.segment,:],
+                                          self.velocity_coef_y[self.segment,:],
+                                          self.t_adjusted)
+    
+    if self.t_adjusted == 0:
+      self.psi_ref = 0
+      self.psi_ref_dot = 0
+      self.psi_ref_ddot = 0
+      
+    elif (self.t_adjusted > 0 and self.velocity_norm2D < 1e-5):
+      self.psi_ref = self.psi_ref_previous
+      self.psi_ref_dot = 0
+      self.psi_ref_ddot = 0
+      
+    else:
+      self.psi_ref = traj_functions.YawComputation(
+                                          self.velocity_coef_x[self.segment,:],
+                                          self.velocity_coef_y[self.segment,:],
+                                          self.t_adjusted)
+      self.psi_ref_dot = traj_functions.YawDotComputation(
+                                      self.velocity_coef_x[self.segment,:],
+                                      self.velocity_coef_y[self.segment,:],
+                                      self.acceleration_coef_x[self.segment,:],
+                                      self.acceleration_coef_y[self.segment,:],
+                                      self.t_adjusted)
+      self.psi_ref_ddot = traj_functions.YawDotDotComputation(
+                                      self.velocity_coef_x[self.segment,:],
+                                      self.velocity_coef_y[self.segment,:],
+                                      self.acceleration_coef_x[self.segment,:],
+                                      self.acceleration_coef_y[self.segment,:],
+                                      self.jerk_coef_x[self.segment,:],
+                                      self.jerk_coef_y[self.segment,:],
+                                      self.t_adjusted)
+      
+    self.psi_ref_previous = self.psi_ref
+    
+    return [self.psi_ref,
+            self.psi_ref_dot,
+            self.psi_ref_ddot]
+  
+  def ComputePositionVector(self, samplingTime = 0.01):
+    "Drawing ChLineSegement for visualization of the trajectory in simulation"
+    
+    self.samplingTime = samplingTime
+    
+    sampling_time_vector = traj_functions.SamplingTimeVector(self.waypointTimes,
+                                                             self.samplingTime)
+    pos_x = np.zeros(sampling_time_vector.size)
+    pos_y = np.zeros(sampling_time_vector.size)
+    pos_z = np.zeros(sampling_time_vector.size)
+    
+    for i in range(sampling_time_vector.size):
+      
+      [position, _ , _]= self.user_defined_trajectory(sampling_time_vector[i])
+      
+      pos_x[i] = position[0]
+      pos_y[i] = position[1]
+      pos_z[i] = position[2]
+    
+    return [pos_x, pos_y, pos_z]
 
 
 

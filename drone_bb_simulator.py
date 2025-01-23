@@ -4650,10 +4650,10 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
                 DATA_vector[68:71] = Moment_adaptive
                 DATA_vector[71:74] = Moment_baseline_PI
                 
-                DATA_vector[74:77] = omega_ref_dot
-                DATA_vector[77:80] = omega_cmd_dot
-                DATA_vector[80:83] = omega_cmd
-                DATA_vector[83:86] = angular_position_dot
+                # DATA_vector[74:77] = omega_ref_dot
+                # DATA_vector[77:80] = omega_cmd_dot
+                # DATA_vector[80:83] = omega_cmd
+                # DATA_vector[83:86] = angular_position_dot
     
                 DATA = np.append(DATA,np.resize(DATA_vector,(size_DATA,1)), axis=1)
                 ###################################################################
@@ -4741,123 +4741,126 @@ def WrapperMain_function(target_folder, controller_type, wrapper_control_paramet
         
         # Print data to Console -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         print ('\nSimulation time: ', time_now)
+        
+        print_cosole_flag = False
+        if (print_cosole_flag):
     
-        print('omega_ref_dot: ', '%.4f'%omega_ref_dot[0], '%.4f'%omega_ref_dot[1], '%.4f'%omega_ref_dot[2])
-        print('omega_ref: ', '%.4f'%omega_ref[0], '%.4f'%omega_ref[1], '%.4f'%omega_ref[2])
-        print('omega_cmd_dot: ', '%.8f'%omega_cmd_dot[0],
-                                 '%.8f'%omega_cmd_dot[1],
-                                 '%.8f'%omega_cmd_dot[2])
-        print('omega_cmd: ', '%.4f'%omega_cmd[0], '%.4f'%omega_cmd[1], '%.4f'%omega_cmd[2])
-        # print('Jacobian_matrix_dot: ', Jacobian_matrix_dot)
-        # print('Jacobian_matrix: ', Jacobian_matrix)
-        print('integral_angular_error: ', '%.4f'%integral_angular_error[0], '%.4f'%integral_angular_error[1], '%.4f'%integral_angular_error[2])
-        print('angular_error: ', '%.4f'%angular_error[0], '%.4f'%angular_error[1], '%.4f'%angular_error[2])
-        print('angular_error_dot: ', '%.4f'%angular_error_dot[0], '%.4f'%angular_error_dot[1], '%.4f'%angular_error_dot[2])
-        
-        
-        # print('z - z_ref: ', pos_pixhawk_LOC_to_GLOB_NED.z - z_ref)
-        print('Z_onboard: ', '%.4f'%pos_pixhawk_LOC_to_GLOB_NED.z)
-        # print('(G_acc - controller_z_output)*mass_total: ', (G_acc + controller_z_output)*mass_total)
-        print('Thrust T: ', '%.4f'%T[0], '%.4f'%T[1], '%.4f'%T[2], '%.4f'%T[3], '%.4f'%T[4], '%.4f'%T[5], '%.4f'%T[6], '%.4f'%T[7])
-        print('Total thrust: ', '%4f'%np.sum(T))
-        print('Total torque around Z_onboard: ', '%.4f'%torque_total)
-        # print('Pixhawk Euler 321 angles [rad]: ', chvector_to_list(pixhawk_euler))
-        
-        print('Pixhawk Euler 321 angles [deg]: ', pixhawk_euler_deg_trunc)
-        # print('Pixhawk LOCAL angular velocity [rad/s]: ', Wvel_pixhawk_LOC)
-        # print('Pixhawk GLOBAL angular velocity [rad/s]: ', Wvel_pixhawk_GLOB)
-        
-        
-        # print('Pixhawk Euler 321 angles OPPOSITE [deg]: ', pixhawk_euler_opposite_deg_trunc)
-        # print('Controllers U1 U2 U3 U4:', ' '.join([f'{u:.4f}' for u in U]))
-        print('Controllers U1 U2 U3 U4: ', '%.4f'%U[0], '%.4f'%U[1], '%.4f'%U[2], '%.4f'%U[3])
-        
-        print('mu: ', '%.4f'%mu_x, '%.4f'%mu_y, '%.4f'%mu_z)
-        
-        # print ('Roll reference [rad]: ', roll_ref)
-        # print ('Pitch reference [rad]: ', pitch_ref)
-        # print ('Yaw reference [rad]: ', yaw_ref)
-        
-        print ('Roll reference [deg]: ', '%.4f'%np.rad2deg(roll_ref))
-        print ('Pitch reference [deg]: ', '%.4f'%np.rad2deg(pitch_ref))
-        print ('Yaw reference [deg]: ', '%.4f'%np.rad2deg(yaw_ref))
-        
-        print ('mu_PD_baseline_tran [norm x y z]: ', '%.4f'%LA.norm(mu_PD_baseline_tran), '%.4f'%mu_PD_baseline_tran[0].item(), '%.4f'%mu_PD_baseline_tran[1].item(), '%.4f'%mu_PD_baseline_tran[2].item())
-        print ('mu_baseline_tran [norm x y z]: ', '%.4f'%LA.norm(mu_baseline_tran), '%.4f'%mu_baseline_tran[0].item(), '%.4f'%mu_baseline_tran[1].item(), '%.4f'%mu_baseline_tran[2].item())
-        print ('mu_adaptive_tran [norm x y z]: ', '%.4f'%LA.norm(mu_adaptive_tran), '%.4f'%mu_adaptive_tran[0].item(), '%.4f'%mu_adaptive_tran[1].item(), '%.4f'%mu_adaptive_tran[2].item())
-        print ('Moment_baseline_PI [norm x y z]: ', '%.4f'%LA.norm(Moment_baseline_PI), '%.4f'%Moment_baseline_PI[0].item(), '%.4f'%Moment_baseline_PI[1].item(), '%.4f'%Moment_baseline_PI[2].item())
-        print ('Moment_baseline [norm x y z]: ', '%.4f'%LA.norm(Moment_baseline), '%.4f'%Moment_baseline[0].item(), '%.4f'%Moment_baseline[1].item(), '%.4f'%Moment_baseline[2].item())
-        print ('Moment_adaptive [norm x y z]: ', '%.4f'%LA.norm(Moment_adaptive), '%.4f'%Moment_adaptive[0].item(), '%.4f'%Moment_adaptive[1].item(), '%.4f'%Moment_adaptive[2].item())
-        
-        print('Time the simulation is taking: ', '%.4f'%simulation_time)
-        
-        # print('Accumulated force: ', my_frame.Get_accumulated_force()) 
-        # print('Aerodynamic force: ', '%.4f'%aerodynamic_force[0].item(), '%.4f'%aerodynamic_force[1].item(), '%.4f'%aerodynamic_force[2].item())
-        
-        #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-        
-        # print('Ball 3 Euler 321 angles [deg]: ', ball3_euler_deg_trunc)
-        # print('Ball 3 Rotmat: ', chmatrix33_to_list(ball3_rotmat))
-        
-        # print('omega: ', omega)
-        
-        # print('Drone Frame Position: ', my_frame_pos)
-        # print('Pixhawk Coordinate: ', chcoordsys_to_list(coord_pixhawk_GLOB)[0],'\n') # '\n' prints in a new line
-                
-        
-        # print('Pixhawk LOCAL Position: ', chvector_to_list(pos_pixhawk_LOC))
-        print('Pixhawk GLOBAL Position: ', '%.4f'%chcoordsys_to_list(coord_pixhawk_GLOB)[0][0],
-                                           '%.4f'%chcoordsys_to_list(coord_pixhawk_GLOB)[0][1],
-                                           '%.4f'%chcoordsys_to_list(coord_pixhawk_GLOB)[0][2])
-        # print('Pixhawk GLOBAL Velocity: ', chcoordsys_to_list(coord_dt_pixhawk_GLOB)[0])
-        # print('Pixhawk LOCAL  Velocity_T: ', chvector_to_list(vel_pixhawk_LOC_T))
-        # print('Pixhawk LOCAL  Velocity: ', chvector_to_list(vel_pixhawk_LOC))
-        print('Pixhawk GLOBAL Velocity NORM: ', '%.4f'%LA.norm(np.asarray(chcoordsys_to_list(coord_dt_pixhawk_GLOB)[0])))
-        # print('Pixhawk LOCAL Velocity_T NORM: ', LA.norm(np.asarray(chvector_to_list(vel_pixhawk_LOC_T))))
-        # print('Pixhawk LOCAL Velocity NORM: ', LA.norm(np.asarray(chvector_to_list(vel_pixhawk_LOC))),'\n')
-        
-        # print('Pixhawk Acceleration: ', chcoordsys_to_list(coord_dtdt_pixhawk_GLOB)[0])
-        # print('Pixhawk Angular Velocity: ', chvector_to_list(Wvel_pixhawk_GLOB))
-        # print('Pixhawk Angular Acceleration: ', chvector_to_list(Wacc_pixhawk_GLOB))
-        
-        # print('Drone Frame Position: ', chvector_to_list(my_frame_pos))
-        
-        # print('Ball_1 Position: ', my_ball1_pos)
-        # print('Ball_1 Position seen from the Box Ref. Sys.: ', my_ball1_pos_box)
-        
-        # print('Ball_3 GLOBAL Velocity: ', chcoordsys_to_list(my_ball3.GetCoord_dt())[0])
-        # print('Ball_3 LOCAL Velocity: ', chvector_to_list(coord_dt_ball3_LOC),'\n')
-        # print('Ball_3 Quaternion: ', chcoordsys_to_list(my_ball3.GetCoord())[1],'\n')
-        # print('Ball_3 Euler 321 angles: ', chvector_to_list(euler321_fromQ_asChVector(my_ball3.GetCoord().rot)),'\n')
-        # print('Ball_3 Euler 123 angles: ', chvector_to_list(my_ball3.GetCoord().rot.Q_to_Euler123()),'\n')
-        
-        # print('COG Position: ', chvector_to_list(COG_total))
-        
-        
-        # my_ball1_cfr = my_ball1.GetContactForce() # contact force applied to ball 1
-        # print('Contact Force Ball_1: ', my_ball1_cfr)
-        
-        # my_ball2_cfr = my_ball2.GetContactForce()
-        # my_ball_cfr_list.append([time_now, chvector_to_list(my_ball1_cfr)[0], chvector_to_list(my_ball1_cfr)[1], chvector_to_list(my_ball1_cfr)[2],chvector_to_list(my_ball2_cfr)[0], chvector_to_list(my_ball2_cfr)[1], chvector_to_list(my_ball2_cfr)[2]])
-        # print('Contact Force Ball_2: ', my_ball2_cfr)
-        
-        # my_box_cfr = my_box.GetContactForce()
-        # print('Contact Force Box: ', my_box_cfr)
-        
-        # my_frame_cfr = my_frame.GetContactForce()
-        # print('Contact Force Drone Frame: ', my_box_cfr, '\n')
-        
-        # my_ball1_ctr = my_ball1.GetContactTorque() # contact torque applied to ball 1
-        # print('Contact Torque Ball_1: ', my_ball1_ctr)
-        
-        # my_ball2_ctr = my_ball2.GetContactTorque()
-        # print('Contact Torque Ball_2: ', my_ball2_ctr)
-        
-        # my_box_ctr = my_box.GetContactTorque()
-        # print('Contact Torque Box: ', my_box_ctr)
-        
-        # my_frame_ctr = my_frame.GetContactTorque()
-        # print('Contact Torque Drone Frame: ', my_box_ctr, '\n')
+          # print('omega_ref_dot: ', '%.4f'%omega_ref_dot[0], '%.4f'%omega_ref_dot[1], '%.4f'%omega_ref_dot[2])
+          # print('omega_ref: ', '%.4f'%omega_ref[0], '%.4f'%omega_ref[1], '%.4f'%omega_ref[2])
+          # print('omega_cmd_dot: ', '%.8f'%omega_cmd_dot[0],
+          #                          '%.8f'%omega_cmd_dot[1],
+          #                          '%.8f'%omega_cmd_dot[2])
+          # print('omega_cmd: ', '%.4f'%omega_cmd[0], '%.4f'%omega_cmd[1], '%.4f'%omega_cmd[2])
+          # print('Jacobian_matrix_dot: ', Jacobian_matrix_dot)
+          # print('Jacobian_matrix: ', Jacobian_matrix)
+          # print('integral_angular_error: ', '%.4f'%integral_angular_error[0], '%.4f'%integral_angular_error[1], '%.4f'%integral_angular_error[2])
+          print('angular_error: ', '%.4f'%angular_error[0], '%.4f'%angular_error[1], '%.4f'%angular_error[2])
+          print('angular_error_dot: ', '%.4f'%angular_error_dot[0], '%.4f'%angular_error_dot[1], '%.4f'%angular_error_dot[2])
+          
+          
+          # print('z - z_ref: ', pos_pixhawk_LOC_to_GLOB_NED.z - z_ref)
+          print('Z_onboard: ', '%.4f'%pos_pixhawk_LOC_to_GLOB_NED.z)
+          # print('(G_acc - controller_z_output)*mass_total: ', (G_acc + controller_z_output)*mass_total)
+          print('Thrust T: ', '%.4f'%T[0], '%.4f'%T[1], '%.4f'%T[2], '%.4f'%T[3], '%.4f'%T[4], '%.4f'%T[5], '%.4f'%T[6], '%.4f'%T[7])
+          print('Total thrust: ', '%4f'%np.sum(T))
+          print('Total torque around Z_onboard: ', '%.4f'%torque_total)
+          # print('Pixhawk Euler 321 angles [rad]: ', chvector_to_list(pixhawk_euler))
+          
+          print('Pixhawk Euler 321 angles [deg]: ', pixhawk_euler_deg_trunc)
+          # print('Pixhawk LOCAL angular velocity [rad/s]: ', Wvel_pixhawk_LOC)
+          # print('Pixhawk GLOBAL angular velocity [rad/s]: ', Wvel_pixhawk_GLOB)
+          
+          
+          # print('Pixhawk Euler 321 angles OPPOSITE [deg]: ', pixhawk_euler_opposite_deg_trunc)
+          # print('Controllers U1 U2 U3 U4:', ' '.join([f'{u:.4f}' for u in U]))
+          print('Controllers U1 U2 U3 U4: ', '%.4f'%U[0], '%.4f'%U[1], '%.4f'%U[2], '%.4f'%U[3])
+          
+          print('mu: ', '%.4f'%mu_x, '%.4f'%mu_y, '%.4f'%mu_z)
+          
+          # print ('Roll reference [rad]: ', roll_ref)
+          # print ('Pitch reference [rad]: ', pitch_ref)
+          # print ('Yaw reference [rad]: ', yaw_ref)
+          
+          print ('Roll reference [deg]: ', '%.4f'%np.rad2deg(roll_ref))
+          print ('Pitch reference [deg]: ', '%.4f'%np.rad2deg(pitch_ref))
+          print ('Yaw reference [deg]: ', '%.4f'%np.rad2deg(yaw_ref))
+          
+          print ('mu_PD_baseline_tran [norm x y z]: ', '%.4f'%LA.norm(mu_PD_baseline_tran), '%.4f'%mu_PD_baseline_tran[0].item(), '%.4f'%mu_PD_baseline_tran[1].item(), '%.4f'%mu_PD_baseline_tran[2].item())
+          print ('mu_baseline_tran [norm x y z]: ', '%.4f'%LA.norm(mu_baseline_tran), '%.4f'%mu_baseline_tran[0].item(), '%.4f'%mu_baseline_tran[1].item(), '%.4f'%mu_baseline_tran[2].item())
+          print ('mu_adaptive_tran [norm x y z]: ', '%.4f'%LA.norm(mu_adaptive_tran), '%.4f'%mu_adaptive_tran[0].item(), '%.4f'%mu_adaptive_tran[1].item(), '%.4f'%mu_adaptive_tran[2].item())
+          print ('Moment_baseline_PI [norm x y z]: ', '%.4f'%LA.norm(Moment_baseline_PI), '%.4f'%Moment_baseline_PI[0].item(), '%.4f'%Moment_baseline_PI[1].item(), '%.4f'%Moment_baseline_PI[2].item())
+          print ('Moment_baseline [norm x y z]: ', '%.4f'%LA.norm(Moment_baseline), '%.4f'%Moment_baseline[0].item(), '%.4f'%Moment_baseline[1].item(), '%.4f'%Moment_baseline[2].item())
+          print ('Moment_adaptive [norm x y z]: ', '%.4f'%LA.norm(Moment_adaptive), '%.4f'%Moment_adaptive[0].item(), '%.4f'%Moment_adaptive[1].item(), '%.4f'%Moment_adaptive[2].item())
+          
+          print('Time the simulation is taking: ', '%.4f'%simulation_time)
+          
+          # print('Accumulated force: ', my_frame.Get_accumulated_force()) 
+          # print('Aerodynamic force: ', '%.4f'%aerodynamic_force[0].item(), '%.4f'%aerodynamic_force[1].item(), '%.4f'%aerodynamic_force[2].item())
+          
+          #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+          
+          # print('Ball 3 Euler 321 angles [deg]: ', ball3_euler_deg_trunc)
+          # print('Ball 3 Rotmat: ', chmatrix33_to_list(ball3_rotmat))
+          
+          # print('omega: ', omega)
+          
+          # print('Drone Frame Position: ', my_frame_pos)
+          # print('Pixhawk Coordinate: ', chcoordsys_to_list(coord_pixhawk_GLOB)[0],'\n') # '\n' prints in a new line
+                  
+          
+          # print('Pixhawk LOCAL Position: ', chvector_to_list(pos_pixhawk_LOC))
+          print('Pixhawk GLOBAL Position: ', '%.4f'%chcoordsys_to_list(coord_pixhawk_GLOB)[0][0],
+                                             '%.4f'%chcoordsys_to_list(coord_pixhawk_GLOB)[0][1],
+                                             '%.4f'%chcoordsys_to_list(coord_pixhawk_GLOB)[0][2])
+          # print('Pixhawk GLOBAL Velocity: ', chcoordsys_to_list(coord_dt_pixhawk_GLOB)[0])
+          # print('Pixhawk LOCAL  Velocity_T: ', chvector_to_list(vel_pixhawk_LOC_T))
+          # print('Pixhawk LOCAL  Velocity: ', chvector_to_list(vel_pixhawk_LOC))
+          print('Pixhawk GLOBAL Velocity NORM: ', '%.4f'%LA.norm(np.asarray(chcoordsys_to_list(coord_dt_pixhawk_GLOB)[0])))
+          # print('Pixhawk LOCAL Velocity_T NORM: ', LA.norm(np.asarray(chvector_to_list(vel_pixhawk_LOC_T))))
+          # print('Pixhawk LOCAL Velocity NORM: ', LA.norm(np.asarray(chvector_to_list(vel_pixhawk_LOC))),'\n')
+          
+          # print('Pixhawk Acceleration: ', chcoordsys_to_list(coord_dtdt_pixhawk_GLOB)[0])
+          # print('Pixhawk Angular Velocity: ', chvector_to_list(Wvel_pixhawk_GLOB))
+          # print('Pixhawk Angular Acceleration: ', chvector_to_list(Wacc_pixhawk_GLOB))
+          
+          # print('Drone Frame Position: ', chvector_to_list(my_frame_pos))
+          
+          # print('Ball_1 Position: ', my_ball1_pos)
+          # print('Ball_1 Position seen from the Box Ref. Sys.: ', my_ball1_pos_box)
+          
+          # print('Ball_3 GLOBAL Velocity: ', chcoordsys_to_list(my_ball3.GetCoord_dt())[0])
+          # print('Ball_3 LOCAL Velocity: ', chvector_to_list(coord_dt_ball3_LOC),'\n')
+          # print('Ball_3 Quaternion: ', chcoordsys_to_list(my_ball3.GetCoord())[1],'\n')
+          # print('Ball_3 Euler 321 angles: ', chvector_to_list(euler321_fromQ_asChVector(my_ball3.GetCoord().rot)),'\n')
+          # print('Ball_3 Euler 123 angles: ', chvector_to_list(my_ball3.GetCoord().rot.Q_to_Euler123()),'\n')
+          
+          # print('COG Position: ', chvector_to_list(COG_total))
+          
+          
+          # my_ball1_cfr = my_ball1.GetContactForce() # contact force applied to ball 1
+          # print('Contact Force Ball_1: ', my_ball1_cfr)
+          
+          # my_ball2_cfr = my_ball2.GetContactForce()
+          # my_ball_cfr_list.append([time_now, chvector_to_list(my_ball1_cfr)[0], chvector_to_list(my_ball1_cfr)[1], chvector_to_list(my_ball1_cfr)[2],chvector_to_list(my_ball2_cfr)[0], chvector_to_list(my_ball2_cfr)[1], chvector_to_list(my_ball2_cfr)[2]])
+          # print('Contact Force Ball_2: ', my_ball2_cfr)
+          
+          # my_box_cfr = my_box.GetContactForce()
+          # print('Contact Force Box: ', my_box_cfr)
+          
+          # my_frame_cfr = my_frame.GetContactForce()
+          # print('Contact Force Drone Frame: ', my_box_cfr, '\n')
+          
+          # my_ball1_ctr = my_ball1.GetContactTorque() # contact torque applied to ball 1
+          # print('Contact Torque Ball_1: ', my_ball1_ctr)
+          
+          # my_ball2_ctr = my_ball2.GetContactTorque()
+          # print('Contact Torque Ball_2: ', my_ball2_ctr)
+          
+          # my_box_ctr = my_box.GetContactTorque()
+          # print('Contact Torque Box: ', my_box_ctr)
+          
+          # my_frame_ctr = my_frame.GetContactTorque()
+          # print('Contact Torque Drone Frame: ', my_box_ctr, '\n')
     if Wrapper_execution == True:
         DATA = DATA.T
         with open(csv_file_path, mode='a', newline='') as csv_file_wrapper:

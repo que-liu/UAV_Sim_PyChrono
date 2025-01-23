@@ -39,7 +39,7 @@ visualization_flag = True
 
 # controller_type = 'RobustMRACwithBASELINE'
 
-# controller_type = 'RobustTwoLayerMRACwithBASELINE'
+controller_type = 'RobustTwoLayerMRACwithBASELINE'
 
 # controller_type = 'HybridMRACwithBASELINE'
 
@@ -53,7 +53,7 @@ visualization_flag = True
 
 # controller_type = 'FunnelTwoLayerMRACwithBASELINE'
 
-controller_type = 'MRACwithBASELINE_SafetyMechanism'
+# controller_type = 'MRACwithBASELINE_SafetyMechanism'
 
 # ----------------------------------------------------------------
 #                     %%%%%%%%%%%%%%%%%%%%%%

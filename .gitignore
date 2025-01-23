@@ -16,4 +16,10 @@
 # Ignore Flight-tests folder
 Flight-tests/
 
+# Ignore __pycache__ folder
+__pycache__/
+
+# Ignore all the csv files that start with DATA
+DATA*.csv
+
 

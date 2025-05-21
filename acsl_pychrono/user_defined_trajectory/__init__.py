@@ -1,0 +1,7 @@
+# acsl_pychrono/user_defined_trajectory/__init__.py
+
+from .circular_trajectory import CircularTrajectory
+from .hover_trajectory import HoverTrajectory
+from .square_trajectory import SquareTrajectory
+from .rounded_rectangle_trajectory import RoundedRectangleTrajectory
+from .piecewise_polynomial_trajectory import PiecewisePolynomialTrajectory

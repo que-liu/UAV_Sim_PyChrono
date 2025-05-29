@@ -1,10 +1,48 @@
 import math
 import numpy as np
+from numpy.typing import NDArray
+from abc import ABC, abstractmethod
 
+from acsl_pychrono.functions import rk4singlestep
 from acsl_pychrono.ode_input import OdeInput
 from acsl_pychrono.flight_params import FlightParams
 
 class Control:
+  def __init__(self, odein: OdeInput) -> None:
+    self.odein = odein
+    self.y = None # Will be initialized in subclasses
+    self.timestep = None # Will be initialized in subclasses
+
+  @abstractmethod
+  def computeControlAlgorithm(self, ode_input: OdeInput) -> None:
+    """
+    Each subclass must implement this method to define the control algorithm.
+    """
+    pass
+    
+  @abstractmethod
+  def ode(self, t, y) -> NDArray[np.float64]:
+    """
+    Each subclass must implement this method to define the system of equations to be integrated.
+    """
+    pass
+
+  def integrateODEOneStepRK4(self):
+    """
+    Perform a single RK4 integration step using the current state.
+    Updates self.y in place.
+    """
+    self.y = rk4singlestep(self.ode, self.timestep, self.odein.time_now, self.y)
+
+  def run(self, ode_input: OdeInput) -> None:
+    """
+    Perform one full control loop step:
+    1. Update the control algorithm.
+    2. Integrate the system forward in time.
+    """
+    self.computeControlAlgorithm(ode_input)
+    self.integrateODEOneStepRK4()
+
   @staticmethod
   def computeU1RollPitchRef(mu_x, mu_y, mu_z, mass_total_estimated, G_acc, yaw_ref):
 

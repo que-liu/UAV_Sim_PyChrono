@@ -1,7 +1,6 @@
 import math
 import numpy as np
 from numpy import linalg as LA
-import scipy
 from scipy import linalg
 from acsl_pychrono.flight_params import FlightParams
 

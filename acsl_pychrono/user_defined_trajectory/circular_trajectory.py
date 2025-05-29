@@ -2,8 +2,9 @@ import math
 import numpy as np
 import pychrono as chrono
 from acsl_pychrono.flight_params import FlightParams
+from acsl_pychrono.user_defined_trajectory.base_user_defined_trajectory import BaseUserDefinedTrajectory
 
-class CircularTrajectory:
+class CircularTrajectory(BaseUserDefinedTrajectory):
   def __init__(self, flight_params: FlightParams, mfloor, mfloor_Yposition) -> None:
     self.radius_trajectory = 3
     self.angular_velocity_trajectory = 0.2

@@ -2,8 +2,9 @@ import math
 import numpy as np
 import pychrono as chrono
 from acsl_pychrono.flight_params import FlightParams
+from acsl_pychrono.user_defined_trajectory.base_user_defined_trajectory import BaseUserDefinedTrajectory
 
-class SquareTrajectory:
+class SquareTrajectory(BaseUserDefinedTrajectory):
   def __init__(self, flight_params: FlightParams, mfloor, mfloor_Yposition) -> None:
     self.square_side_size = 5
     self.linear_velocity_trajectory = 3.5 # 1.0

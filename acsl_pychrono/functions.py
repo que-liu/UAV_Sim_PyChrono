@@ -62,7 +62,7 @@ def rotmat_fromQ_Glob_to_Loc_asarray(q: chrono.ChQuaternionD) -> list:
 # Function that takes a quaternion expressed in Global coord and builds the rotation Matrix to go from GLOBAL coord to LOCAL coord
 # The output is in the form of a ChMatrix33D
 # For reference see the book: Baruh, Analytical Dynamics, pag.384, formula 7.7.19"
-def rotmat_fromQ_Glob_to_Loc_asChMatrix33(q: chrono.ChQuaternionD) -> list:
+def rotmat_fromQ_Glob_to_Loc_asChMatrix33(q: chrono.ChQuaternionD) -> chrono.ChMatrix33D:
     "Function that takes a quaternion expressed in Global coord and builds the rotation Matrix to go from GLOBAL coord to LOCAL coord. The output is in the form of a ChMatrix33D. For reference see the book: Baruh, Analytical Dynamics, pag.384, formula 7.7.19"
     e0 = q.e0
     e1 = q.e1
@@ -79,7 +79,7 @@ def rotmat_fromQ_Glob_to_Loc_asChMatrix33(q: chrono.ChQuaternionD) -> list:
 # Function that takes a quaternion expressed in Local coord and builds the rotation Matrix to go from LOCAL coord to GLOBAL coord
 # The output is in the form of a ChMatrix33D
 # For reference see the book: Baruh, Analytical Dynamics, pag.384, formula 7.7.19"
-def rotmat_fromQ_Loc_to_Glob_asChMatrix33(q: chrono.ChQuaternionD) -> list:
+def rotmat_fromQ_Loc_to_Glob_asChMatrix33(q: chrono.ChQuaternionD) -> chrono.ChMatrix33D:
     "Function that takes a quaternion expressed in Local coord and builds the rotation Matrix to go from LOCAL coord to GLOBAL coord. The output is in the form of a ChMatrix33D. For reference see the book: Baruh, Analytical Dynamics, pag.384, formula 7.7.19"
     e0 = q.e0
     e1 = q.e1
@@ -97,7 +97,7 @@ def rotmat_fromQ_Loc_to_Glob_asChMatrix33(q: chrono.ChQuaternionD) -> list:
 # Function that takes a quaternion expressed in Global coord and computes the 3-2-1 sequence of Euler angles.
 # The output is in the form of a ChVectorD.
 # For reference see: 'https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles'
-def euler321_fromQ_asChVector(q: chrono.ChQuaternionD) -> list:
+def euler321_fromQ_asChVector(q: chrono.ChQuaternionD) -> chrono.ChVectorD:
     "Function that takes a quaternion expressed in Global coord and computes the 3-2-1 sequence of Euler angles. The output is in the form of a ChVectorD. For reference see: 'https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles'"
     e0 = q.e0
     e1 = q.e1
@@ -186,7 +186,7 @@ def rad2deg(angles_in_rad: chrono.ChVectorD):
 # Function that takes as input a ChMatrix33D representing a rotation matrix and
 # gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVectorD.
 # For reference see Matlab quaternion codes  
-def euler321_from_rotmat(M: chrono.ChMatrix33D):
+def euler321_from_rotmat(M: chrono.ChMatrix33D) -> chrono.ChVectorD:
     "Function that takes as input a ChMatrix33D representing a rotation matrix and gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVectorD. For reference see Matlab quaternion codes"
     R = np.array([[M[0,0], M[0,1], M[0,2]],
                   [M[1,0], M[1,1], M[1,2]],
@@ -208,7 +208,7 @@ def euler321_from_rotmat(M: chrono.ChMatrix33D):
 # Function that takes as input a ChMatrix33D representing a rotation matrix and
 # gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVectorD.
 # For reference see Matlab quaternion codes "from_quaternion_to_321_angles_new2"  
-def euler321_from_rotmat_matlab(M: chrono.ChMatrix33D):
+def euler321_from_rotmat_matlab(M: chrono.ChMatrix33D) -> chrono.ChVectorD:
     "Function that takes as input a ChMatrix33D representing a rotation matrix and gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVectorD. For reference see Matlab quaternion codes"
     R = np.array([[M[0,0], M[0,1], M[0,2]],
                   [M[1,0], M[1,1], M[1,2]],
@@ -227,7 +227,7 @@ def euler321_from_rotmat_matlab(M: chrono.ChMatrix33D):
     
     return euler321 # As ROLL, PITCH, YAW
 
-def euler321_from_rotmat_matlab_opposite_direction(M: chrono.ChMatrix33D):
+def euler321_from_rotmat_matlab_opposite_direction(M: chrono.ChMatrix33D) -> chrono.ChVectorD:
     "Function that takes as input a ChMatrix33D representing a rotation matrix and gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVectorD. For reference see Matlab quaternion codes"
     R = np.array([[M[0,0], M[0,1], M[0,2]],
                   [M[1,0], M[1,1], M[1,2]],

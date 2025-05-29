@@ -7,14 +7,17 @@ from acsl_pychrono.flight_params import FlightParams
 from acsl_pychrono.control.control import Control
 
 class PID(Control):
-  def __init__(self, gains: PIDGains, ode_input: OdeInput, flight_params: FlightParams):
+  def __init__(self, gains: PIDGains, ode_input: OdeInput, flight_params: FlightParams, timestep: float):
+    super().__init__(odein=ode_input)
     self.gains = gains
-    self.odein = ode_input
     self.fp = flight_params
+    self.timestep = timestep
     self.safety_mechanism = OuterLoopSafetyMechanism(gains, self.fp.G_acc)
     self.dy = np.zeros((self.gains.number_of_states, 1))
+    # Initial conditions
+    self.y = np.zeros((self.gains.number_of_states, 1))
 
-  def computeControlAlgorithm(self, y, ode_input: OdeInput):
+  def computeControlAlgorithm(self, ode_input: OdeInput):
     """
     Compute all intermediate variables and control inputs once per RK4 step to compute the dy for RK4.
     """
@@ -22,10 +25,10 @@ class PID(Control):
     self.odein = ode_input
     
     # ODE state
-    self.state_phi_ref_diff = y[0:2]
-    self.state_theta_ref_diff = y[2:4]
-    self.integral_position_tracking = y[4:7]
-    self.integral_angular_error = y[7:10]
+    self.state_phi_ref_diff = self.y[0:2]
+    self.state_theta_ref_diff = self.y[2:4]
+    self.integral_position_tracking = self.y[4:7]
+    self.integral_angular_error = self.y[7:10]
  
     # Compute translational position error
     self.translational_position_error = Control.computeTranslationalPositionError(
@@ -86,7 +89,7 @@ class PID(Control):
     # Compute individual motor thrusts
     self.motor_thrusts = Control.computeMotorThrusts(self.fp, self.u1, self.u2, self.u3, self.u4)
   
-  def ode(self, t, y, ode_input: OdeInput):
+  def ode(self, t, y):
     """
     Function called by RK4. Assumes `computeControlAlgorithm` was called
     at the beginning of the integration step to update internal state.

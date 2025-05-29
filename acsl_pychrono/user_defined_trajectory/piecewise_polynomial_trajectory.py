@@ -1,13 +1,26 @@
 import math
 import numpy as np
+import json
+import os
 from numpy.polynomial import polynomial
 import pychrono as chrono
+from acsl_pychrono.config.config import SimulationConfig
 from acsl_pychrono.flight_params import FlightParams
 from acsl_pychrono.user_defined_trajectory.trajectory_auxillary import TrajectoryAuxillary
+from acsl_pychrono.user_defined_trajectory.base_user_defined_trajectory import BaseUserDefinedTrajectory
 
-class PiecewisePolynomialTrajectory:
-  def __init__(self, flight_params: FlightParams, mfloor, mfloor_Yposition) -> None:
+class PiecewisePolynomialTrajectory(BaseUserDefinedTrajectory):
+  def __init__(
+      self, 
+      flight_params: FlightParams,
+      mfloor,
+      mfloor_Yposition,
+      simulation_config: SimulationConfig
+      ) -> None:
+    
     self.controller_start_time = flight_params.controller_start_time
+    self.trajectory_data_path = simulation_config.trajectory_data_path
+
     self.translational_position_in_I_user = np.zeros((3,1))
     self.translational_velocity_in_I_user = np.zeros((3,1))
     self.translational_acceleration_in_I_user = np.zeros((3,1))
@@ -23,14 +36,20 @@ class PiecewisePolynomialTrajectory:
     self.addVisualization(mfloor, mfloor_Yposition)
 
   def setParameters(self):
-    # Define file paths as variables for easier modification
-    pp_coefficients_path = "params/user_defined_trajectory/trajectory_PolynomialCoefficientMatrix.csv"
-    waypoint_times_path = "params/user_defined_trajectory/trajectory_WaypointTimes.csv"
+    # Define path to the JSON file
+    # Prepend working directory and "/params/user_defined_trajectory"
+    base_path = os.path.join(os.getcwd(), "params", "user_defined_trajectory")
+    full_path = os.path.join(base_path, self.trajectory_data_path)
 
-    # Matrix of the coefficients of the piecewise polynomial trajectory
-    self.pp_coefficients = np.loadtxt(open(pp_coefficients_path, "rb"), delimiter=",", skiprows=0)
-    # Times of the waypoints
-    self.waypointTimes = np.loadtxt(open(waypoint_times_path, "rb"), delimiter=",", skiprows=0)
+    # Load the JSON file
+    with open(full_path, "r") as file:
+      data = json.load(file)
+
+    # Load waypoints, waypoint times, and polynomial coefficients
+    self.waypoints = np.array(data["waypoints"])                          
+    self.waypointTimes = np.array(data["waypoint_times"])                
+    self.pp_coefficients = np.array(data["piecewise_polynomial_coefficients"])
+    self.pp_coefficients = np.flip(self.pp_coefficients, axis=1)  # reverse coefficients order per row
 
     (self.position_coef_x,
      self.position_coef_y,

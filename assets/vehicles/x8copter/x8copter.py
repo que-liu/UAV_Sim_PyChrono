@@ -43,7 +43,7 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.003) #0.003
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.003) #0.003
 chrono.ChCollisionSystemBullet.SetContactBreakingThreshold(0.002) #0.002
 
-shapes_dir = 'assets/drone_bb_shapes/' 
+shapes_dir = 'shapes/' 
 
 if hasattr(builtins, 'exported_system_relpath'): 
     shapes_dir = builtins.exported_system_relpath + shapes_dir 

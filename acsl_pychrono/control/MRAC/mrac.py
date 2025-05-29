@@ -6,16 +6,20 @@ from acsl_pychrono.ode_input import OdeInput
 from acsl_pychrono.flight_params import FlightParams
 from acsl_pychrono.control.control import Control
 from acsl_pychrono.control.base_mrac import BaseMRAC
+from acsl_pychrono.control.MRAC.m_mrac import M_MRAC
 
-class MRAC(BaseMRAC, Control):
-  def __init__(self, gains: MRACGains, ode_input: OdeInput, flight_params: FlightParams):
+class MRAC(M_MRAC, BaseMRAC, Control):
+  def __init__(self, gains: MRACGains, ode_input: OdeInput, flight_params: FlightParams, timestep: float):
+    super().__init__(odein=ode_input)
     self.gains = gains
-    self.odein = ode_input
     self.fp = flight_params
+    self.timestep = timestep
     self.safety_mechanism = OuterLoopSafetyMechanism(gains, self.fp.G_acc)
     self.dy = np.zeros((self.gains.number_of_states, 1))
+    # Initial conditions
+    self.y = np.zeros((self.gains.number_of_states, 1))
 
-  def computeControlAlgorithm(self, y, ode_input: OdeInput):
+  def computeControlAlgorithm(self, ode_input: OdeInput):
     """
     Compute all intermediate variables and control inputs once per RK4 step to compute the dy for RK4.
     """
@@ -23,20 +27,20 @@ class MRAC(BaseMRAC, Control):
     self.odein = ode_input
     
     # ODE state            
-    self.state_phi_ref_diff = y[0:2] # State of the differentiator for phi_ref (roll_ref)
-    self.state_theta_ref_diff = y[2:4] # State of the differentiator for theta_ref (pitch_ref)
-    self.x_ref_tran = y[4:10] # Reference model state
-    self.integral_position_tracking_ref = y[10:13] # Integral of ('translational_position_in_I_ref' - 'translational_position_in_I_user')
-    self.K_hat_x_tran = y[13:31] # \hat{K}_x (translational)
-    self.K_hat_r_tran = y[31:40] # \hat{K}_r (translational)
-    self.Theta_hat_tran = y[40:58] # \hat{\Theta} (translational)
-    self.omega_ref = y[58:61] # Reference model rotational dynamics
-    self.K_hat_x_rot = y[61:70] # \hat{K}_x (rotational)
-    self.K_hat_r_rot = y[70:79] # \hat{K}_r (rotational)
-    self.Theta_hat_rot = y[79:97] # \hat{\Theta} (rotational)
-    self.integral_e_rot = y[97:100] # Integral of 'e_rot' = (angular_velocity - omega_ref) 
-    self.integral_angular_error = y[100:103] # Integral of angular_error = attitude - attitude_ref
-    self.integral_e_omega_ref_cmd = y[103:106] #Integral of (omega_ref - omega_cmd)
+    self.state_phi_ref_diff = self.y[0:2] # State of the differentiator for phi_ref (roll_ref)
+    self.state_theta_ref_diff = self.y[2:4] # State of the differentiator for theta_ref (pitch_ref)
+    self.x_ref_tran = self.y[4:10] # Reference model state
+    self.integral_position_tracking_ref = self.y[10:13] # Integral of ('translational_position_in_I_ref' - 'translational_position_in_I_user')
+    self.K_hat_x_tran = self.y[13:31] # \hat{K}_x (translational)
+    self.K_hat_r_tran = self.y[31:40] # \hat{K}_r (translational)
+    self.Theta_hat_tran = self.y[40:58] # \hat{\Theta} (translational)
+    self.omega_ref = self.y[58:61] # Reference model rotational dynamics
+    self.K_hat_x_rot = self.y[61:70] # \hat{K}_x (rotational)
+    self.K_hat_r_rot = self.y[70:79] # \hat{K}_r (rotational)
+    self.Theta_hat_rot = self.y[79:97] # \hat{\Theta} (rotational)
+    self.integral_e_rot = self.y[97:100] # Integral of 'e_rot' = (angular_velocity - omega_ref) 
+    self.integral_angular_error = self.y[100:103] # Integral of angular_error = attitude - attitude_ref
+    self.integral_e_omega_ref_cmd = self.y[103:106] #Integral of (omega_ref - omega_cmd)
 
     # Reshapes all adaptive gains to their correct (row, col) shape as matrices
     self.reshapeAdaptiveGainsToMatrices()
@@ -136,13 +140,14 @@ class MRAC(BaseMRAC, Control):
 
     (self.u2,
      self.u3,
-     self.u4
+     self.u4,
+     _
     ) = self.computeU2_U3_U4()
 
     # Compute individual motor thrusts
     self.motor_thrusts = Control.computeMotorThrusts(self.fp, self.u1, self.u2, self.u3, self.u4)
   
-  def ode(self, t, y, ode_input: OdeInput):
+  def ode(self, t, y):
     """
     Function called by RK4. Assumes `computeControlAlgorithm` was called
     at the beginning of the integration step to update internal state.
@@ -163,49 +168,3 @@ class MRAC(BaseMRAC, Control):
     self.dy[103:106] = self.omega_ref - self.omega_cmd
 
     return np.array(self.dy)
-  
-  def reshapeAdaptiveGainsToMatrices(self):
-    """
-    Reshapes all gain parameters to their correct (row, col) shape and converts them to np.matrix.
-    This is intended to be called once after loading or updating gains stored as flat arrays.
-    """
-    self.K_hat_x_tran = np.matrix(self.K_hat_x_tran.reshape(6,3))
-    self.K_hat_r_tran = np.matrix(self.K_hat_r_tran.reshape(3,3))
-    self.Theta_hat_tran = np.matrix(self.Theta_hat_tran.reshape(6,3))
-    self.K_hat_x_rot = np.matrix(self.K_hat_x_rot.reshape(3,3))
-    self.K_hat_r_rot = np.matrix(self.K_hat_r_rot.reshape(3,3))
-    self.Theta_hat_rot = np.matrix(self.Theta_hat_rot.reshape(6,3))
-
-  def computeAllAdaptiveLawsOuterLoop(self, eTranspose_P_B_tran):
-    self.K_hat_x_tran_dot = self.computeAdaptiveLawMRAC(
-      -self.gains.Gamma_x_tran,
-      self.x_tran,
-      eTranspose_P_B_tran
-    )
-    self.K_hat_r_tran_dot = self.computeAdaptiveLawMRAC(
-      -self.gains.Gamma_r_tran,
-      self.r_tran,
-      eTranspose_P_B_tran
-    )
-    self.Theta_hat_tran_dot = self.computeAdaptiveLawMRAC(
-      self.gains.Gamma_Theta_tran,
-      self.Phi_adaptive_tran_augmented,
-      eTranspose_P_B_tran
-    )
-
-  def computeAllAdaptiveLawsInnerLoop(self, eTranspose_P_B_rot):
-    self.K_hat_x_rot_dot = self.computeAdaptiveLawMRAC(
-      -self.gains.Gamma_x_rot,
-      self.odein.angular_velocity,
-      eTranspose_P_B_rot
-    )
-    self.K_hat_r_rot_dot = self.computeAdaptiveLawMRAC(
-      -self.gains.Gamma_r_rot,
-      self.r_rot,
-      eTranspose_P_B_rot
-    )
-    self.Theta_hat_rot_dot = self.computeAdaptiveLawMRAC(
-      self.gains.Gamma_Theta_rot,
-      self.Phi_adaptive_rot_augmented,
-      eTranspose_P_B_rot
-    )

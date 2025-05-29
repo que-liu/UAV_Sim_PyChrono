@@ -2,8 +2,9 @@ import math
 import numpy as np
 import pychrono as chrono
 from acsl_pychrono.flight_params import FlightParams
+from acsl_pychrono.user_defined_trajectory.base_user_defined_trajectory import BaseUserDefinedTrajectory
 
-class RoundedRectangleTrajectory:
+class RoundedRectangleTrajectory(BaseUserDefinedTrajectory):
   def __init__(self, flight_params: FlightParams, mfloor, mfloor_Yposition) -> None:
     """
     Example of past values:

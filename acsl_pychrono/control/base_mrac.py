@@ -6,12 +6,7 @@ from acsl_pychrono.ode_input import OdeInput
 from acsl_pychrono.flight_params import FlightParams
 from acsl_pychrono.control.control import Control
 
-class BaseMRAC:
-  def computeAdaptiveLawMRAC(self, Gamma_gain, pi_vector, eTranspose_P_B):
-    K_hat_state_dot = Gamma_gain * pi_vector * eTranspose_P_B
-
-    return K_hat_state_dot
-  
+class BaseMRAC():  
   def computeTrajectoryTrackingErrors(self, odein: OdeInput):
     """
     Computes translational and rotational tracking errors and extracts the reference position.
@@ -66,9 +61,9 @@ class BaseMRAC:
     self.Phi_adaptive_tran = -0.5 * translational_velocity_in_J * translational_velocity_in_J_norm 
 
     Phi_adaptive_tran_augmented = np.matrix(np.block([[self.mu_PD_baseline_tran],
-                                                           [self.Phi_adaptive_tran]]))
+                                                      [self.Phi_adaptive_tran]]))
     Theta_tran_adaptive_bar_augmented = np.matrix(np.block([[np.identity(3)],
-                                                                 [self.gains.Theta_tran_adaptive_bar]]))
+                                                            [self.gains.Theta_tran_adaptive_bar]]))
     
     return Phi_adaptive_tran_augmented, Theta_tran_adaptive_bar_augmented
   
@@ -98,11 +93,6 @@ class BaseMRAC:
     )
 
     return mu_tran_raw
-  
-  def compute_eTransposePB_OuterLoop(self):
-    eTranspose_P_B_tran = self.e_tran.T * self.gains.P_tran * self.gains.B_tran
-
-    return eTranspose_P_B_tran
   
   def computeOmegaCmdAndOmegaCmdDotInnerLoop(self):
     Jacobian_matrix = Control.computeJacobian(self.odein.roll, self.odein.pitch)
@@ -199,4 +189,4 @@ class BaseMRAC:
     u3 = Moment[1].item()
     u4 = Moment[2].item()
 
-    return u2, u3, u4
+    return u2, u3, u4, Moment

@@ -10,10 +10,10 @@ class PIDLogger:
     self.gains = gains
     self.data_list = []
 
-  def collect_data(self, controller: PID, time_now: float, simulation_time: float):
+  def collectData(self, controller: PID, simulation_time: float):
     DATA_vector = np.zeros((self.gains.size_DATA, 1))
 
-    DATA_vector[0] = time_now
+    DATA_vector[0] = controller.odein.time_now
     DATA_vector[1] = simulation_time
     DATA_vector[2:5] = controller.odein.translational_position_in_I
     DATA_vector[5:8] = controller.odein.translational_velocity_in_I
@@ -45,7 +45,7 @@ class PIDLogger:
     
     self.data_list.append(DATA_vector.flatten())
 
-  def to_dictionary(self):
+  def toDictionary(self):
     DATA_np = np.array(self.data_list)
 
     log_dict = {

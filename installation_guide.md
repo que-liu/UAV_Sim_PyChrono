@@ -59,7 +59,7 @@ conda install pychrono-7.0.0-py39_2455.tar.bz2
 
 for Mac users:
 ```bash
-export PYTHONPATH=$HOME/miniconda3/envs/pychrono/share/chrono/python
+export PYTHONPATH=$HOME/miniconda3/envs/chrono/share/chrono/python
 ```
 
 ## Step 5: Copy the demos and test the installation
@@ -73,7 +73,7 @@ Now you can try to run the demos to check if the installation is correct.
 For example,
 ```bash
 cd mbs/
-python demos_MBS_revolute.py
+python demo_MBS_revolute.py
 ```
 ## Step 6: Try to run the code
 Clone the repo and navigate to the project folder.

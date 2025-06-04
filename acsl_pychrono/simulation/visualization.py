@@ -6,14 +6,14 @@ class Visualization:
     self.sim = sim
 
   def setup(self):
-    if not self.sim.simulation_config.visualization_flag:
+    if not self.sim.mission_config.visualization_flag:
       return # Exit early if visualization is disabled
     
     # Create the Irrlicht visualization
     vis = irr.ChVisualSystemIrrlicht()
     vis.AttachSystem(self.sim.m_sys)
     vis.SetWindowSize(1280,960) # (1024,768), (1536,1152)
-    vis.SetWindowTitle('X8-Copter - Controller: ' + self.sim.simulation_config.controller_type)
+    vis.SetWindowTitle('X8-Copter - Controller: ' + self.sim.mission_config.controller_type)
     vis.Initialize()
     vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
     vis.AddSkyBox()
@@ -37,7 +37,7 @@ class Visualization:
     self.sim.vis = vis
 
   def update(self) -> bool:
-    if not self.sim.simulation_config.visualization_flag or self.sim.vis is None:
+    if not self.sim.mission_config.visualization_flag or self.sim.vis is None:
       return True # Continue simulation even if visualization is off
     
     if not self.sim.vis.Run():
@@ -46,7 +46,7 @@ class Visualization:
     self.sim.vis.BeginScene()
 
     # Camera switching logic
-    mode = getattr(self.sim.simulation_config, "camera_mode", "fixed")
+    mode = getattr(self.sim.mission_config, "camera_mode", "fixed")
     if mode == "default":
       self._add_camera_default()
     if mode == "side":

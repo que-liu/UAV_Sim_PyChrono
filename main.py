@@ -1,5 +1,8 @@
+import acsl_pychrono.executor as Executor
 
-import simulator
-from acsl_pychrono.config.config import SimulationConfig
+def main():
+  Executor.launchSimulation()
 
-simulator.simulateMission()
+
+if __name__ == '__main__':
+  main()

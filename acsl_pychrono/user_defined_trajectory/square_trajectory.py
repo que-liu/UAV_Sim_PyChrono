@@ -1,7 +1,7 @@
 import math
 import numpy as np
 import pychrono as chrono
-from acsl_pychrono.flight_params import FlightParams
+from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.user_defined_trajectory.base_user_defined_trajectory import BaseUserDefinedTrajectory
 
 class SquareTrajectory(BaseUserDefinedTrajectory):

@@ -2,8 +2,8 @@ import math
 import numpy as np
 from numpy import linalg as LA
 
-from acsl_pychrono.ode_input import OdeInput
-from acsl_pychrono.flight_params import FlightParams
+from acsl_pychrono.simulation.ode_input import OdeInput
+from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.control.control import Control
 
 class BaseMRAC():  

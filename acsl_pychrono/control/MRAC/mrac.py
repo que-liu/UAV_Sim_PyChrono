@@ -2,8 +2,8 @@ import math
 import numpy as np  
 from acsl_pychrono.control.outerloop_safetymech import OuterLoopSafetyMechanism
 from acsl_pychrono.control.MRAC.mrac_gains import MRACGains
-from acsl_pychrono.ode_input import OdeInput
-from acsl_pychrono.flight_params import FlightParams
+from acsl_pychrono.simulation.ode_input import OdeInput
+from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.control.control import Control
 from acsl_pychrono.control.base_mrac import BaseMRAC
 from acsl_pychrono.control.MRAC.m_mrac import M_MRAC

@@ -1,9 +1,10 @@
+import warnings
 from dataclasses import dataclass
 
 @dataclass
-class SimulationConfig:
+class MissionConfig:
   # Total simulation duration in seconds
-  simulation_duration_seconds: float = 21.5
+  simulation_duration_seconds: float = 21.5 # 21.5
   # Run the simulator in Wrapper mode (more simulations automatically run sequentially)
   wrapper_flag: bool = False
   # If True, perform real-time rendering of the simulation with Irrlicht
@@ -22,7 +23,7 @@ class SimulationConfig:
   # Controller types:
   # "PID",
   # "MRAC",
-  controller_type: str = "PID"
+  controller_type: str = "MRAC"
 
   # User-defined trajectory types:
   # "circular_trajectory",
@@ -44,6 +45,17 @@ class SimulationConfig:
   # "many_steel_balls_in_random_position"
   payload_type: str = "two_steel_balls"
 
+  # Unique wrapper batch folder passed to the function used for running many parallel wrapper simulations 
+  wrapper_batch_dir: str = "" # LEAVE BLANK!!!
+
+  # Number of parallel simulations (one per CPU) to be run in "wrapper" mode
+  wrapper_max_parallel: int = 20
+
+  def __post_init__(self):
+    if self.wrapper_flag and self.visualization_flag:
+      warnings.warn("Visualization is disabled because wrapper mode is enabled.")
+      self.visualization_flag = False
+
 @dataclass
 class VehicleConfig:
   # Path relative to 'current_working_directory/assets/vehicles'
@@ -55,4 +67,15 @@ class EnvironmentConfig:
   include: bool = False
   # Path relative to 'current_working_directory/assets/environments'
   model_relative_path: str = "environmentA/environmentA.py" 
+
+@dataclass
+class WrapperParams: # Add here the params to be sweeped by the wrapper with their default values
+  my_ball_density: float = 7850
+
+@dataclass
+class SimulationConfig:
+  mission_config: MissionConfig = MissionConfig()
+  vehicle_config: VehicleConfig = VehicleConfig()
+  environment_config: EnvironmentConfig = EnvironmentConfig()
+  wrapper_params: WrapperParams = WrapperParams()
   

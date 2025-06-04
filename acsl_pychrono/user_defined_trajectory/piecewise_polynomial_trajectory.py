@@ -4,8 +4,8 @@ import json
 import os
 from numpy.polynomial import polynomial
 import pychrono as chrono
-from acsl_pychrono.config.config import SimulationConfig
-from acsl_pychrono.flight_params import FlightParams
+from acsl_pychrono.config.config import MissionConfig
+from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.user_defined_trajectory.trajectory_auxillary import TrajectoryAuxillary
 from acsl_pychrono.user_defined_trajectory.base_user_defined_trajectory import BaseUserDefinedTrajectory
 
@@ -15,11 +15,11 @@ class PiecewisePolynomialTrajectory(BaseUserDefinedTrajectory):
       flight_params: FlightParams,
       mfloor,
       mfloor_Yposition,
-      simulation_config: SimulationConfig
+      mission_config: MissionConfig
       ) -> None:
     
     self.controller_start_time = flight_params.controller_start_time
-    self.trajectory_data_path = simulation_config.trajectory_data_path
+    self.trajectory_data_path = mission_config.trajectory_data_path
 
     self.translational_position_in_I_user = np.zeros((3,1))
     self.translational_velocity_in_I_user = np.zeros((3,1))

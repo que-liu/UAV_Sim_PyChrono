@@ -3,7 +3,7 @@ import numpy as np
 from numpy import linalg as LA
 import scipy
 from scipy import linalg
-from acsl_pychrono.flight_params import FlightParams
+from acsl_pychrono.simulation.flight_params import FlightParams
 
 class PIDGains:
   def __init__(self, flight_params: FlightParams):

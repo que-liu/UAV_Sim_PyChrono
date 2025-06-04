@@ -1,6 +1,6 @@
 # acsl_pychrono/user_defined_trajectory/__init__.py
 
-from acsl_pychrono.config.config import SimulationConfig
+from acsl_pychrono.config.config import MissionConfig
 
 from .base_user_defined_trajectory import BaseUserDefinedTrajectory
 from .circular_trajectory import CircularTrajectory
@@ -19,16 +19,16 @@ trajectory_classes = {
 }
 
 def instantiateTrajectory(
-    simulation_config: SimulationConfig,
+    mission_config: MissionConfig,
     flight_params,
     mfloor,
     mfloor_Yposition
     ) -> BaseUserDefinedTrajectory:
-  trajectory_type = simulation_config.trajectory_type
+  trajectory_type = mission_config.trajectory_type
   TrajectoryClass = trajectory_classes.get(trajectory_type)
   if TrajectoryClass is None:
     raise ValueError(f"Unknown trajectory type: {trajectory_type}")
   if trajectory_type == 'piecewise_polynomial_trajectory':
-    return TrajectoryClass(flight_params, mfloor, mfloor_Yposition, simulation_config)
+    return TrajectoryClass(flight_params, mfloor, mfloor_Yposition, mission_config)
   else:
     return TrajectoryClass(flight_params, mfloor, mfloor_Yposition)

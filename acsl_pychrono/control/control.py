@@ -3,9 +3,9 @@ import numpy as np
 from numpy.typing import NDArray
 from abc import ABC, abstractmethod
 
-from acsl_pychrono.functions import rk4singlestep
-from acsl_pychrono.ode_input import OdeInput
-from acsl_pychrono.flight_params import FlightParams
+from acsl_pychrono.simulation.functions import rk4singlestep
+from acsl_pychrono.simulation.ode_input import OdeInput
+from acsl_pychrono.simulation.flight_params import FlightParams
 
 class Control:
   def __init__(self, odein: OdeInput) -> None:

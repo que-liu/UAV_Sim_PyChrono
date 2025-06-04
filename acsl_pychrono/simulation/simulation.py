@@ -7,17 +7,17 @@ from numpy import linalg as LA
 import pychrono as chrono
 import pychrono.irrlicht as irr
 
-import acsl_pychrono.functions as fun
+import acsl_pychrono.simulation.functions as fun
 from acsl_pychrono.simulation.visualization import Visualization
 from acsl_pychrono.simulation.pixhawk_state import PixhawkState, VehicleState
-from acsl_pychrono.flight_params import FlightParams
-from acsl_pychrono.ode_input import OdeInput
-from acsl_pychrono.config.config import SimulationConfig, VehicleConfig, EnvironmentConfig
+from acsl_pychrono.simulation.flight_params import FlightParams
+from acsl_pychrono.simulation.ode_input import OdeInput
+import acsl_pychrono.config.config as Cfg
 import acsl_pychrono.user_defined_trajectory as Traj
 from acsl_pychrono.simulation.utils import Utils
 
 class Simulation:
-  def __init__(self) -> None:
+  def __init__(self, sim_cfg: Cfg.SimulationConfig = Cfg.SimulationConfig()) -> None:
     # Chrono settings
     self.m_sys = chrono.ChSystemNSC()
     self.vis: irr.ChVisualSystemIrrlicht | None = None
@@ -36,9 +36,11 @@ class Simulation:
     self.pixhawk_state: PixhawkState = PixhawkState()
 
     # Config members
-    self.simulation_config: SimulationConfig = SimulationConfig()
-    self.vehicle_config: VehicleConfig = VehicleConfig()
-    self.environment_config: EnvironmentConfig = EnvironmentConfig()
+    self.simulation_config: Cfg.SimulationConfig = sim_cfg
+    self.mission_config: Cfg.MissionConfig = sim_cfg.mission_config
+    self.vehicle_config: Cfg.VehicleConfig = sim_cfg.vehicle_config
+    self.environment_config: Cfg.EnvironmentConfig = sim_cfg.environment_config
+    self.wrapper_params: Cfg.WrapperParams = sim_cfg.wrapper_params
 
     # Additional initialization
     self.setUpSimulation()
@@ -225,9 +227,9 @@ class Simulation:
 
     # Rotation matrix that represents a rotation of plus pi/2 (90 degrees) around the x-axis
     self.RR = chrono.ChMatrix33D()
-    RRX_plusPI2 = [[ 1, 0, 0],
-                    [0, 0, 1],
-                    [0,-1, 0]]
+    RRX_plusPI2 = [[1, 0, 0],
+                   [0, 0, 1],
+                   [0,-1, 0]]
     self.RR.SetMatr(RRX_plusPI2)  # type: ignore
 
     # Identify Local reference system of Box
@@ -248,10 +250,11 @@ class Simulation:
     self.m_sys.Add(self.mfloor)
 
   def addTwoSteelBallsPayload(self):
-    if (self.simulation_config.add_payload_flag and self.simulation_config.payload_type == "two_steel_balls"):
+    if (self.mission_config.add_payload_flag and self.mission_config.payload_type == "two_steel_balls"):
       contact_material_ball = chrono.ChMaterialSurfaceNSC()
       ball_radius = 0.0254 # 0.0254 - 0.01905 - 0.015875
-      my_ball_density = 7850
+      # my_ball_density = 7850
+      my_ball_density = getattr(self.wrapper_params, "my_ball_density", 7850)
       self.m_ball1 = chrono.ChBodyEasySphere(
         ball_radius,      # radius size 
         my_ball_density,     # density
@@ -284,7 +287,7 @@ class Simulation:
       self.setupCOMcomputationOfSystemWithPayload()
 
   def setupCOMcomputationOfSystemWithPayload(self):
-    if (self.simulation_config.add_payload_flag and self.simulation_config.payload_type == "two_steel_balls"):
+    if (self.mission_config.add_payload_flag and self.mission_config.payload_type == "two_steel_balls"):
       # Computing Center Of Mass (COM) of the system: drone frame + box + propellers + balls
       # Get the mass of each body
       self.m_frame_mass = self.m_frame.GetMass()
@@ -300,7 +303,7 @@ class Simulation:
       self.COG = chrono.ChVectorD()
 
   def updateCOMcomputationOfSystemWithPayload(self):
-    if (self.simulation_config.add_payload_flag and self.simulation_config.payload_type == "two_steel_balls"):
+    if (self.mission_config.add_payload_flag and self.mission_config.payload_type == "two_steel_balls"):
       # Computing Center Of Mass (COM) of the system: drone frame + box + propellers + balls
           
       # Compute the position (in global coordinates) of the bodies
@@ -350,8 +353,8 @@ class Simulation:
       self.COG_total_box = self.m_box_csys.TransformParentToLocal(self.COG_total) 
 
   def addSpheresInArrays(self):
-    if (self.simulation_config.add_payload_flag
-      and self.simulation_config.payload_type == "ten_steel_balls_in_two_lines"
+    if (self.mission_config.add_payload_flag
+      and self.mission_config.payload_type == "ten_steel_balls_in_two_lines"
       ):
       self.m_spheres: list[chrono.ChBody] = []  # Store sphere bodies
       contact_material_ball = chrono.ChMaterialSurfaceNSC()
@@ -375,8 +378,8 @@ class Simulation:
         self.m_spheres.append(sphere_body)
 
   def addRandomSpheres(self):
-    if (self.simulation_config.add_payload_flag
-      and self.simulation_config.payload_type == "many_steel_balls_in_random_position"
+    if (self.mission_config.add_payload_flag
+      and self.mission_config.payload_type == "many_steel_balls_in_random_position"
       ):
       self.m_spheres: list[chrono.ChBody] = []  # Store sphere bodies
       contact_material_ball = chrono.ChMaterialSurfaceNSC()
@@ -590,7 +593,7 @@ class Simulation:
     if not apply:
       return
     
-    if (self.simulation_config.add_payload_flag and self.simulation_config.payload_type == "two_steel_balls"):
+    if (self.mission_config.add_payload_flag and self.mission_config.payload_type == "two_steel_balls"):
       drop_time = 4.0 # Time at which payloads should be dropped.
       disable_duration = 0.15 # Time duration for which collisions are disabled after the drop.
 
@@ -628,7 +631,7 @@ class Simulation:
     if not apply:
       return
 
-    if (self.simulation_config.add_payload_flag and self.simulation_config.payload_type != "two_steel_balls"):
+    if (self.mission_config.add_payload_flag and self.mission_config.payload_type != "two_steel_balls"):
       drop_start_time = 3.0 # Time at which the first ball starts dropping
       drop_interval = 0.10 # Time delay between successive ball drops.
       disable_duration = 0.15 # How long each ball should stay non-collidable
@@ -672,14 +675,14 @@ class Simulation:
     start_sim_time = time.time() # Time acquired in order to measure the execution time of the simulation
 
     # Simulation loop
-    while self.m_sys.GetChTime() < self.simulation_config.simulation_duration_seconds:
+    while self.m_sys.GetChTime() < self.mission_config.simulation_duration_seconds:
       if not self.visualization.update():
         break # Exit loop if visualization window is closed
 
       self.stepSimulation(start_sim_time)
 
   def stepSimulation(self, start_sim_time: float):
-    self.m_sys.DoStepDynamics(self.simulation_config.timestep)
+    self.m_sys.DoStepDynamics(self.mission_config.timestep)
     # Empty_forces_accumulators() MUST be used in conjunction with 
     # Accumulate_force() and Accumulate_torque() used to apply forces and torques
     self.m_frame.Empty_forces_accumulators()
@@ -750,6 +753,7 @@ class Simulation:
       'Simulation time', time_now,
       'Time the simulation is taking', simulation_time
     )
+    print("m_ball1.GetMass(): ", self.m_ball1.GetMass())
     Utils.printControllerDebugInfo(
       self.controller, time_now, self.flight_params,
       print_console_flag=False

@@ -80,6 +80,5 @@ Clone the repo and navigate to the project folder.
 ```bash
 git clone https://github.com/andrealaffly/UAV_Sim_PyChrono.git
 cd UAV_Sim_PyChrono
-git checkout dev
 python main.py
 ```

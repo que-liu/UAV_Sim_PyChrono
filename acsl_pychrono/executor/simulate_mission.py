@@ -1,3 +1,4 @@
+import traceback
 from acsl_pychrono.simulation.simulation import Simulation
 import acsl_pychrono.user_defined_trajectory as Traj
 import acsl_pychrono.control as Ctrl
@@ -36,14 +37,17 @@ def simulateMission(sim: Simulation, git_info: dict | None = None):
     logger
   )
 
-  sim.runSimulationLoop()
-
-  # Convert logged data to a dictionary
-  log_dict = logger.toDictionary()
-  # Export data to MATLAB workspace
-  Logging.saveMatlabWorkspaceLog(
-    log_dict,
-    gains,
-    sim.simulation_config,
-    git_info
-  )
+  try:
+    sim.runSimulationLoop()
+  except Exception as e:
+    print(f"\n[ERROR] Simulation crashed: {e}")
+    traceback.print_exc()
+  finally:
+    print("[INFO] Saving logs before exit...")
+    log_dict = logger.toDictionary()
+    Logging.saveMatlabWorkspaceLog(
+      log_dict,
+      gains,
+      sim.simulation_config,
+      git_info
+    )

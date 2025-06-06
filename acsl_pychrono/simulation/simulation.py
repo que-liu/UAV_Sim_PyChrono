@@ -753,7 +753,7 @@ class Simulation:
       'Simulation time', time_now,
       'Time the simulation is taking', simulation_time
     )
-    print("m_ball1.GetMass(): ", self.m_ball1.GetMass())
+    # print("m_ball1.GetMass(): ", self.m_ball1.GetMass())
     Utils.printControllerDebugInfo(
       self.controller, time_now, self.flight_params,
       print_console_flag=False

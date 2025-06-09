@@ -17,7 +17,7 @@ conda config --add channels http://conda.anaconda.org/conda-forge
 ## Step 2: Create a new environment for PyChrono
 
 ```bash
-conda create -n chrono python=3.9
+conda create -n chrono python=3.10
 ```
 You can replace "chrono" with the name you want.
 
@@ -45,16 +45,16 @@ conda install -c conda-forge scipy
 Visit the [package repo](https://anaconda.org/projectchrono/pychrono/files?page=3)
 
 (Choose the file with label "release")
-For MacOS users, please click to download osx-arm64/pychrono-7.0.0-py39_2455.tar.bz2
+For MacOS users, please click to download osx-arm64/pychrono-8.0.0-py310_2471.tar.bz2
 
-For Windows users, please download win-64/pychrono-8.0.0-py39_0.tar.bz2
+For Windows users, please download win-64/pychrono-8.0.0-py310_0.tar.bz2
 
-For Linux users, please download linux-64/pychrono-8.0.0-py39_0.tar.bz2
+For Linux users, please download linux-64/pychrono-8.0.0-py310_0.tar.bz2
 
 After the download completes, navigate to the Downloads folder and install PyChrono
 ```bash
 cd Downloads/
-conda install pychrono-7.0.0-py39_2455.tar.bz2
+conda install pychrono-8.0.0-py310_2471.tar.bz2
 ```
 
 for Mac users:

@@ -1,5 +1,6 @@
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import List
 
 @dataclass
 class MissionConfig:
@@ -23,7 +24,7 @@ class MissionConfig:
   # Controller types:
   # "PID",
   # "MRAC",
-  controller_type: str = "MRAC"
+  controller_type: str = "PID"
 
   # User-defined trajectory types:
   # "circular_trajectory",
@@ -71,6 +72,7 @@ class EnvironmentConfig:
 @dataclass
 class WrapperParams: # Add here the params to be sweeped by the wrapper with their default values
   my_ball_density: float = 7850
+  pid_gains: List[float] = field(default_factory=lambda: [1.0] * 9)  # [Kp_x, Ki_x, Kd_x, Kp_y, Ki_y, Kd_y, Kp_z, Ki_z, Kd_z]
 
 @dataclass
 class SimulationConfig:

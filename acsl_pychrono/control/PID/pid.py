@@ -106,7 +106,9 @@ class PID(Control):
     Compute the translational control force vector (outer loop raw thrust)
     """
     velocity_error = self.odein.translational_velocity_in_I - self.odein.translational_velocity_in_I_user
-
+    
+    ### introduce the linear drag compensation
+    linear_drag_comp = self.gains.KD_drag * self.odein.translational_velocity_in_I
     self.mu_tran_raw = (
       self.gains.mass_total_estimated * (
         - self.gains.KP_tran * self.translational_position_error
@@ -114,6 +116,7 @@ class PID(Control):
         - self.gains.KI_tran * self.integral_position_tracking
         + self.odein.translational_acceleration_in_I_user
       )
+      + linear_drag_comp
     ).reshape(3, 1)
 
   def computeInnerLoop(self):

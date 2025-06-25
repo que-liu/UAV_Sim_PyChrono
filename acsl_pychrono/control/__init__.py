@@ -8,12 +8,18 @@ controller_classes = {
   'MRAC': (MRACGains, MRAC, MRACLogger),
 }
 
-def instantiateController(controller_type: str, ode_input, flight_params, timestep):
+# def instantiateController(controller_type: str, ode_input, flight_params, timestep):
+def instantiateController(controller_type: str, ode_input, flight_params, timestep, wrapper_params=None):
   if controller_type not in controller_classes:
     raise ValueError(f"Unknown controller type: {controller_type}")
   
   GainsClass, ControllerClass, LoggerClass = controller_classes[controller_type]
-  gains = GainsClass(flight_params)
+  # gains = GainsClass(flight_params)
+  if controller_type == "PID" and wrapper_params is not None and hasattr(wrapper_params, "pid_gains"):
+    gains = GainsClass(flight_params, external_gains=wrapper_params.pid_gains)
+  else:
+    gains = GainsClass(flight_params)
+
   controller = ControllerClass(gains, ode_input, flight_params, timestep)
   logger = LoggerClass(gains)
 

@@ -24,11 +24,18 @@ def simulateMission(sim: Simulation, git_info: dict | None = None):
   )
 
   # Instantiation of controller, gains, and logger
+  # (gains, pid_controller, logger) = Ctrl.instantiateController(
+  #   sim.mission_config.controller_type,
+  #   ode_input,
+  #   flight_params,
+  #   sim.mission_config.timestep
+  # )
   (gains, pid_controller, logger) = Ctrl.instantiateController(
     sim.mission_config.controller_type,
     ode_input,
     flight_params,
-    sim.mission_config.timestep
+    sim.mission_config.timestep,
+    sim.wrapper_params
   )
 
   sim.assignInstances(

@@ -45,6 +45,10 @@ class Simulation:
     # Additional initialization
     self.setUpSimulation()
 
+    # Early stopping
+    self.early_stop = False
+    self.error_exceeded_time = 0.0  # For tracking how long error is too high
+
   def setUpSimulation(self):
     """
     Function to include in __init__() that sets additional simulation settings and performs the setup of the simulation
@@ -672,14 +676,14 @@ class Simulation:
 
   def runSimulationLoop(self):
     self.visualization.setup()
-    start_sim_time = time.time() # Time acquired in order to measure the execution time of the simulation
-
-    # Simulation loop
+    start_sim_time = time.time()
     while self.m_sys.GetChTime() < self.mission_config.simulation_duration_seconds:
-      if not self.visualization.update():
-        break # Exit loop if visualization window is closed
-
-      self.stepSimulation(start_sim_time)
+        if not self.visualization.update():
+            break
+        self.stepSimulation(start_sim_time)
+        if getattr(self, 'early_stop', False):
+            print('[EARLY STOP] Simulation stopped early due to error criteria.')
+            break
 
   def stepSimulation(self, start_sim_time: float):
     self.m_sys.DoStepDynamics(self.mission_config.timestep)
@@ -697,6 +701,36 @@ class Simulation:
     self.handleFaults(time_now)
 
     self.debugPrints(time_now, simulation_time)
+
+    # --- Early stopping criteria ---
+    if hasattr(self.ode_input, 'vehicle_state') and hasattr(self.ode_input, 'user_defined_trajectory_state'):
+        # 1. Position error too large for too long
+        MAX_ALLOWED_ERROR = 100.0  # meters
+        MAX_ERROR_DURATION = 1.0   # seconds
+
+        pos_actual = np.array(self.ode_input.vehicle_state.position_global).flatten()
+        pos_desired = np.array(self.ode_input.user_defined_trajectory_state['position']).flatten()
+        error = np.linalg.norm(pos_actual - pos_desired)
+
+        if error > MAX_ALLOWED_ERROR:
+            self.error_exceeded_time += self.mission_config.timestep
+            if self.error_exceeded_time > MAX_ERROR_DURATION:
+                print(f'[EARLY STOP] Error exceeded {MAX_ALLOWED_ERROR}m for {MAX_ERROR_DURATION}s. Stopping simulation.')
+                self.early_stop = True
+        else:
+            self.error_exceeded_time = 0.0
+
+        # 2. NaN or Inf in state
+        if np.any(np.isnan(pos_actual)) or np.any(np.isinf(pos_actual)):
+            print('[EARLY STOP] NaN or Inf detected in position state.')
+            self.early_stop = True
+
+        # 3. Unrealistic attitude (e.g., pitch > 80 degrees)
+        roll = getattr(self.ode_input.vehicle_state, 'roll', 0)
+        pitch = getattr(self.ode_input.vehicle_state, 'pitch', 0)
+        if abs(pitch) > np.deg2rad(80) or abs(roll) > np.deg2rad(80):
+            print(f'[EARLY STOP] Attitude out of bounds: roll={np.rad2deg(roll):.1f}°, pitch={np.rad2deg(pitch):.1f}°')
+            self.early_stop = True
 
   def updateSystemStates(self, time_now: float):
     # Computing Center Of Mass (COM) of the system: drone frame + box + propellers + balls

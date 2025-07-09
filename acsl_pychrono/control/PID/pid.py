@@ -123,7 +123,7 @@ class PID(Control):
     drag_force_in_inertial = R_from_loc_to_glob * drag_force_in_body
     drag_comp = -drag_force_in_inertial 
 
-    ### introduce the linear drag compensation
+    ### introduce the drag compensation
     self.mu_tran_raw = (
       self.gains.mass_total_estimated * (
         - self.gains.KP_tran * self.translational_position_error

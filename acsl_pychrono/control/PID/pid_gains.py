@@ -25,27 +25,27 @@ class PIDGains:
     # self.KD_tran = np.matrix(1 * np.diag([8,8,3]))
     # self.KI_tran = np.matrix(1 * np.diag([1,1,1]))
 
-    # ** gains tuned by hand ** #
-    # self.KP_tran = np.matrix(1 * np.diag([21,33,40]))
-    # self.KD_tran = np.matrix(1 * np.diag([10,9,17]))
-    # self.KI_tran = np.matrix(1 * np.diag([5,4,5]))
+    ## ** gains tuned by hand ** #
+    self.KP_tran = np.matrix(1 * np.diag([21,33,40]))
+    self.KD_tran = np.matrix(1 * np.diag([10,9,17]))
+    self.KI_tran = np.matrix(1 * np.diag([5,4,5]))
 
-    if external_gains is not None:
-       assert len(external_gains) == 9
-       kp = np.diag(external_gains[0:3])
-       ki = np.diag(external_gains[3:6])
-       kd = np.diag(external_gains[6:9])
-       self.KP_tran = np.matrix(kp)
-       self.KI_tran = np.matrix(ki)
-       self.KD_tran = np.matrix(kd)
-    else:
-      self.KP_tran = np.matrix(np.diag([21,33,40]))
-      self.KD_tran = np.matrix(np.diag([10,9,17]))
-      self.KI_tran = np.matrix(np.diag([5,4,5]))
+    # if external_gains is not None:
+    #    assert len(external_gains) == 9
+    #    kp = np.diag(external_gains[0:3])
+    #    ki = np.diag(external_gains[3:6])
+    #    kd = np.diag(external_gains[6:9])
+    #    self.KP_tran = np.matrix(kp)
+    #    self.KI_tran = np.matrix(ki)
+    #    self.KD_tran = np.matrix(kd)
+    # else:
+    #   self.KP_tran = np.matrix(np.diag([21,33,40]))
+    #   self.KD_tran = np.matrix(np.diag([10,9,17]))
+    #   self.KI_tran = np.matrix(np.diag([5,4,5]))
 
 
     ### introduce drag compensation
-    self.KD_drag = np.array([[0.1], [0], [0.05]])
+    self.drag_comp = np.matrix(np.diag([0,0,0]))
 
     # **Rotational** PID parameters
     self.KP_rot = np.matrix(1 * np.diag([100,100,50]))

@@ -4,6 +4,12 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.express as px
 
+from run_parallel_pid_deap import generatePIDConfig
+from acsl_pychrono.simulation.simulation import Simulation
+from acsl_pychrono.executor.simulate_mission import simulateMission
+from acsl_pychrono.control.logging import Logging
+import os
+
 def load_pareto_front(filename='multi_obj_pareto_front.pkl'):
     """Load Pareto front solutions from pickle file."""
     try:
@@ -194,6 +200,25 @@ def print_pareto_summary(pareto_solutions):
     print(f"Best Velocity Tracking (Solution {best_velocity_idx}): J_vel={j_velocities[best_velocity_idx]:.6f}")
     print(f"Most Energy Efficient (Solution {best_thrust_idx}): J_thrust={j_thrusts[best_thrust_idx]:.6f}")
     print("="*80)
+
+    extreme_indices = [best_position_idx, best_velocity_idx, best_thrust_idx]
+    # Simulate and visualize each one
+    for i in extreme_indices:
+        solution = pareto_solutions[i]
+        gains = solution["gains"]
+        print(f"\n=== Running Simulation for Extreme Solution {i} ===")
+        print(f"Gains: {gains}")
+        print(f"J_position: {solution['fitness'][0]}, J_velocity: {solution['fitness'][1]}, J_thrust: {solution['fitness'][2]}")
+
+        log_dir = "simulation_logs/extreme_solutions"
+        os.makedirs(log_dir, exist_ok=True)
+
+        # Generate config
+        sim_cfg = generatePIDConfig(list(gains), log_dir)
+        sim = Simulation(sim_cfg)
+        sim_cfg.mission_config.visualization_flag = True
+        sim_cfg.mission_config.wrapper_flag = False
+        simulateMission(sim, Logging.getGitRepoInfo())
 
 def main():
     """Main function to load and visualize Pareto front."""

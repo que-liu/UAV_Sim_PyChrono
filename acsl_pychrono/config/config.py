@@ -72,8 +72,8 @@ class EnvironmentConfig:
 @dataclass
 class WrapperParams: # Add here the params to be sweeped by the wrapper with their default values
   my_ball_density: float = 7850
-  pid_gains: List[float] = field(default_factory=lambda: [1.0] * 9)  # [Kp_x, Ki_x, Kd_x, Kp_y, Ki_y, Kd_y, Kp_z, Ki_z, Kd_z]
-
+  ## pid_gains: List[float] = field(default_factory=lambda: [1.0] * 9)  # [Kp_x, Ki_x, Kd_x, Kp_y, Ki_y, Kd_y, Kp_z, Ki_z, Kd_z]
+  pid_gains: List[float] = field(default_factory=lambda: [1.0] * 12)  # [Kp_x, Ki_x, Kd_x, Kp_y, Ki_y, Kd_y, Kp_z, Ki_z, Kd_z, drag_x, drag_y, drag_z] 
 @dataclass
 class SimulationConfig:
   mission_config: MissionConfig = MissionConfig()

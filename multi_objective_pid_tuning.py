@@ -16,10 +16,10 @@ toolbox = base.Toolbox()
 
 # Set PID gain bounds
 PID_LOWER_BOUND = 0.0
-PID_UPPER_BOUND = 100.0
+PID_UPPER_BOUND = 150.0
 
 toolbox.register("attr_float", lambda: random.uniform(PID_LOWER_BOUND, PID_UPPER_BOUND))
-toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, 9)
+toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, 12)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 # bound checking decorator
@@ -46,6 +46,19 @@ toolbox.register("select", tools.selNSGA2)  # NSGA-II for multi-objective
 toolbox.decorate("mate", check_bounds(PID_LOWER_BOUND, PID_UPPER_BOUND))
 toolbox.decorate("mutate", check_bounds(PID_LOWER_BOUND, PID_UPPER_BOUND))
 
+
+# -- penalty for instability -- #
+
+def penalty_for_oscillatory_error(position_errors, dt=0.01, threshold=0.5, weight=1.0):
+    error_derivative = np.diff(position_errors, axis=0) / dt
+    std_dev = np.std(error_derivative)
+    return weight * max(0.0, std_dev - threshold)
+
+def penalty_for_thrust_spikes(thrust_array, thrust_limit=1.5, weight=1.0):
+    excess = np.maximum(0.0, thrust_array - thrust_limit)
+    return weight * np.mean(excess)
+
+# -- evaluation -- #
 def evaluate_population(population):
     """
     Run simulations in parallel and compute three cost functions for each individual.
@@ -56,7 +69,7 @@ def evaluate_population(population):
     os.makedirs(log_dir, exist_ok=True)
 
     # Run all simulations in parallel
-    runParallelPIDSimulations(population, log_dir=log_dir, max_parallel=4)
+    runParallelPIDSimulations(population, log_dir=log_dir, max_parallel=8)
 
     results = []
     for i, ind in enumerate(population):
@@ -65,7 +78,7 @@ def evaluate_population(population):
             with open(log_path, "rb") as f:
                 log = pickle.load(f)
 
-            # Extract position and velocity data
+            # extract position and velocity data
             pos_des = np.stack([
                 np.array(log["user_defined_position"]["x"]).flatten(),
                 np.array(log["user_defined_position"]["y"]).flatten(),
@@ -88,7 +101,7 @@ def evaluate_population(population):
                 np.array(log["velocity"]["z"]).flatten()
             ], axis=1)
             
-            # Extract thrust data (T1 to T8)
+            # extract thrust data (T1 to T8)
             thrust_data = np.stack([
                 np.array(log["thrust_motors_N"]["T1"]).flatten(),
                 np.array(log["thrust_motors_N"]["T2"]).flatten(),
@@ -100,7 +113,7 @@ def evaluate_population(population):
                 np.array(log["thrust_motors_N"]["T8"]).flatten()
             ], axis=1)
 
-            # Compute cost functions
+            # compute cost functions
             J_position, J_velocity, J_thrust = compute_multi_objective_costs(
                 pos_act, pos_des, vel_act, vel_des, thrust_data
             )
@@ -121,9 +134,9 @@ def compute_multi_objective_costs(pos_act, pos_des, vel_act, vel_des, thrust_dat
     Add fallback for NaN/Inf.
     """
     # Weight matrices
-    Weight_position = np.diag([3.0, 3.0, 1.0])  # diag(3, 3, 1)
-    Weight_velocity = np.diag([0.1, 0.1, 0.1])  # diag(0.1, 0.1, 0.1)
-    Weight_thrust = np.diag([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])  # diag(1,1,1,1,1,1,1,1)
+    Weight_position = np.diag([3.0, 3.0, 1.0]) 
+    Weight_velocity = np.diag([0.1, 0.1, 0.1]) 
+    Weight_thrust = np.diag([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
     
     # Compute errors over time
     pos_error = pos_act - pos_des  # Shape: (time_steps, 3)
@@ -135,14 +148,17 @@ def compute_multi_objective_costs(pos_act, pos_des, vel_act, vel_des, thrust_dat
     thrust_norms = np.sum((thrust_data @ Weight_thrust) * thrust_data, axis=1)
     J_thrust = np.mean(thrust_norms)
 
-    # add a hard performance constraint
-    # If position error is unacceptably high, penalize heavily
-    MAX_ACCEPTABLE_POS_ERROR = 0.5  # 50 cm
-    if J_position > MAX_ACCEPTABLE_POS_ERROR:
-        return 999., 999., 999.
+    # Penalty Mechanism
+    penalty_pos, penalty_thr = 0.0, 0.0
+
+    penalty_pos = penalty_for_oscillatory_error(pos_error)
+    penalty_thr = penalty_for_thrust_spikes(thrust_data)
+
+    J_position += penalty_pos
+    J_thrust += penalty_thr
 
     # --- Normalization ---
-    # These divisors are chosen based on typical value ranges; adjust as needed for your system
+    # divisors are chosen based on typical value ranges to make them on the same scale
     J_position_norm = J_position / 1.0  # typical position error < 1 m
     J_velocity_norm = J_velocity / 0.01  # typical velocity error < 0.01
     J_thrust_norm = J_thrust / 1000.0  # typical thrust cost ~100
@@ -156,7 +172,7 @@ def compute_multi_objective_costs(pos_act, pos_des, vel_act, vel_des, thrust_dat
 
 def main():
     # Configuration
-    POP_SIZE = 100
+    POP_SIZE = 30
     NGEN = 40
     CXPB = 0.8 # Crossover probability
     MUTPB = 0.3  # Mutation probability

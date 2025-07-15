@@ -53,7 +53,7 @@ def getBatchDir() -> str:
     now = datetime.now()
     return os.path.join("logs", "deap_batch", now.strftime("%Y"), now.strftime("%m"), now.strftime("deap_%Y%m%d_%H%M%S"))
 
-def runParallelPIDSimulations(pid_population: List[List[float]], log_dir: str, max_parallel: int = 4):
+def runParallelPIDSimulations(pid_population: List[List[float]], log_dir: str, max_parallel: int = 8):
     os.makedirs(log_dir, exist_ok=True)
     git_info = Logging.getGitRepoInfo()
     

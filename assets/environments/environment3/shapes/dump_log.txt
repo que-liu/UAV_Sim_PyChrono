@@ -1,0 +1,30 @@
+# Dump hierarchy from SolidWorks 
+# Assembly: 
+
+
+         -Comments [CommentsFolder]
+         -Favorites [FavoriteFolder]
+         -History [HistoryFolder]
+         -Selection Sets [SelectionSetFolder]
+         -Sensors [SensorFolder]
+         -Live Section Planes [LiveSectionFolder]
+         -Design Binder [DocsFolder]
+         -Annotations [DetailCabinet]
+           -Notes [NotesAreaFtrFolder]
+           -Notes1___EndTag___ [NotesAreaFtrFolder]
+         -Lights, Cameras and Scene [EnvFolder]
+           -Ambient [AmbientLight]
+           -Directional1 [DirectionLight]
+           -Directional2 [DirectionLight]
+           -Directional3 [DirectionLight]
+         -Markups [InkMarkupFolder]
+         -Equations [EqnFolder]
+         -Front Plane [RefPlane]
+         -Top Plane [RefPlane]
+         -Right Plane [RefPlane]
+         -Origin [OriginProfileFeature]
+         -environment1-1 [Reference]
+         -Mates [MateGroup]
+   +environment1-1 <Default>
+           -Comments [CommentsFolder]
+           -Sketch1 [ProfileFeature]

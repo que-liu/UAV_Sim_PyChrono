@@ -10,8 +10,8 @@ import acsl_pychrono.config.config as Cfg
 class Logging:
   @staticmethod
   def getOutputDir(sim_cfg: Cfg.SimulationConfig) -> str:
-    controller_type = Cfg.MissionConfig.controller_type
-    wrapper_flag = Cfg.MissionConfig.wrapper_flag
+    controller_type = sim_cfg.mission_config.controller_type
+    wrapper_flag = sim_cfg.mission_config.wrapper_flag
 
     # Get current time
     now = datetime.datetime.now()
@@ -20,7 +20,7 @@ class Logging:
     full_date = now.strftime("%Y%m%d")
 
     # Construct the directory path
-    if wrapper_flag:
+    if wrapper_flag and sim_cfg.mission_config.wrapper_batch_dir:
       dir_path = os.path.join(sim_cfg.mission_config.wrapper_batch_dir)
     else:
       dir_path = os.path.join("logs", year, month, full_date, controller_type, "workspaces")

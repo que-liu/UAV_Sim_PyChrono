@@ -1,14 +1,15 @@
 import warnings
 from dataclasses import dataclass
+from typing import Any
 
 @dataclass
 class MissionConfig:
   # Total simulation duration in seconds
-  simulation_duration_seconds: float = 17.0 # 21.5
+  simulation_duration_seconds: float = 31.5
   # Run the simulator in Wrapper mode (more simulations automatically run sequentially)
   wrapper_flag: bool = False
   # If True, perform real-time rendering of the simulation with Irrlicht
-  visualization_flag: bool = True
+  visualization_flag: bool = False
   # Dynamic camera options:
   # "fixed"
   # "default",
@@ -24,7 +25,7 @@ class MissionConfig:
   # "PID",
   # "MRAC",
   # "TwoLayerMRAC",
-  controller_type: str = "TwoLayerMRAC"
+  controller_type: str = "PID"
 
   # User-defined trajectory types:
   # "circular_trajectory",
@@ -36,7 +37,7 @@ class MissionConfig:
 
   # If the trajectory_type is "piecewise_polynomial_trajectory", then choose the trajectory file to run
   # Path relative to 'current_working_directory/params/user_defined_trajectory'
-  trajectory_data_path: str = "bean_trajectory0p2.json"
+  trajectory_data_path: str = "bean_trajectory0p6.json"
 
   # Time for which, after executing the "trajectory_data_path",
   # the vehicle is hovering before starting the landing phase
@@ -76,6 +77,11 @@ class EnvironmentConfig:
 @dataclass
 class WrapperParams: # Add here the params to be sweeped by the wrapper with their default values
   my_ball_density: float = 7850
+  # Optional fields used by GA tuner integrations
+  pid_gains: list[float] | None = None
+  mrac_params: list[float] | None = None
+  use_ga_tuner: bool = False  # NEW: Flag to enable/disable GA tuner
+  external_controller_params: dict[str, Any] | None = None  # NEW: GA tuner parameters
 
 @dataclass
 class SimulationConfig:

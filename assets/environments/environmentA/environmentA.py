@@ -1,4 +1,6 @@
 # PyChrono script generated from SolidWorks using Chrono::SolidWorks add-in 
+# Assembly: C:\Users\mgramuglia\Desktop\JTARV\Mattia Drone\SW_world\environmentA.SLDASM
+
 
 import pychrono as chrono 
 import builtins 

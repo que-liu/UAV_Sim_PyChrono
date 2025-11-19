@@ -327,7 +327,7 @@ def series_element(s):
 
 def find_s(s_prev, weighted_e_squared):
     """"
-    This function allows to compute s such that \sum s is convergent;
+    This function allows to compute s such that \\sum s is convergent;
     see the comments after (40) in the paper.
     
     weighted_e_squared = e^T(t_j) P e(t_j)
@@ -339,3 +339,24 @@ def find_s(s_prev, weighted_e_squared):
     s = max(math.ceil(weighted_e_squared**(-1/alpha)), s_prev + 1)
         
     return s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

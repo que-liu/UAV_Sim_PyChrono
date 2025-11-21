@@ -7,12 +7,12 @@ import numpy as np
 
 from ..core.controller_tuning import ControllerTuningInterface
 from ..core.parameter_bounds import ParameterBounds
-from ..parameter_converter import (
+from ..encoding.parameter_converter import (
     MRACParameterConverter,
     GAMMA_MATRIX_CONFIGS,
-    decompose_gamma_matrix,
     load_default_mrac_gains_from_source,
 )
+from ..encoding.cholesky_utils import build_cholesky_parameter_bounds
 from ..metrics import (
     MRACInnerLoopMetricsCalculator,
     MRACOuterLoopMetricsCalculator,
@@ -41,11 +41,12 @@ class MRACTuning(ControllerTuningInterface):
         # Load baseline gains directly from MRAC implementation
         self._baseline_gains = self._load_default_mrac_gains()
 
-        # Define parameter bounds using gamma*I + v v^T parameterization
+        # Define parameter bounds using Cholesky-parameterized Gamma matrices
         self.bounds: Dict[str, List[float]] = {}
         self.gamma_parameter_groups: Dict[str, List[str]] = {}
 
         scale_factor = 10.0
+        log_scale_span = np.log(scale_factor)
         vector_factor = 5.0
 
         def _positive_bounds(value: float, factor: float = 10.0,
@@ -61,28 +62,23 @@ class MRACTuning(ControllerTuningInterface):
 
         for matrix_name, config in GAMMA_MATRIX_CONFIGS.items():
             prefix = config['prefix']
-            size = config['size']
             baseline_matrix = self._baseline_gains.get(matrix_name)
             if baseline_matrix is None:
                 continue
 
-            gamma_default, vector_default = decompose_gamma_matrix(baseline_matrix)
-            gamma_lower = max(1e-6, gamma_default / scale_factor)
-            gamma_upper = max(gamma_lower * 2.0, gamma_default * scale_factor)
+            diag_bound_fn = lambda value, span=log_scale_span: [value - span, value + span]
+            matrix_bounds, parameter_names = build_cholesky_parameter_bounds(
+                baseline_matrix,
+                prefix,
+                diag_bound_fn,
+                off_diag_factor=vector_factor,
+                min_off_diag_span=1.0,
+                log_diagonals=True,
+            )
 
-            scale_name = f"{prefix}_gamma"
-            self.bounds[scale_name] = [gamma_lower, gamma_upper]
-
-            vector_names = []
-            base_span = np.sqrt(gamma_default) if gamma_default > 0 else 1.0
-            span = np.maximum(np.abs(vector_default) * vector_factor,
-                              np.full(size, base_span))
-            for i in range(size):
-                name = f"{prefix}_v{i + 1}"
-                self.bounds[name] = [-float(span[i]), float(span[i])]
-                vector_names.append(name)
-
-            self.gamma_parameter_groups[prefix] = [scale_name] + vector_names
+            for name, bounds in matrix_bounds.items():
+                self.bounds[name] = bounds
+            self.gamma_parameter_groups[prefix] = parameter_names
 
         # Reference model gains derived from baseline diagonal entries
         kp_ref = np.diag(self._baseline_gains['K_P_omega_ref'])
@@ -100,40 +96,7 @@ class MRACTuning(ControllerTuningInterface):
             self.bounds[name] = _positive_bounds(base_value, factor=3.0,
                                                  min_lower=0.05, max_upper=1.5)
 
-        # not including dead-zone params
 
-        # Define parameter grouping
-        self.groups = {
-            'adaptive_translation': (
-                self.gamma_parameter_groups['gamma_x_tran'] +
-                self.gamma_parameter_groups['gamma_r_tran'] +
-                self.gamma_parameter_groups['gamma_Theta_tran']
-            ),
-            'adaptive_rotation': (
-                self.gamma_parameter_groups['gamma_x_rot'] +
-                self.gamma_parameter_groups.get('gamma_r_rot', []) +
-                self.gamma_parameter_groups.get('gamma_Theta_rot', [])
-            ),
-            'gamma_x_tran': self.gamma_parameter_groups['gamma_x_tran'],
-            'gamma_r_tran': self.gamma_parameter_groups['gamma_r_tran'],
-            'gamma_Theta_tran': self.gamma_parameter_groups['gamma_Theta_tran'],
-            'gamma_x_rot': self.gamma_parameter_groups['gamma_x_rot'],
-            'gamma_r_rot': self.gamma_parameter_groups.get('gamma_r_rot', []),
-            'gamma_Theta_rot': self.gamma_parameter_groups.get('gamma_Theta_rot', []),
-            'reference_model': [
-                'K_P_omega_ref_1', 'K_P_omega_ref_2', 'K_P_omega_ref_3',
-                'K_I_omega_ref_1', 'K_I_omega_ref_2', 'K_I_omega_ref_3'
-            ],
-            'modification': [
-                'sigma_x_tran', 'sigma_r_tran', 'sigma_Theta_tran',
-                'sigma_x_rot', 'sigma_r_rot', 'sigma_Theta_rot'
-            ]
-            # 'dead_zone': [
-            #     'dead_zone_delta_tran', 'dead_zone_e0_tran',
-            #     'dead_zone_delta_rot', 'dead_zone_e0_rot'
-            # ]
-        }
-        
         # cost function weights for weighted sum objective 
         self.cost_weights = {
             'attitude_tracking_error': 1.0,
@@ -154,7 +117,6 @@ class MRACTuning(ControllerTuningInterface):
             lower_bounds,
             upper_bounds,
             self._parameter_names,
-            parameter_groups=self.groups
         )
         self.converter = MRACParameterConverter(self._parameter_bounds)
     

@@ -13,6 +13,7 @@ from datetime import datetime
 # UAV simulation modules will be imported dynamically when needed to avoid import errors at module load time
 
 from .uav_evaluators import UAVSimulationEvaluator
+from .metrics.translational_utils import calculate_position_velocity_rmse
 
 class UAVModelAdapter:
     """
@@ -462,77 +463,16 @@ class UAVFitnessEvaluator(UAVSimulationEvaluator):
         except Exception as e:
             return float(999.0)
     
-    def _compute_fitness_from_log_data(self, log_data, parameters):
-        """Compute fitness from log data dictionary."""
-        try:
-            import numpy as np
-            
-            # Extract position and velocity data
-            pos_des = np.stack([
-                np.array(log_data["user_defined_position"]["x"]).flatten(),
-                np.array(log_data["user_defined_position"]["y"]).flatten(),
-                np.array(log_data["user_defined_position"]["z"]).flatten()
-            ], axis=1)
-            pos_act = np.stack([
-                np.array(log_data["position"]["x"]).flatten(),
-                np.array(log_data["position"]["y"]).flatten(),
-                np.array(log_data["position"]["z"]).flatten()
-            ], axis=1)
-            
-            vel_des = np.stack([
-                np.array(log_data["user_defined_velocity"]["x"]).flatten(),
-                np.array(log_data["user_defined_velocity"]["y"]).flatten(),
-                np.array(log_data["user_defined_velocity"]["z"]).flatten()
-            ], axis=1)
-            vel_act = np.stack([
-                np.array(log_data["velocity"]["x"]).flatten(),
-                np.array(log_data["velocity"]["y"]).flatten(),
-                np.array(log_data["velocity"]["z"]).flatten()
-            ], axis=1)
-            
-            # Compute errors
-            pos_error = np.linalg.norm(pos_des - pos_act, axis=1)
-            vel_error = np.linalg.norm(vel_des - vel_act, axis=1)
-            
-            # Compute fitness components
-            pos_rmse = np.sqrt(np.mean(pos_error**2))
-            vel_rmse = np.sqrt(np.mean(vel_error**2))
-            
-            # Total fitness (lower is better)
-            total_fitness = pos_rmse + vel_rmse
-            
-            print(f"[FITNESS] Parameters {parameters[:3]} -> Fitness: {total_fitness:.6f}")
-            return float(total_fitness)
-            
-        except (KeyError, IndexError, ValueError) as e:
-            print(f"Warning: Error processing simulation log: {e}")
-            return float('inf')
-    
     def _compute_fitness_from_log_data(self, log_data: Dict[str, Any], parameters: List[float]) -> Union[float, List[float]]:
         """Compute fitness from log data dictionary. Returns single objective or multi-objective based on mode."""
         try:
-            # Extract position and velocity data
-            pos_des = np.stack([
-                np.array(log_data["user_defined_position"]["x"]).flatten(),
-                np.array(log_data["user_defined_position"]["y"]).flatten(),
-                np.array(log_data["user_defined_position"]["z"]).flatten()
-            ], axis=1)
-            pos_act = np.stack([
-                np.array(log_data["position"]["x"]).flatten(),
-                np.array(log_data["position"]["y"]).flatten(),
-                np.array(log_data["position"]["z"]).flatten()
-            ], axis=1)
-            
-            vel_des = np.stack([
-                np.array(log_data["user_defined_velocity"]["x"]).flatten(),
-                np.array(log_data["user_defined_velocity"]["y"]).flatten(),
-                np.array(log_data["user_defined_velocity"]["z"]).flatten()
-            ], axis=1)
-            vel_act = np.stack([
-                np.array(log_data["velocity"]["x"]).flatten(),
-                np.array(log_data["velocity"]["y"]).flatten(),
-                np.array(log_data["velocity"]["z"]).flatten()
-            ], axis=1)
+            rmse_values = calculate_position_velocity_rmse(log_data)
+            if rmse_values is None:
+                if self.multi_objective:
+                    return [float('inf'), float('inf'), float('inf')]
+                else:
+                    return float('inf')
+            pos_tracking_error, vel_tracking_error = rmse_values
             
             # Extract control effort data
             control_input = log_data.get("control_input", {})
@@ -559,16 +499,6 @@ class UAVFitnessEvaluator(UAVSimulationEvaluator):
                     control_effort = 0.0
             else:
                 control_effort = 0.0
-            
-            # Compute individual objectives
-            pos_error = pos_act - pos_des
-            vel_error = vel_act - vel_des
-            
-            # Position tracking error (RMSE)
-            pos_tracking_error = np.sqrt(np.mean(np.sum(pos_error**2, axis=1)))
-            
-            # Velocity tracking error (RMSE)
-            vel_tracking_error = np.sqrt(np.mean(np.sum(vel_error**2, axis=1)))
             
             # Check for NaN or Inf values
             if (np.isnan(pos_tracking_error) or np.isinf(pos_tracking_error) or

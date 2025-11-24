@@ -7,6 +7,7 @@ import numpy as np
 
 from ..core.controller_tuning import ControllerTuningInterface
 from ..core.parameter_bounds import ParameterBounds
+from ..metrics.translational_utils import calculate_position_velocity_rmse
 
 class PIDTuning(ControllerTuningInterface):
     
@@ -174,39 +175,15 @@ class PIDTuning(ControllerTuningInterface):
     def evaluate_performance(self, log_data: Dict[str, Any]) -> Dict[str, float]:
         """Evaluate PID controller performance."""
         metrics = {}
-        
-        # Extract trajectories
-        actual_pos = np.array([
-            log_data['position']['x'],
-            log_data['position']['y'],
-            log_data['position']['z']
-        ]).T
-        
-        desired_pos = np.array([
-            log_data['user_defined_position']['x'],
-            log_data['user_defined_position']['y'],
-            log_data['user_defined_position']['z']
-        ]).T
-        
-        actual_vel = np.array([
-            log_data['velocity']['x'],
-            log_data['velocity']['y'],
-            log_data['velocity']['z']
-        ]).T
-        
-        desired_vel = np.array([
-            log_data['user_defined_velocity']['x'],
-            log_data['user_defined_velocity']['y'],
-            log_data['user_defined_velocity']['z']
-        ]).T
-        
-        # Position error
-        pos_error = np.linalg.norm(actual_pos - desired_pos, axis=1)
-        metrics['position_error'] = np.mean(pos_error)
-        
-        # Velocity error
-        vel_error = np.linalg.norm(actual_vel - desired_vel, axis=1)
-        metrics['velocity_error'] = np.mean(vel_error)
+
+        # Use shared RMSE helper for tracking metrics
+        rmse_values = calculate_position_velocity_rmse(log_data)
+        if rmse_values is None:
+            metrics['position_error'] = float('inf')
+            metrics['velocity_error'] = float('inf')
+        else:
+            metrics['position_error'], metrics['velocity_error'] = rmse_values
+        pos_error = metrics['position_error']
         
         # Control effort (from thrust)
         thrust_arrays = []

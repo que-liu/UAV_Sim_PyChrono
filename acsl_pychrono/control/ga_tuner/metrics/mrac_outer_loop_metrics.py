@@ -10,10 +10,11 @@ Metrics:
 """
 
 import numpy as np
-import os
 import pickle
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, Optional
 from dataclasses import dataclass
+
+from .translational_utils import calculate_position_velocity_rmse
 
 
 @dataclass
@@ -58,9 +59,13 @@ class MRACOuterLoopMetricsCalculator:
             MRACOuterLoopMetrics object with computed metrics
         """
         try:
+            tracking_errors = calculate_position_velocity_rmse(log_data)
+            if tracking_errors is None:
+                position_error = velocity_error = 999.0
+            else:
+                position_error, velocity_error = tracking_errors
+            
             # Calculate performance metrics
-            position_error = self._calculate_position_error(log_data)
-            velocity_error = self._calculate_velocity_error(log_data)
             control_effort = self._calculate_control_effort(log_data)
             
             return MRACOuterLoopMetrics(
@@ -72,40 +77,6 @@ class MRACOuterLoopMetricsCalculator:
         except Exception as e:
             print(f"Error calculating MRAC outer loop metrics: {e}")
             return self._create_default_metrics()
-    
-    def _calculate_position_error(self, log_data: Dict) -> float:
-        """Calculate RMS position tracking error."""
-        try:
-            # Extract position data
-            pos_actual = self._extract_position_data(log_data, 'position')
-            pos_desired = self._extract_position_data(log_data, 'user_defined_position')
-            
-            if pos_actual is None or pos_desired is None:
-                return 999.0
-            
-            # Calculate RMS position error
-            pos_error = np.sqrt(np.mean((pos_actual - pos_desired) ** 2))
-            return float(pos_error)
-            
-        except Exception:
-            return 999.0
-    
-    def _calculate_velocity_error(self, log_data: Dict) -> float:
-        """Calculate RMS velocity tracking error."""
-        try:
-            # Extract velocity data
-            vel_actual = self._extract_position_data(log_data, 'velocity')
-            vel_desired = self._extract_position_data(log_data, 'user_defined_velocity')
-            
-            if vel_actual is None or vel_desired is None:
-                return 999.0
-            
-            # Calculate RMS velocity error
-            vel_error = np.sqrt(np.mean((vel_actual - vel_desired) ** 2))
-            return float(vel_error)
-            
-        except Exception:
-            return 999.0
     
     def _calculate_control_effort(self, log_data: Dict) -> float:
         """Calculate RMS control effort (total thrust from all motors)."""
@@ -132,23 +103,6 @@ class MRACOuterLoopMetricsCalculator:
             return 999.0
 
         return float(np.sqrt(total_effort))
-    
-    def _extract_position_data(self, log_data: Dict, key: str) -> Optional[np.ndarray]:
-        """Extract position/velocity data from log."""
-        if key not in log_data:
-            return None
-        
-        data = log_data[key]
-        if isinstance(data, dict):
-            # Extract x, y, z components
-            x = np.array(data.get('x', []))
-            y = np.array(data.get('y', []))
-            z = np.array(data.get('z', []))
-            
-            if len(x) == len(y) == len(z) > 0:
-                return np.column_stack([x, y, z])
-        
-        return None
     
     def _create_default_metrics(self) -> MRACOuterLoopMetrics:
         """Create default metrics for failed calculations."""

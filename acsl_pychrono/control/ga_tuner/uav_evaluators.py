@@ -10,6 +10,10 @@ import pickle
 from datetime import datetime
 
 from .core.fitness_evaluator import FitnessEvaluator
+from .metrics.translational_utils import (
+    calculate_position_velocity_rmse,
+    extract_position_velocity_vectors,
+)
 
 
 class MetricNormalizer:
@@ -570,29 +574,6 @@ class UAVFitnessEvaluator(UAVSimulationEvaluator):
     def _compute_fitness_from_log_data(self, log_data: Dict[str, Any], parameters: List[float]) -> Union[float, List[float]]:
         """Compute fitness from log data dictionary. Returns single objective or multi-objective based on mode."""
         try:
-            # Extract position and velocity data
-            pos_des = np.stack([
-                np.array(log_data["user_defined_position"]["x"]).flatten(),
-                np.array(log_data["user_defined_position"]["y"]).flatten(),
-                np.array(log_data["user_defined_position"]["z"]).flatten()
-            ], axis=1)
-            pos_act = np.stack([
-                np.array(log_data["position"]["x"]).flatten(),
-                np.array(log_data["position"]["y"]).flatten(),
-                np.array(log_data["position"]["z"]).flatten()
-            ], axis=1)
-            
-            vel_des = np.stack([
-                np.array(log_data["user_defined_velocity"]["x"]).flatten(),
-                np.array(log_data["user_defined_velocity"]["y"]).flatten(),
-                np.array(log_data["user_defined_velocity"]["z"]).flatten()
-            ], axis=1)
-            vel_act = np.stack([
-                np.array(log_data["velocity"]["x"]).flatten(),
-                np.array(log_data["velocity"]["y"]).flatten(),
-                np.array(log_data["velocity"]["z"]).flatten()
-            ], axis=1)
-            
             # Extract control effort data
             control_input = log_data.get("control_input", {})
             if isinstance(control_input, dict) and len(control_input) > 0:
@@ -619,15 +600,14 @@ class UAVFitnessEvaluator(UAVSimulationEvaluator):
             else:
                 control_effort = 0.0
             
-            # Compute individual objectives
-            pos_error = pos_act - pos_des
-            vel_error = vel_act - vel_des
-            
-            # Position tracking error (RMSE)
-            pos_tracking_error = np.sqrt(np.mean(np.sum(pos_error**2, axis=1)))
-            
-            # Velocity tracking error (RMSE)
-            vel_tracking_error = np.sqrt(np.mean(np.sum(vel_error**2, axis=1)))
+            # Compute tracking RMSE metrics using shared helper
+            rmse_values = calculate_position_velocity_rmse(log_data)
+            if rmse_values is None:
+                if hasattr(self, 'multi_objective') and self.multi_objective:
+                    return [float('inf'), float('inf'), float('inf')]
+                return float('inf')
+
+            pos_tracking_error, vel_tracking_error = rmse_values
             
             # Check for NaN or Inf values
             if (np.isnan(pos_tracking_error) or np.isinf(pos_tracking_error) or
@@ -744,19 +724,12 @@ class MRACSimulationEvaluator(UAVSimulationEvaluator):
     def _compute_sensitive_fitness(self, log_data: Dict[str, Any], parameters: List[float]) -> float:
         """Compute a more sensitive fitness function based on available simulation data."""
         try:
-            # Extract position and velocity data
-            actual_pos = np.column_stack([
-                np.array(log_data['position']['x']).flatten(),
-                np.array(log_data['position']['y']).flatten(),
-                np.array(log_data['position']['z']).flatten()
-            ])
-            
-            desired_pos = np.column_stack([
-                np.array(log_data['user_defined_position']['x']).flatten(),
-                np.array(log_data['user_defined_position']['y']).flatten(),
-                np.array(log_data['user_defined_position']['z']).flatten()
-            ])
-            
+            vectors = extract_position_velocity_vectors(log_data)
+            if vectors is None:
+                return float('inf')
+
+            actual_pos, desired_pos, actual_vel, desired_vel = vectors
+
             # Remove NaN values
             valid_mask = ~(np.isnan(actual_pos).any(axis=1) | np.isnan(desired_pos).any(axis=1))
             actual_pos_clean = actual_pos[valid_mask]
@@ -768,19 +741,6 @@ class MRACSimulationEvaluator(UAVSimulationEvaluator):
             # Calculate tracking errors
             pos_error = actual_pos_clean - desired_pos_clean
             pos_error_magnitude = np.linalg.norm(pos_error, axis=1)
-            
-            # Calculate velocity errors
-            actual_vel = np.column_stack([
-                np.array(log_data['velocity']['x']).flatten(),
-                np.array(log_data['velocity']['y']).flatten(),
-                np.array(log_data['velocity']['z']).flatten()
-            ])
-            
-            desired_vel = np.column_stack([
-                np.array(log_data['user_defined_velocity']['x']).flatten(),
-                np.array(log_data['user_defined_velocity']['y']).flatten(),
-                np.array(log_data['user_defined_velocity']['z']).flatten()
-            ])
             
             # Remove NaN values for velocity
             valid_vel_mask = ~(np.isnan(actual_vel).any(axis=1) | np.isnan(desired_vel).any(axis=1))

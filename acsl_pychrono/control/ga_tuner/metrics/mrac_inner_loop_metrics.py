@@ -6,7 +6,7 @@ Computes performance metrics for MRAC inner loop (attitude/rotational control).
 Metrics:
 - attitude_tracking_error: RMS error in roll/pitch/yaw tracking
 - angular_velocity_tracking_error: RMS error in angular rate tracking
-- moment_effort: RMS control effort (moments u2, u3, u4)
+- rotational_control_effort: RMS control effort (moments u2, u3, u4)
 """
 
 from typing import Dict, Any, Optional
@@ -27,7 +27,7 @@ class MRACInnerLoopMetrics:
     """
     attitude_tracking_error: Optional[float] = None      # RMS error in roll, pitch, yaw tracking
     angular_velocity_tracking_error: Optional[float] = None  # RMS error in omega tracking
-    moment_effort: Optional[float] = None                # RMS of control moments (u2, u3, u4)
+    rotational_control_effort: Optional[float] = None                # RMS of control moments (u2, u3, u4)
 
     @staticmethod
     def _format_metric(value: Optional[float]) -> str:
@@ -40,7 +40,7 @@ class MRACInnerLoopMetrics:
         return (f"MRACInnerLoopMetrics("
                 f"attitude_error={self._format_metric(self.attitude_tracking_error)}, "
                 f"omega_error={self._format_metric(self.angular_velocity_tracking_error)}, "
-                f"moment_effort={self._format_metric(self.moment_effort)}, "
+                f"rotational_control_effort={self._format_metric(self.rotational_control_effort)}, "
                 )
     
     def to_dict(self):
@@ -48,7 +48,7 @@ class MRACInnerLoopMetrics:
         data = {
             'attitude_tracking_error': self.attitude_tracking_error,
             'angular_velocity_tracking_error': self.angular_velocity_tracking_error,
-            'moment_effort': self.moment_effort
+            'rotational_control_effort': self.rotational_control_effort
         }
 
         return data
@@ -58,7 +58,7 @@ class MRACInnerLoopMetrics:
         metrics = [
             self.attitude_tracking_error,
             self.angular_velocity_tracking_error,
-            self.moment_effort
+            self.rotational_control_effort
         ]
 
         return metrics
@@ -89,14 +89,14 @@ class MRACInnerLoopMetricsCalculator:
         try:
             metrics['attitude_tracking_error'] = self.compute_attitude_tracking_error(log_data)
             metrics['angular_velocity_tracking_error'] = self.compute_angular_velocity_tracking_error(log_data)
-            metrics['moment_effort'] = self.compute_moment_effort(log_data)
+            metrics['rotational_control_effort'] = self.compute_rotational_control_effort(log_data)
         except Exception as e:
             print(f"Error computing MRAC inner loop metrics: {e}")
             # Return high penalty values if computation fails
             metrics = {
                 'attitude_tracking_error': 999.0,
                 'angular_velocity_tracking_error': 999.0,
-                'moment_effort': 999.0
+                'rotational_control_effort': 999.0
             }
         
         return metrics
@@ -116,7 +116,7 @@ class MRACInnerLoopMetricsCalculator:
         return MRACInnerLoopMetrics(
             attitude_tracking_error=metrics_dict['attitude_tracking_error'],
             angular_velocity_tracking_error=metrics_dict['angular_velocity_tracking_error'],
-            moment_effort=metrics_dict['moment_effort'],
+            rotational_control_effort=metrics_dict['rotational_control_effort'],
         )
     
     def compute_attitude_tracking_error(self, log_data: Dict[str, Any]) -> float:
@@ -139,7 +139,7 @@ class MRACInnerLoopMetricsCalculator:
             return 999.0
         return error_value
     
-    def compute_moment_effort(self, log_data: Dict[str, Any]) -> float:
+    def compute_rotational_control_effort(self, log_data: Dict[str, Any]) -> float:
         """
         Compute RMS control moment effort (u2, u3, u4).
         
@@ -181,7 +181,7 @@ class MRACInnerLoopMetricsCalculator:
             return float(rms_moment)
             
         except Exception as e:
-            print(f"Error computing moment effort: {e}")
+            print(f"Error computing rotational_control_effort: {e}")
             return 999.0
     
     pass

@@ -27,7 +27,7 @@ class MetricNormalizer:
         self.metric_names = [
             'attitude_tracking_error',
             'angular_velocity_tracking_error',
-            'moment_effort'
+            'rotational_control_effort'
         ]
         self.fitted = False
     
@@ -242,7 +242,7 @@ class InnerLoopSensitivityHelper:
         
         Args:
             metric_name: Name of metric ('attitude_tracking_error', 
-                        'angular_velocity_tracking_error', 'moment_effort')
+                        'angular_velocity_tracking_error', 'rotational_control_effort')
                         
         Returns:
             1D array of normalized metric values
@@ -263,7 +263,7 @@ class InnerLoopSensitivityHelper:
         return {
             'attitude_tracking_error': self.normalized_metrics[:, 0],
             'angular_velocity_tracking_error': self.normalized_metrics[:, 1],
-            'moment_effort': self.normalized_metrics[:, 2]
+            'rotational_control_effort': self.normalized_metrics[:, 2]
         }
     
     def prepare_for_sobol(self, metric_index: int = None) -> np.ndarray:
@@ -580,25 +580,25 @@ class UAVFitnessEvaluator(UAVSimulationEvaluator):
                 try:
                     # Control input is a dictionary with keys like 'U1', 'U2', 'U3', 'U4'
                     # Each value is a numpy array of control inputs over time
-                    control_efforts = []
+                    translational_control_efforts = []
                     for key, control_array in control_input.items():
                         if hasattr(control_array, '__len__') and len(control_array) > 0:
                             # Calculate RMS for this control input
                             if control_array.ndim > 1:
                                 # Flatten if multi-dimensional
                                 control_array = control_array.flatten()
-                            control_efforts.append(np.sqrt(np.mean(control_array**2)))
+                            translational_control_efforts.append(np.sqrt(np.mean(control_array**2)))
                     
-                    if control_efforts:
+                    if translational_control_efforts:
                         # Total control effort as sum of individual control efforts
-                        control_effort = np.sum(control_efforts)
+                        translational_control_effort = np.sum(translational_control_efforts)
                     else:
-                        control_effort = 0.0
+                        translational_control_effort = 0.0
                 except (ValueError, TypeError, IndexError) as e:
                     print(f"Warning: Error calculating control effort: {e}")
-                    control_effort = 0.0
+                    translational_control_effort = 0.0
             else:
-                control_effort = 0.0
+                translational_control_effort = 0.0
             
             # Compute tracking RMSE metrics using shared helper
             rmse_values = calculate_position_velocity_rmse(log_data)
@@ -612,7 +612,7 @@ class UAVFitnessEvaluator(UAVSimulationEvaluator):
             # Check for NaN or Inf values
             if (np.isnan(pos_tracking_error) or np.isinf(pos_tracking_error) or
                 np.isnan(vel_tracking_error) or np.isinf(vel_tracking_error) or
-                np.isnan(control_effort) or np.isinf(control_effort)):
+                np.isnan(translational_control_effort) or np.isinf(translational_control_effort)):
                 if hasattr(self, 'multi_objective') and self.multi_objective:
                     return [float('inf'), float('inf'), float('inf')]
                 else:
@@ -621,16 +621,16 @@ class UAVFitnessEvaluator(UAVSimulationEvaluator):
             # Return based on optimization mode
             if hasattr(self, 'multi_objective') and self.multi_objective:
                 # Multi-objective: return list of objectives
-                objectives = [pos_tracking_error, vel_tracking_error, control_effort]
-                print(f"[FITNESS] Parameters {parameters[:3]} -> Objectives: pos={pos_tracking_error:.6f}, vel={vel_tracking_error:.6f}, control={control_effort:.6f}")
+                objectives = [pos_tracking_error, vel_tracking_error, translational_control_effort]
+                print(f"[FITNESS] Parameters {parameters[:3]} -> Objectives: pos={pos_tracking_error:.6f}, vel={vel_tracking_error:.6f}, control={translational_control_effort:.6f}")
                 return objectives
             else:
                 # Single-objective: return weighted sum
                 weights = [3.0, 0.1, 0.01]  # [pos_weight, vel_weight, control_weight]
                 total_fitness = (weights[0] * pos_tracking_error + 
                                weights[1] * vel_tracking_error + 
-                               weights[2] * control_effort)
-                print(f"[FITNESS] Parameters {parameters[:3]} -> Fitness: {total_fitness:.6f} (pos={pos_tracking_error:.6f}, vel={vel_tracking_error:.6f}, control={control_effort:.6f})")
+                               weights[2] * translational_control_effort)
+                print(f"[FITNESS] Parameters {parameters[:3]} -> Fitness: {total_fitness:.6f} (pos={pos_tracking_error:.6f}, vel={vel_tracking_error:.6f}, control={translational_control_effort:.6f})")
                 return float(total_fitness)
                 
         except (KeyError, IndexError, ValueError) as e:
@@ -672,7 +672,7 @@ class MRACSimulationEvaluator(UAVSimulationEvaluator):
         self.cost_function_weights = cost_function_weights or {
             'tracking_error': 1.0,
             'adaptation_rate': 0.5,
-            'control_effort': 0.3
+            'translational_control_effort': 0.3
         }
     
     def _get_controller_type(self) -> str:
@@ -763,9 +763,9 @@ class MRACSimulationEvaluator(UAVSimulationEvaluator):
                 all_thrusts = np.column_stack(thrust_arrays)
                 total_thrust_per_timestep = np.sum(all_thrusts, axis=1)
                 valid_thrust = total_thrust_per_timestep[~np.isnan(total_thrust_per_timestep)]
-                control_effort = np.mean(valid_thrust) if len(valid_thrust) > 0 else 0.0
+                translational_control_effort = np.mean(valid_thrust) if len(valid_thrust) > 0 else 0.0
             else:
-                control_effort = 0.0
+                translational_control_effort = 0.0
             
             # Calculate fitness components based on ACTUAL PERFORMANCE
             pos_fitness = np.mean(pos_error_magnitude)
@@ -780,11 +780,11 @@ class MRACSimulationEvaluator(UAVSimulationEvaluator):
             
             # Normalize control effort to make it comparable to tracking errors
             # Typical control effort is ~20-40 N, normalize by expected value (30 N)
-            normalized_control_effort = control_effort / 30.0
+            normalized_translational_control_effort = translational_control_effort / 30.0
             total_fitness = (
                 20.0 * pos_fitness +                   
                 10.0 * vel_fitness +              
-                0.1 * normalized_control_effort         
+                0.1 * normalized_translational_control_effort         
             )
             
             # Add very small random component to break ties (but minimal)
@@ -795,7 +795,7 @@ class MRACSimulationEvaluator(UAVSimulationEvaluator):
             print(f"[DEBUG] Performance-based fitness for params {parameters[:3]}:")
             print(f"  pos_error: {pos_fitness:.6f} → weighted: {10.0 * pos_fitness:.6f}")
             print(f"  vel_error: {vel_fitness:.6f} → weighted: {1.0 * vel_fitness:.6f}")
-            print(f"  control_effort: {control_effort:.6f} → normalized: {normalized_control_effort:.6f} → weighted: {0.1 * normalized_control_effort:.6f}")
+            print(f"  translational_control_effort: {translational_control_effort:.6f} → normalized: {normalized_translational_control_effort:.6f} → weighted: {0.1 * normalized_translational_control_effort:.6f}")
             print(f"  tie_breaker: {param_hash * 0.0001:.6f}")
             print(f"  TOTAL FITNESS: {total_fitness:.6f}")
             
@@ -933,7 +933,7 @@ class MRACInnerLoopEvaluator(UAVSimulationEvaluator):
             pass
         print(f"  Attitude Tracking Error:        {metrics.attitude_tracking_error:.6f} rad")
         print(f"  Angular Velocity Tracking Error: {metrics.angular_velocity_tracking_error:.6f} rad/s")
-        print(f"  Moment Effort:                   {metrics.moment_effort:.6f} N·m")
+        print(f"  Rotational Control Effort:      {metrics.rotational_control_effort:.6f} N·m")
         
         if self.multi_objective:
             # Return list of objectives for multi-objective optimization
@@ -944,7 +944,7 @@ class MRACInnerLoopEvaluator(UAVSimulationEvaluator):
             combined_fitness = (
                 metrics.attitude_tracking_error +
                 metrics.angular_velocity_tracking_error +
-                0.1 * metrics.moment_effort
+                0.1 * metrics.rotational_control_effort
             )
             print(f"  Combined Fitness:                {combined_fitness:.6f}")
             return float(combined_fitness)
@@ -980,7 +980,7 @@ class MRACOuterLoopEvaluator(UAVSimulationEvaluator):
         self.cost_function_weights = cost_function_weights or {
             'position_error': 1.0,
             'velocity_error': 0.5,
-            'control_effort': 0.2
+            'translational_control_effort': 0.2
         }
         self.metrics_calculator = MRACOuterLoopMetricsCalculator()
 
@@ -1002,7 +1002,7 @@ class MRACOuterLoopEvaluator(UAVSimulationEvaluator):
             print(f"\n[OUTER LOOP METRICS] Parameters preview {parameters[:3]}:")
         print(f"  Position Error:  {metrics_dict['position_error']:.6f} m")
         print(f"  Velocity Error:  {metrics_dict['velocity_error']:.6f} m/s")
-        print(f"  Control Effort:  {metrics_dict['control_effort']:.6f} N")
+        print(f"  Translational Control Effort:  {metrics_dict['translational_control_effort']:.6f} N")
 
         if self.multi_objective:
             return metrics.to_list()

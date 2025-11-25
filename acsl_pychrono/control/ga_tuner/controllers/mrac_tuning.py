@@ -35,8 +35,8 @@ class MRACTuning(ControllerTuningInterface):
         self.use_weighted_sum = use_weighted_sum
         
         # Initialize shared metrics calculators for inner and outer loop performance
-        self.metrics_calculator = MRACInnerLoopMetricsCalculator()
-        self.outer_metrics_calculator = MRACOuterLoopMetricsCalculator()
+        self.inner_loop_metrics_calculator = MRACInnerLoopMetricsCalculator()
+        self.outer_loop_metrics_calculator = MRACOuterLoopMetricsCalculator()
         
         # Load baseline gains directly from MRAC implementation
         self._baseline_gains = self._load_default_mrac_gains()
@@ -101,10 +101,10 @@ class MRACTuning(ControllerTuningInterface):
         self.cost_weights = {
             'attitude_tracking_error': 1.0,
             'angular_velocity_tracking_error': 0.8,
-            'moment_effort': 0.3,
+            'rotational_control_effort': 0.3,
             'position_error': 1.0,
             'velocity_error': 0.5,
-            'control_effort': 0.2,
+            'translational_control_effort': 0.2,
         }
 
         # Cache ordered parameter names for reuse
@@ -197,16 +197,16 @@ class MRACTuning(ControllerTuningInterface):
         Metrics include:
         - attitude_tracking_error: RMS error in roll/pitch/yaw tracking
         - angular_velocity_tracking_error: RMS error in angular rate tracking
-        - moment_effort: RMS control effort (moments u2, u3, u4)
+        - rotational_control_effort: RMS control effort (moments u2, u3, u4)
         - position_error: RMS translational position tracking error
         - velocity_error: RMS translational velocity tracking error
-        - control_effort: RMS total thrust effort
+        - translational_control_effort: RMS total thrust effort
         """
         # Inner loop metrics capture attitude/rotational performance
-        inner_metrics = self.metrics_calculator.compute_all_metrics(log_data)
+        inner_metrics = self.inner_loop_metrics_calculator.compute_all_metrics(log_data)
 
         # Outer loop metrics capture translational performance
-        outer_metrics_obj = self.outer_metrics_calculator.calculate_metrics(log_data)
+        outer_metrics_obj = self.outer_loop_metrics_calculator.calculate_metrics(log_data)
         outer_metrics = outer_metrics_obj.to_dict()
 
         # Merge dictionaries

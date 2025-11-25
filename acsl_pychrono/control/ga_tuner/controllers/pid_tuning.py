@@ -72,7 +72,7 @@ class PIDTuning(ControllerTuningInterface):
         self.cost_weights = {
             'position_error': 1.0,
             'velocity_error': 0.5,
-            'control_effort': 0.3,
+            'translational_control_effort': 0.3,
             #'settling_time': 0.2
         }
     
@@ -82,7 +82,7 @@ class PIDTuning(ControllerTuningInterface):
             'position_tolerance': 0.1,  # meters
             'velocity_tolerance': 0.05,  # m/s
             # 'settling_time_threshold': 0.95,  # 95% of final value
-            'max_control_effort': 100.0  # Newtons
+            'max_translational_control_effort': 100.0  # Newtons
         }
     
     def get_parameter_bounds(self) -> ParameterBounds:
@@ -191,9 +191,9 @@ class PIDTuning(ControllerTuningInterface):
             thrust_arrays.append(np.asarray(motor_values, dtype=float))
         if thrust_arrays:
             total_thrust = np.vstack(thrust_arrays).sum(axis=0)
-            metrics['control_effort'] = float(np.mean(np.abs(total_thrust)))
+            metrics['translational_control_effort'] = float(np.mean(np.abs(total_thrust)))
         else:
-            metrics['control_effort'] = float('inf')
+            metrics['translational_control_effort'] = float('inf')
         
         # Settling time: first time position error stays within tolerance
         tolerance = self.config['position_tolerance']

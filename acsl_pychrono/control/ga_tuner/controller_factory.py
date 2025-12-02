@@ -6,26 +6,13 @@ adding support for injecting GA-optimised parameters into the existing PID
 and MRAC controllers.
 """
 
+from functools import lru_cache
 from typing import Mapping, Sequence
-
 import numpy as np
 
-from ..PID import PID, PIDGains, PIDLogger
-from ..MRAC import MRAC, MRACGains, MRACLogger
-from ..TwoLayerMRAC import TwoLayerMRAC, TwoLayerMRACGains, TwoLayerMRACLogger
 from .controllers.mrac_tuning import MRACTuning
 from .controllers.pid_tuning import PIDTuning
-
-# Controller class mappings
-CONTROLLER_CLASSES = {
-    'PID': (PIDGains, PID, PIDLogger),
-    'MRAC': (MRACGains, MRAC, MRACLogger),
-    'TwoLayerMRAC': (TwoLayerMRACGains, TwoLayerMRAC, TwoLayerMRACLogger),
-}
-
-# Lazily created tuning helpers reused for parameter reconstruction
-_MRAC_TUNING = None
-_PID_TUNING = None
+from acsl_pychrono.control import controller_classes as CONTROLLER_CLASSES
 
 
 def instantiateControllerWithGA(controller_type: str, ode_input, flight_params, timestep, wrapper_params=None):
@@ -57,7 +44,7 @@ def instantiateControllerWithGA(controller_type: str, ode_input, flight_params, 
             try:
                 if controller_type == "PID":
                     _apply_pid_ga_parameters(gains, external_params)
-                elif controller_type in {"MRAC", "TwoLayerMRAC"}:
+                elif controller_type =="MRAC":
                     _apply_mrac_ga_parameters(gains, external_params)
             except Exception as exc:
                 print(f"Warning: GA tuner parameter mapping failed: {exc}")
@@ -70,26 +57,12 @@ def instantiateControllerWithGA(controller_type: str, ode_input, flight_params, 
 
 def _apply_pid_ga_parameters(gains, external_params):
     """Apply GA-optimised PID parameters to the gains object."""
-    pid_values = external_params.get("pid_gains")
+    pid_values = external_params.get("pid_params")
     if pid_values is None:
-        print("Warning: GA tuner enabled but missing PID gains in external_controller_params")
+        print("Warning: GA tuner enabled but missing PID parameters in external_controller_params")
         return
 
     pid_sequence = list(pid_values)
-
-    # Backward compatibility: accept legacy 9-parameter vectors (translational only)
-    if len(pid_sequence) == 9:
-        kp_values = np.array([pid_sequence[0], pid_sequence[3], pid_sequence[6]], dtype=float)
-        ki_values = np.array([pid_sequence[1], pid_sequence[4], pid_sequence[7]], dtype=float)
-        kd_values = np.array([pid_sequence[2], pid_sequence[5], pid_sequence[8]], dtype=float)
-
-        gains.KP_tran = np.matrix(np.diag(kp_values))
-        gains.KI_tran = np.matrix(np.diag(ki_values))
-        gains.KD_tran = np.matrix(np.diag(kd_values))
-
-        print("[GA TUNER] Applied external PID gains (translational only)")
-        print(f"           KP_tran={kp_values}, KI_tran={ki_values}, KD_tran={kd_values}")
-        return
 
     tuning = _get_pid_tuning()
     try:
@@ -103,16 +76,15 @@ def _apply_pid_ga_parameters(gains, external_params):
             gains_attr = np.matrix(gain_dict[attr])
             setattr(gains, attr, gains_attr)
 
-    kp_tran = np.diag(np.asarray(gain_dict['KP_tran'], dtype=float))
-    ki_tran = np.diag(np.asarray(gain_dict['KI_tran'], dtype=float))
-    kd_tran = np.diag(np.asarray(gain_dict['KD_tran'], dtype=float))
-    kp_rot = np.diag(np.asarray(gain_dict['KP_rot'], dtype=float))
-    ki_rot = np.diag(np.asarray(gain_dict['KI_rot'], dtype=float))
-    kd_rot = np.diag(np.asarray(gain_dict['KD_rot'], dtype=float))
+    diag_keys = ['KP_tran', 'KI_tran', 'KD_tran', 'KP_rot', 'KI_rot', 'KD_rot']
+    diag_gains = {key: _diagonal_values(gain_dict[key]) for key in diag_keys}
 
-    print("[GA TUNER] Applied external PID gains (translational & rotational)")
-    print(f"           KP_tran={kp_tran}, KI_tran={ki_tran}, KD_tran={kd_tran}")
-    print(f"           KP_rot={kp_rot}, KI_rot={ki_rot}, KD_rot={kd_rot}")
+    print(
+        "[GA TUNER] Applied external PID gains "
+        f"(KP_tran={diag_gains['KP_tran']}, KI_tran={diag_gains['KI_tran']}, "
+        f"KD_tran={diag_gains['KD_tran']}, KP_rot={diag_gains['KP_rot']}, "
+        f"KI_rot={diag_gains['KI_rot']}, KD_rot={diag_gains['KD_rot']})"
+    )
 
 
 def _apply_mrac_ga_parameters(gains, external_params):
@@ -121,7 +93,7 @@ def _apply_mrac_ga_parameters(gains, external_params):
 
     Accepts either:
       * A full parameter vector matching MRACTuning.get_parameter_names(), or
-      * A mapping of parameter names to values (optionally with a 'names'/'values' payload).
+      * A mapping of parameter names to values (optionally with a 'names'/'values').
     """
     params = external_params.get("mrac_params")
     if params is None:
@@ -166,7 +138,7 @@ def _apply_mrac_ga_parameters(gains, external_params):
 
 
 def _extract_named_params_from_mapping(data: Mapping):
-    """Parse named MRAC parameters from a mapping payload."""
+    """Parse named MRAC parameters from mapping."""
     if "names" in data and "values" in data:
         names = list(data["names"])
         values = list(data["values"])
@@ -179,18 +151,17 @@ def _extract_named_params_from_mapping(data: Mapping):
     values = [data[name] for name in names]
     return names, values
 
+def _diagonal_values(matrix_like):
+    """Return the diagonal of a gain matrix as a flat numpy array for logging."""
+    return np.diag(np.asarray(matrix_like, dtype=float))
 
+@lru_cache(maxsize=1)
 def _get_mrac_tuning() -> MRACTuning:
-    """Lazy initialisation of the shared MRAC tuning helper."""
-    global _MRAC_TUNING
-    if _MRAC_TUNING is None:
-        _MRAC_TUNING = MRACTuning()
-    return _MRAC_TUNING
+    """Initialisation of the shared MRAC tuning helper."""
+    return MRACTuning()
 
 
+@lru_cache(maxsize=1)
 def _get_pid_tuning() -> PIDTuning:
-    """Lazy initialisation of the shared PID tuning helper."""
-    global _PID_TUNING
-    if _PID_TUNING is None:
-        _PID_TUNING = PIDTuning()
-    return _PID_TUNING
+    """Initialisation of the shared PID tuning helper."""
+    return PIDTuning()

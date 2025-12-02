@@ -5,6 +5,7 @@ import acsl_pychrono.control as Ctrl
 from acsl_pychrono.control.logging import Logging
 from acsl_pychrono.simulation.ode_input import OdeInput
 from acsl_pychrono.simulation.flight_params import FlightParams
+from acsl_pychrono.control.ga_tuner.controller_factory import instantiateControllerWithGA
 
 def simulateMission(sim: Simulation, git_info: dict | None = None):
   # Instantiation of classes
@@ -20,13 +21,25 @@ def simulateMission(sim: Simulation, git_info: dict | None = None):
     sim.mfloor_Yposition
   )
 
-  # Instantiation of controller, gains, and logger
-  (gains, controller, logger) = Ctrl.instantiateController(
-    sim.mission_config.controller_type,
-    ode_input,
-    flight_params,
-    sim.mission_config.timestep
-  )
+  wrapper_params = getattr(getattr(sim, "simulation_config", None), "wrapper_params", None)
+  use_ga_tuner = getattr(wrapper_params, "use_ga_tuner", False)
+
+  if use_ga_tuner:
+    (gains, controller, logger) = instantiateControllerWithGA(
+      sim.mission_config.controller_type,
+      ode_input,
+      flight_params,
+      sim.mission_config.timestep,
+      wrapper_params=wrapper_params
+    )
+  else:
+    # Instantiation of controller, gains, and logger
+    (gains, controller, logger) = Ctrl.instantiateController(
+      sim.mission_config.controller_type,
+      ode_input,
+      flight_params,
+      sim.mission_config.timestep
+    )
 
   sim.assignInstances(
     flight_params,
@@ -51,3 +64,5 @@ def simulateMission(sim: Simulation, git_info: dict | None = None):
       sim.simulation_config,
       git_info
     )
+
+  return log_dict

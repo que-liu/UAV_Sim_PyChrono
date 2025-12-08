@@ -1,26 +1,32 @@
-import math
 import numpy as np  
+from numpy import linalg as LA
+
 from acsl_pychrono.control.outerloop_safetymech import OuterLoopSafetyMechanism
-from acsl_pychrono.control.TwoLayerMRAC.two_layer_mrac_gains import TwoLayerMRACGains
+from acsl_pychrono.control.FunnelMRAC.funnel_mrac_gains import FunnelMRACGains
 from acsl_pychrono.simulation.ode_input import OdeInput
 from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.control.control import Control
 from acsl_pychrono.control.base_mrac import BaseMRAC
 from acsl_pychrono.control.MRAC.m_mrac import M_MRAC
-from acsl_pychrono.control.TwoLayerMRAC.m_two_layer_mrac import M_TwoLayerMRAC
-from acsl_pychrono.control.NonAdaptiveEBCI.m_nonadaptive_ebci import M_NonAdaptiveEBCI
+from acsl_pychrono.control.FunnelMRAC.m_funnel_mrac import M_FunnelMRAC
 from acsl_pychrono.control.projection_operator import ProjectionOperator
 
-class TwoLayerMRAC(BaseMRAC, Control):
-  def __init__(self, gains: TwoLayerMRACGains, ode_input: OdeInput, flight_params: FlightParams, timestep: float):
+class FunnelMRAC(BaseMRAC, Control):
+  def __init__(self, gains: FunnelMRACGains, ode_input: OdeInput, flight_params: FlightParams, timestep: float):
     super().__init__(odein=ode_input, gains=gains)
     self.gains = gains
     self.fp = flight_params
     self.timestep = timestep
     self.safety_mechanism = OuterLoopSafetyMechanism(gains, self.fp.G_acc)
     self.dy = np.zeros((self.gains.number_of_states, 1))
+
     # Initial conditions
     self.y = np.zeros((self.gains.number_of_states, 1))
+    self.y[106] = gains.initial_cond_eta_funnel_tran  # Initial condition on funnel translational
+
+    # Computing trajectory tracking error derivative numerically
+    self.e_tran_prev = np.zeros((6, 1))
+    self.e_tran_dot = np.zeros((6, 1))
 
   def computeControlAlgorithm(self, ode_input: OdeInput):
     """
@@ -28,8 +34,8 @@ class TwoLayerMRAC(BaseMRAC, Control):
     """
     # Update the vehicle state and user-defined trajectory
     self.odein = ode_input
-    
-    # ODE state            
+
+    # ODE state       
     self.state_phi_ref_diff = self.y[0:2] # State of the differentiator for phi_ref (roll_ref)
     self.state_theta_ref_diff = self.y[2:4] # State of the differentiator for theta_ref (pitch_ref)
     self.x_ref_tran = self.y[4:10] # Reference model state
@@ -41,17 +47,20 @@ class TwoLayerMRAC(BaseMRAC, Control):
     self.K_hat_x_rot = self.y[61:70] # \hat{K}_x (rotational)
     self.K_hat_r_rot = self.y[70:79] # \hat{K}_r (rotational)
     self.Theta_hat_rot = self.y[79:97] # \hat{\Theta} (rotational)
-    self.integral_e_rot = self.y[97:100] # Integral of 'e_rot' = (angular_velocity - omega_ref) 
+    self.integral_e_rot = self.y[97:100] # Integral of 'e_rot' = (angular_velocity - omega_ref)
     self.integral_angular_error = self.y[100:103] # Integral of angular_error = attitude - attitude_ref
-    self.integral_e_omega_ref_cmd = self.y[103:106] # Integral of (omega_ref - omega_cmd)
-    self.K_hat_g_tran = self.y[106:124] # \hat{K}_g translational (Two-layer)
-    self.K_hat_g_rot = self.y[124:133] # \hat{K}_g rotational (Two-layer)
+    self.integral_e_omega_ref_cmd = self.y[103:106] #Integral of (omega_ref - omega_cmd)
+    self.eta_funnel_tran = self.y[106] # eta used to compute the translational dynamics funnel diameter
+    self.eta_funnel_rot = self.y[107] # eta used to compute the rotational dynamics funnel diameter
 
     # Reshapes all adaptive gains to their correct (row, col) shape as matrices
-    self.reshapeAdaptiveGainsToMatricesTwoLayerMRAC()
+    self.reshapeAdaptiveGainsToMatricesMRAC()
 
     # compute translational and rotational trajectory tracking error
     self.computeTrajectoryTrackingErrors(self.odein)
+    self.e_tran_norm = LA.norm(self.e_tran)
+    self.e_tran_dot = (self.e_tran - self.e_tran_prev) / self.timestep
+    self.e_tran_prev = self.e_tran.copy()
 
     self.r_tran = self.computeReferenceCommandInputOuterLoop()
 
@@ -61,28 +70,14 @@ class TwoLayerMRAC(BaseMRAC, Control):
 
     self.Phi_adaptive_tran_augmented = self.computeRegressorVectorOuterLoop()
 
-    self.mu_adaptive_mrac_tran = M_TwoLayerMRAC.computeControlLaw(
+    self.mu_adaptive_tran = M_MRAC.computeControlLaw(
       self.K_hat_x_tran, self.x_tran,
       self.K_hat_r_tran, self.r_tran,
-      self.Theta_hat_tran, self.Phi_adaptive_tran_augmented,
-      self.K_hat_g_tran, self.e_tran
+      self.Theta_hat_tran, self.Phi_adaptive_tran_augmented
     )
-
-    self.mu_adaptive_ebci_tran = M_NonAdaptiveEBCI.computeErrorBoundingControlInput(
-      self.gains.xi_bar_d_tran,
-      self.gains.lambda_bar_tran,
-      self.gains.delta_ebci_tran,
-      self.gains.B_tran,
-      self.gains.P_tran,
-      self.e_tran,
-      self.gains.use_error_bounding_control_input
-    )
-
-    self.mu_adaptive_tran = self.mu_adaptive_mrac_tran + self.mu_adaptive_ebci_tran
 
     self.mu_tran_raw = self.computeMuRawOuterLoop()
 
-    # Update Adaptive Laws Outer Loop
     self.updateAdaptiveLawsOuterLoop()
 
     # Outer Loop Safety Mechanism
@@ -102,6 +97,63 @@ class TwoLayerMRAC(BaseMRAC, Control):
       self.odein.yaw_ref
     )
 
+    if self.gains.use_eigenvalue_lambda_sat_funnel_tran:
+      self.lambda_sat_funnel_tran = M_FunnelMRAC.computeLambdaSatFunnelFromMatrixEigenvalue(
+        self.gains.Q_tran,
+        self.Ve_funnel_tran,
+        self.gains.Q_M_funnel_tran,
+        self.gains.xi_bar_d_funnel_tran,
+        self.e_tran_norm,
+        self.gains.P_tran,
+        self.gains.M_funnel_tran,
+        self.H_function_funnel_tran,
+        self.gains.nu_funnel_tran,
+        self.gains.lambda_max_P_tran,
+        self.eta_funnel_tran
+      )
+    else:
+      self.lambda_sat_funnel_tran = M_FunnelMRAC.computeLambdaSatFunnelConservative(
+        self.H_function_funnel_tran,
+        self.gains.lambda_min_Q_tran,
+        self.Ve_funnel_tran,
+        self.gains.lambda_min_Q_M_funnel_tran,
+        self.gains.nu_funnel_tran,
+        self.gains.xi_bar_d_funnel_tran,
+        self.e_tran_norm,
+        self.gains.lambda_max_P_tran,
+        self.gains.lambda_max_M_funnel_tran,
+        self.eta_funnel_tran
+      )
+
+    (self.xi_funnel_tran,
+     self.sigma_ideal_funnel_tran,
+     self.sigma_nom_funnel_tran
+    ) = M_FunnelMRAC.computeXiAndSigmasFunnel(
+      self.u1,
+      self.gains.u_max,
+      self.gains.u_min,
+      self.gains.Delta_u_min,
+      self.eta_funnel_tran,
+      self.lambda_sat_funnel_tran
+    )
+
+    # Different cases for eta_dot_funnel_tran
+    self.eta_dot_funnel_tran = M_FunnelMRAC.computeEtaDotFunnel(
+      self.e_tran,
+      self.e_tran_dot,
+      self.e_tran_norm,
+      self.eta_funnel_tran,
+      self.H_function_funnel_tran,
+      self.sigma_nom_funnel_tran,
+      self.gains.M_funnel_tran,
+      self.gains.e_min_funnel_tran,
+      self.gains.eta_max_funnel_tran,
+      self.gains.delta_1_funnel_tran,
+      self.gains.delta_2_funnel_tran,
+      self.gains.delta_3_funnel_tran,
+      print_flag=True
+    )
+
     # Computes roll/pitch reference dot and ddot using state-space differentiators.
     (
     self.internal_state_differentiator_phi_ref_diff,
@@ -115,7 +167,7 @@ class TwoLayerMRAC(BaseMRAC, Control):
       self.pitch_ref,
       self.state_phi_ref_diff,
       self.state_theta_ref_diff
-    ) 
+    )
 
     # Computes angular error and its derivative
     (
@@ -143,39 +195,33 @@ class TwoLayerMRAC(BaseMRAC, Control):
      self.Phi_adaptive_rot_augmented
     ) = self.computeRegressorVectorInnerLoop()
 
-    # Update Adaptive Laws Inner Loop
     self.updateAdaptiveLawsInnerLoop()
 
     self.Moment_baseline = self.computeMomentBaselineInnerLoop()
 
-    self.Moment_adaptive_mrac = M_TwoLayerMRAC.computeControlLaw(
+    self.Moment_adaptive = M_MRAC.computeControlLaw(
       self.K_hat_x_rot, self.odein.angular_velocity,
       self.K_hat_r_rot, self.r_rot,
-      self.Theta_hat_rot, self.Phi_adaptive_rot_augmented,
-      self.K_hat_g_rot, self.e_rot
+      self.Theta_hat_rot, self.Phi_adaptive_rot_augmented
     )
-
-    self.Moment_adaptive_ebci = M_NonAdaptiveEBCI.computeErrorBoundingControlInput(
-      self.gains.xi_bar_d_rot,
-      self.gains.lambda_bar_rot,
-      self.gains.delta_ebci_rot,
-      self.gains.B_rot,
-      self.gains.P_rot,
-      self.e_rot,
-      self.gains.use_error_bounding_control_input
-    )
-
-    self.Moment_adaptive = self.Moment_adaptive_mrac + self.Moment_adaptive_ebci
 
     (self.u2,
      self.u3,
      self.u4,
-     _
+     Moment
     ) = self.computeU2_U3_U4()
+
+    self.xi_funnel_rot = M_FunnelMRAC.computeXiFunnel(
+      Moment,
+      self.gains.Moment_max,
+      self.gains.Moment_min,
+      self.gains.Delta_Moment_min
+    )
+    self.eta_dot_funnel_rot = self.eta_funnel_rot * self.xi_funnel_rot
 
     # Compute individual motor thrusts
     self.motor_thrusts = Control.computeMotorThrusts(self.fp, self.u1, self.u2, self.u3, self.u4)
-  
+
   def ode(self, t, y):
     """
     Function called by RK4. Assumes `computeControlAlgorithm` was called
@@ -195,8 +241,8 @@ class TwoLayerMRAC(BaseMRAC, Control):
     self.dy[97:100] = self.odein.angular_velocity - self.omega_ref
     self.dy[100:103] = self.angular_error
     self.dy[103:106] = self.omega_ref - self.omega_cmd
-    self.dy[106:124] = self.K_hat_g_tran_dot.reshape(18,1)
-    self.dy[124:133] = self.K_hat_g_rot_dot.reshape(9,1)
+    self.dy[106] = self.eta_dot_funnel_tran
+    self.dy[107] = self.eta_dot_funnel_rot
 
     return np.array(self.dy)
   
@@ -205,10 +251,31 @@ class TwoLayerMRAC(BaseMRAC, Control):
     Update the outer loop adaptive laws with deadzone modification, e-modification, and
     projection operator (all if enabled).
     """
-    # Precompute e^T*P*B and its norm for outer loop
-    (eTranspose_P_B_tran,
-     eTranspose_P_B_norm_tran
-    ) = M_MRAC.compute_eTransposePB(self.e_tran, self.gains.P_tran, self.gains.B_tran)
+    # Compute Outer Loop H_function funnel
+    (self.H_function_funnel_tran, self.eT_M_e_tran, self.diameter_funnel_tran) = M_FunnelMRAC.computeHfunctionFunnel(
+      self.gains.eta_max_funnel_tran,
+      self.eta_funnel_tran,
+      self.e_tran,
+      self.gains.M_funnel_tran
+    )
+
+    # Compute Outer Loop Ve_function funnel
+    self.Ve_funnel_tran = M_FunnelMRAC.computeVeFunnel(
+      self.e_tran,
+      self.gains.P_tran,
+      self.H_function_funnel_tran
+    )
+
+    # Precompute (e^T*(P+M*Ve)*B)/H_function for outer loop
+    (eTranspose_P_B_funnel_tran,
+     eTranspose_P_B_funnel_norm_tran) = M_FunnelMRAC.compute_eTransposePBFunnel(
+      self.e_tran,
+      self.Ve_funnel_tran,
+      self.H_function_funnel_tran,
+      self.gains.P_tran,
+      self.gains.M_funnel_tran,
+      self.gains.B_tran
+    )
 
     # Deadzone modification Outer Loop
     self.dead_zone_value_tran = M_MRAC.deadZoneModulationFunction(
@@ -219,18 +286,16 @@ class TwoLayerMRAC(BaseMRAC, Control):
     # Outer Loop Adaptive Laws
     (self.K_hat_x_tran_dot,
      self.K_hat_r_tran_dot,
-     self.Theta_hat_tran_dot,
-     self.K_hat_g_tran_dot
-    ) = M_TwoLayerMRAC.computeAllRobustAdaptiveLaws(
+     self.Theta_hat_tran_dot
+    ) = M_MRAC.computeAllRobustAdaptiveLaws(
       self.gains.Gamma_x_tran, self.x_tran,
       self.gains.Gamma_r_tran, self.r_tran,
       self.gains.Gamma_Theta_tran, self.Phi_adaptive_tran_augmented,
-      self.gains.Gamma_g_tran, self.e_tran,
-      eTranspose_P_B_tran,
+      eTranspose_P_B_funnel_tran,
       self.dead_zone_value_tran,
-      self.gains.sigma_x_tran, self.gains.sigma_r_tran, self.gains.sigma_Theta_tran, self.gains.sigma_g_tran,
-      eTranspose_P_B_norm_tran,
-      self.K_hat_x_tran, self.K_hat_r_tran, self.Theta_hat_tran, self.K_hat_g_tran,
+      self.gains.sigma_x_tran, self.gains.sigma_r_tran, self.gains.sigma_Theta_tran,
+      eTranspose_P_B_funnel_norm_tran,
+      self.K_hat_x_tran, self.K_hat_r_tran, self.Theta_hat_tran,
       self.gains.use_dead_zone_modification, self.gains.use_e_modification
     )
 
@@ -266,25 +331,34 @@ class TwoLayerMRAC(BaseMRAC, Control):
         self.gains.epsilon_Theta_tran
       )
 
-      (self.K_hat_g_tran_dot,
-       self.proj_op_activated_K_hat_g_tran
-      ) = ProjectionOperator.Ellipsoid.projectionMatrix(
-        self.K_hat_g_tran,
-        self.K_hat_g_tran_dot,
-        self.gains.x_e_g_tran,
-        self.gains.S_g_tran,
-        self.gains.epsilon_g_tran
-      )
-
   def updateAdaptiveLawsInnerLoop(self):
     """
     Update the inner loop adaptive laws with deadzone modification, e-modification, and
     projection operator (all if enabled).
     """
-    # Precompute e^T*P*B and its norm for inner loop
-    (eTranspose_P_B_rot,
-     eTranspose_P_B_norm_rot
-    ) = M_MRAC.compute_eTransposePB(self.e_rot, self.gains.P_rot, self.gains.B_rot)
+    (self.H_function_funnel_rot, self.eT_M_e_rot, self.diameter_funnel_rot) = M_FunnelMRAC.computeHfunctionFunnel(
+      self.gains.eta_max_funnel_rot,
+      self.eta_funnel_rot,
+      self.e_rot,
+      self.gains.M_funnel_rot
+    )
+
+    self.Ve_funnel_rot = M_FunnelMRAC.computeVeFunnel(
+      self.e_rot,
+      self.gains.P_rot,
+      self.H_function_funnel_rot
+    )
+
+    # Precompute (e^T*(P+M*Ve)*B)/H_function for inner loop
+    (eTranspose_P_B_funnel_rot,
+     eTranspose_P_B_funnel_norm_rot) = M_FunnelMRAC.compute_eTransposePBFunnel(
+      self.e_rot,
+      self.Ve_funnel_rot,
+      self.H_function_funnel_rot,
+      self.gains.P_rot,
+      self.gains.M_funnel_rot,
+      self.gains.B_rot
+    )
 
     # Deadzone modification Inner Loop
     self.dead_zone_value_rot = M_MRAC.deadZoneModulationFunction(
@@ -295,18 +369,16 @@ class TwoLayerMRAC(BaseMRAC, Control):
     # Inner Loop Adaptive Laws
     (self.K_hat_x_rot_dot,
      self.K_hat_r_rot_dot,
-     self.Theta_hat_rot_dot,
-     self.K_hat_g_rot_dot
-    ) = M_TwoLayerMRAC.computeAllRobustAdaptiveLaws(
+     self.Theta_hat_rot_dot
+    ) = M_MRAC.computeAllRobustAdaptiveLaws(
       self.gains.Gamma_x_rot, self.odein.angular_velocity,
       self.gains.Gamma_r_rot, self.r_rot,
       self.gains.Gamma_Theta_rot, self.Phi_adaptive_rot_augmented,
-      self.gains.Gamma_g_rot, self.e_rot,
-      eTranspose_P_B_rot,
+      eTranspose_P_B_funnel_rot,
       self.dead_zone_value_rot,
-      self.gains.sigma_x_rot, self.gains.sigma_r_rot, self.gains.sigma_Theta_rot, self.gains.sigma_g_rot,
-      eTranspose_P_B_norm_rot,
-      self.K_hat_x_rot, self.K_hat_r_rot, self.Theta_hat_rot, self.K_hat_g_rot,
+      self.gains.sigma_x_rot, self.gains.sigma_r_rot, self.gains.sigma_Theta_rot,
+      eTranspose_P_B_funnel_norm_rot,
+      self.K_hat_x_rot, self.K_hat_r_rot, self.Theta_hat_rot,
       self.gains.use_dead_zone_modification, self.gains.use_e_modification
     )
 
@@ -341,16 +413,6 @@ class TwoLayerMRAC(BaseMRAC, Control):
         self.gains.S_Theta_rot,
         self.gains.epsilon_Theta_rot
       )
-
-      (self.K_hat_g_rot_dot,
-       self.proj_op_activated_K_hat_g_rot
-      ) = ProjectionOperator.Ellipsoid.projectionMatrix(
-        self.K_hat_g_rot,
-        self.K_hat_g_rot_dot,
-        self.gains.x_e_g_rot,
-        self.gains.S_g_rot,
-        self.gains.epsilon_g_rot
-      )
-
+  
   def computePostIntegrationAlgorithm(self):
     pass

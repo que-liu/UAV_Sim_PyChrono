@@ -16,6 +16,7 @@ import acsl_pychrono.config.config as Cfg
 import acsl_pychrono.user_defined_trajectory as Traj
 from acsl_pychrono.simulation.utils import Utils
 from acsl_pychrono.control.control import Control
+from acsl_pychrono.simulation.ANCF_cable_rope import ANCFCableRope
 
 class Simulation:
   def __init__(self, sim_cfg: Cfg.SimulationConfig = Cfg.SimulationConfig()) -> None:
@@ -78,10 +79,6 @@ class Simulation:
 
     self.exported_items = chrono.ImportSolidWorksSystem(modulename)
 
-    # # Print exported items
-    # for my_item in self.exported_items:
-    #   print(my_item.GetName())
-    # # Add items to the physical system
     for my_item in self.exported_items:
       self.m_sys.Add(my_item)
 
@@ -176,14 +173,44 @@ class Simulation:
     print(f"Environment body loaded: {self.m_environment.GetName()}")
 
   def setSolverAndCollisionModel(self):
-    # self.m_solver = chrono.ChSolverBB() # default solver set by the solidworks pychrono module
-    self.m_solver = chrono.ChSolverPSOR() # same solver as 'demo_MBS_collisionNSC'
-    self.m_sys.SetSolver(self.m_solver)
-    self.m_solver.SetMaxIterations(1000) #600 #1000
-    self.m_solver.EnableWarmStart(True)
-    chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001) #0.003 #0.001
-    chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0005) #0.003 #0.0005
-    chrono.ChCollisionSystemBullet.SetContactBreakingThreshold(0.001) #0.002 #0.001
+    # Choose solver
+    if (self.mission_config.add_payload_flag
+        and self.mission_config.payload_type == "sling_ball_payload"):
+      # Use SparseQR for sling payload missions
+      self.m_solver = chrono.ChSolverSparseQR() # for sling payload
+      # self.m_solver = chrono.ChSolverMINRES()
+    else:
+      # self.m_solver = chrono.ChSolverBB() # default solver set by the solidworks pychrono module
+      self.m_solver = chrono.ChSolverPSOR() # same solver as 'demo_MBS_collisionNSC'
+
+    solver_type = self.m_solver.GetType()
+
+    if solver_type == chrono.ChSolver.Type_SPARSE_QR:
+      print("Using SparseQR solver")
+      self.m_sys.SetSolver(self.m_solver)
+      self.m_solver.UseSparsityPatternLearner(True)
+      self.m_solver.LockSparsityPattern(True)
+      self.m_solver.SetVerbose(False)
+
+    elif solver_type == chrono.ChSolver.Type_MINRES :
+      print( "Using MINRES solver" )
+      self.m_sys.SetSolver(self.m_solver)
+      self.m_solver.SetMaxIterations(200)
+      self.m_solver.SetTolerance(1e-10)
+      self.m_solver.EnableDiagonalPreconditioner(True)
+      self.m_solver.EnableWarmStart(True)  # IMPORTANT for convergence when using EULER_IMPLICIT_LINEARIZED
+      self.m_solver.SetVerbose(False)
+
+    else:
+      print("Using solver type: ",  solver_type)
+      self.m_sys.SetSolver(self.m_solver)
+      self.m_solver.SetMaxIterations(1000) #600 #1000
+      self.m_solver.EnableWarmStart(True)
+      chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001) #0.003 #0.001
+      chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0005) #0.003 #0.0005
+      chrono.ChCollisionSystemBullet.SetContactBreakingThreshold(0.001) #0.002 #0.001
+
+    self.m_sys.SetSolverForceTolerance(1e-13)
 
   def createAuxillaryCoordinateSystems(self):
     # position of the "pixhawk's center" wrt local frame
@@ -397,6 +424,7 @@ class Simulation:
     self.addTwoSteelBallsPayload()
     self.addSpheresInArrays()
     self.addRandomSpheres()
+    self.addSlingBallPayload()
 
   def updatePixhawkState(self):
     coord_GLOB = self.marker_pixhawk.GetAbsCoord()
@@ -747,6 +775,54 @@ class Simulation:
       self.controller, time_now, self.flight_params,
       print_console_flag=False
     )
+    # print("\nGet_accumulated_force", self.m_frame.Get_accumulated_force())
+
+  def addSlingBallPayload(self):
+    if (self.mission_config.add_payload_flag
+      and self.mission_config.payload_type == "sling_ball_payload"
+    ):
+      # Remove collisions
+      self.m_frame.SetCollide(False)
+      self.m_box.SetCollide(False)
+      box_visual_shape = self.m_box.GetVisualShape(0)
+      box_visual_shape.SetVisible(False)
+
+      # Attachment to the drone
+      cable_attachment_relative_pos = chrono.ChVectorD(0,-0.015,0)
+      drone_attachment_pos = self.m_frame.GetPos() + cable_attachment_relative_pos
+
+      # Create the payload
+      cable_length = 0.115
+      contact_material_ball = chrono.ChMaterialSurfaceNSC()
+      ball_radius = 0.0254 # 0.0254 - 0.01905 - 0.015875
+      my_ball_density = 7850 # 7850
+      self.m_sling_ball = chrono.ChBodyEasySphere(
+        ball_radius,      # radius size 
+        my_ball_density,     # density
+        True,     # visualization?
+        False,     # collision?
+        contact_material_ball # contact material
+      )  
+      adjusted_length = cable_length + ball_radius
+      payload_pos = drone_attachment_pos + chrono.ChVectorD(0,-adjusted_length,0)
+      self.m_sling_ball.SetPos(payload_pos)
+      self.m_sling_ball.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/redwhite.png"))
+      self.m_sys.Add(self.m_sling_ball)
+
+      # Attachment to the payload
+      payload_attachment_pos = payload_pos + chrono.ChVectorD(0,ball_radius,0)
+
+      rope = ANCFCableRope(
+        system=self.m_sys,
+        start_pos=drone_attachment_pos,
+        end_pos=payload_attachment_pos,
+        uav_body=self.m_frame,
+        payload_body=self.m_sling_ball,
+        n_elements=10,
+        cable_diameter=0.014,
+        young_modulus=2e9,
+        density=1150,
+        damping=1.0)
 
 
 

@@ -1,9 +1,11 @@
+import math
 import pychrono as chrono
 import pychrono.irrlicht as irr
 
 class Visualization:
   def __init__(self, sim):
     self.sim = sim
+    self.follow_cam_pos = chrono.ChVectorD(0,0,0)
 
   def setup(self):
     if not self.sim.mission_config.visualization_flag:
@@ -17,13 +19,11 @@ class Visualization:
     vis.Initialize()
     vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
     vis.AddSkyBox()
-    # vis.AddCamera(chrono.ChVectorD(2.5, 1.5, 0.5)) # (1,1,1), (2.5,1.5,0.5) FIXED CAMERA
     vis.AddCamera(
       chrono.ChVectorD(self.sim.m_frame.GetPos().x, 0, self.sim.m_frame.GetPos().z)
       + chrono.ChVectorD(-1.5, 2, 1.5),
       self.sim.m_frame.GetPos()
     )
-    # vis.AddCamera(chrono.ChVectorD(6,1.5,3), chrono.ChVectorD(3,0,-2)) # (2, 1, 3), (2,0.5,1.5)
     vis.AddTypicalLights()
     vis.AddLightWithShadow(
       chrono.ChVectorD(0,5,0),    # point, (3,6,2)
@@ -57,6 +57,12 @@ class Visualization:
       self._add_camera_follow()
     elif mode == "fpv":
       self._add_camera_fpv()
+    elif mode == "orbit":
+      self._add_camera_orbit()
+    elif mode == "follow_smooth":
+      self._add_camera_follow_smooth()
+    elif mode == "topdown":
+      self._add_camera_topdown()
     else:
       pass
 
@@ -94,6 +100,66 @@ class Visualization:
       )
 
   def _add_camera_fpv(self):
-    if self.sim.m_sys.GetChTime() > 0.1:
-      fpv_pos = self.sim.pixhawk_state.rotmat * (self.sim.pixhawk_state.pos_LOC + chrono.ChVectorD(-0.4, 0, -0.1))
-      self.sim.vis.AddCamera(fpv_pos, self.sim.m_frame.GetPos() + chrono.ChVectorD(0, 0.05, 0))
+    # === Choose view mode: "front", "side", or "back" ===
+    view_mode = "back"
+
+    uav_pos = self.sim.pixhawk_state.pos_LOC
+    uav_rot = self.sim.pixhawk_state.rotmat
+
+    # --- Camera offsets for each view (body frame) ---
+    offsets = {
+      "front": chrono.ChVectorD( 0.55,  0.00,  -0.10),   # in front of UAV
+      "side":  chrono.ChVectorD( 0.25,  0.55,  -0.10),   # to the right of UAV
+      "back":  chrono.ChVectorD(-0.55,  0.00,  -0.10),   # behind UAV
+    }
+
+    # Fallback if wrong flag
+    offset_body = offsets.get(view_mode, offsets[view_mode])
+    # Final camera position in world coordinates
+    cam_pos = uav_rot * (uav_pos + offset_body)
+    # Look-at point (slightly above UAV frame origin)
+    look_at = self.sim.m_frame.GetPos() + chrono.ChVectorD(0.0, 0.05, 0.0)
+
+    # Add the camera
+    self.sim.vis.AddCamera(cam_pos, look_at)
+
+  def _add_camera_orbit(self):
+    # Orbit parameters
+    R = 2.0                     # radius of the circular orbit
+    H = 1.0                     # height of the camera
+    speed = 0.8                 # angular speed (rad/s)
+
+    t = self.sim.m_sys.GetChTime()
+    angle = speed * t
+
+    center = self.sim.m_frame.GetPos()
+
+    cam_x = center.x - R * math.cos(angle)
+    cam_y = center.y + H
+    cam_z = center.z - R * math.sin(angle)
+
+    self.sim.vis.AddCamera(
+      chrono.ChVectorD(cam_x, cam_y, cam_z),
+      center
+    )
+
+  def _add_camera_follow_smooth(self):
+    target = self.sim.m_frame.GetPos() + chrono.ChVectorD(-1.5, 1.2, 1.5)
+
+    # Low-pass filter for smoothing
+    alpha = 0.01
+    self.follow_cam_pos = self.follow_cam_pos*(1 - alpha) + target*alpha
+
+    self.sim.vis.AddCamera(
+      self.follow_cam_pos,
+      self.sim.m_frame.GetPos()
+    )
+
+  def _add_camera_topdown(self):
+    target = self.sim.m_frame.GetPos()
+    cam = target + chrono.ChVectorD(0, 8, 0)  # high above the drone
+
+    self.sim.vis.AddCamera(
+      cam,
+      target
+    )

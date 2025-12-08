@@ -4,7 +4,7 @@ from dataclasses import dataclass
 @dataclass
 class MissionConfig:
   # Total simulation duration in seconds
-  simulation_duration_seconds: float = 17.0 # 21.5
+  simulation_duration_seconds: float = 21.5 # 21.5
   # Run the simulator in Wrapper mode (more simulations automatically run sequentially)
   wrapper_flag: bool = False
   # If True, perform real-time rendering of the simulation with Irrlicht
@@ -16,15 +16,22 @@ class MissionConfig:
   # "front",
   # "follow",
   # "fpv"
+  # "orbit"
+  # "follow_smooth"
+  # "topdown"
   camera_mode: str = "fixed"
   # Simulation timestep used by Chrono
-  timestep: float = 0.005 
+  timestep: float = 0.005 #0.005
 
   # Controller types:
   # "PID",
   # "MRAC",
   # "TwoLayerMRAC",
-  controller_type: str = "TwoLayerMRAC"
+  # "FunnelMRAC",
+  # "HybridMRAC",
+  # "HybridTwoLayerMRAC",
+  # "NonAdaptiveEBCI"
+  controller_type: str = "FunnelMRAC"
 
   # User-defined trajectory types:
   # "circular_trajectory",
@@ -36,7 +43,8 @@ class MissionConfig:
 
   # If the trajectory_type is "piecewise_polynomial_trajectory", then choose the trajectory file to run
   # Path relative to 'current_working_directory/params/user_defined_trajectory'
-  trajectory_data_path: str = "bean_trajectory0p2.json"
+  # "bean_trajectory0p2.json"
+  trajectory_data_path: str = "rollercoaster_trajectory1p2.json"
 
   # Time for which, after executing the "trajectory_data_path",
   # the vehicle is hovering before starting the landing phase
@@ -48,6 +56,7 @@ class MissionConfig:
   # "two_steel_balls"
   # "ten_steel_balls_in_two_lines"
   # "many_steel_balls_in_random_position"
+  # "sling_ball_payload"
   payload_type: str = "two_steel_balls"
 
   # Unique wrapper batch folder passed to the function used for running many parallel wrapper simulations 

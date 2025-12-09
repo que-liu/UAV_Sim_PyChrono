@@ -24,9 +24,11 @@ class DEAPGATuner(BaseGATuner):
                  n_generations: int = 50,
                  random_seed: Optional[int] = None,
                  multi_objective: bool = False,
+                 n_objectives: int = 3,
                  crossover_prob: float = 0.8,
                  mutation_prob: float = 0.3,
                  selection_method: str = 'tournament',
+                 tournament_size: int = 3,
                  crossover_type: str = 'blend',
                  mutation_type: str = 'gaussian'):
         """
@@ -39,18 +41,22 @@ class DEAPGATuner(BaseGATuner):
             n_generations: Number of generations
             random_seed: Random seed for reproducibility
             multi_objective: Whether to use multi-objective optimization
+            n_objectives: Number of objectives for multi-objective optimization
             crossover_prob: Crossover probability
             mutation_prob: Mutation probability
             selection_method: Selection method ('tournament', 'roulette', 'rank')
+            tournament_size: Tournament size for tournament selection (default: 3)
             crossover_type: Type of crossover ('blend', 'simulated_binary', 'uniform')
             mutation_type: Type of mutation ('gaussian', 'polynomial', 'uniform')
         """
         super().__init__(parameter_bounds, fitness_evaluator, population_size, n_generations, random_seed)
         
         self.multi_objective = multi_objective
+        self.n_objectives = n_objectives
         self.crossover_prob = crossover_prob
         self.mutation_prob = mutation_prob
         self.selection_method = selection_method
+        self.tournament_size = tournament_size
         self.crossover_type = crossover_type
         self.mutation_type = mutation_type
         
@@ -64,9 +70,11 @@ class DEAPGATuner(BaseGATuner):
         # Store configuration for results
         self.result.optimization_parameters.update({
             'multi_objective': multi_objective,
+            'n_objectives': n_objectives,
             'crossover_prob': crossover_prob,
             'mutation_prob': mutation_prob,
             'selection_method': selection_method,
+            'tournament_size': tournament_size,
             'crossover_type': crossover_type,
             'mutation_type': mutation_type
         })
@@ -78,9 +86,8 @@ class DEAPGATuner(BaseGATuner):
         
         # Create fitness and individual classes
         if self.multi_objective:
-            # For UAV optimization: minimize position error, velocity error, and control effort
-            n_objectives = 3  # position_tracking_error, velocity_tracking_error, control_effort
-            creator.create("FitnessMulti", base.Fitness, weights=(-1.0,) * n_objectives)
+            # Multi-objective: minimize all objectives (e.g., tracking errors + control effort)
+            creator.create("FitnessMulti", base.Fitness, weights=(-1.0,) * self.n_objectives)
             fitness_class = creator.FitnessMulti
         else:
             creator.create("FitnessSingle", base.Fitness, weights=(-1.0,))
@@ -155,8 +162,8 @@ class DEAPGATuner(BaseGATuner):
         
         # Selection operators with reduced selection pressure
         if self.selection_method == 'tournament':
-            # Smaller tournament size for less selection pressure
-            self.toolbox.register("select", tools.selTournament, tournsize=2)
+            # Use configured tournament size
+            self.toolbox.register("select", tools.selTournament, tournsize=self.tournament_size)
         elif self.selection_method == 'roulette':
             self.toolbox.register("select", tools.selRoulette)
         elif self.selection_method == 'rank':
@@ -291,8 +298,12 @@ class DEAPGATuner(BaseGATuner):
                  population: List[np.ndarray],
                  offspring: List[np.ndarray],
                  population_fitnesses: List[Union[float, List[float]]],
-                 offspring_fitnesses: List[Union[float, List[float]]]) -> List[np.ndarray]:
-        """Survival selection with reduced elitism for better exploration."""
+                 offspring_fitnesses: List[Union[float, List[float]]]) -> tuple[List[np.ndarray], List[Union[float, List[float]]]]:
+        """Survival selection with reduced elitism for better exploration.
+
+        Returns both the survivor population and their corresponding fitnesses
+        to avoid re-evaluating expensive simulations in the base class loop.
+        """
         # Use only offspring for next generation (no elitism)
         # This forces more exploration but risks losing good solutions
         deap_offspring = [creator.Individual(list(ind)) for ind in offspring]
@@ -307,4 +318,13 @@ class DEAPGATuner(BaseGATuner):
         else:
             survivors = self.toolbox.select(deap_offspring, self.population_size)
         
-        return [np.array(ind) for ind in survivors]
+        survivor_arrays = [np.array(ind) for ind in survivors]
+        survivor_fitnesses: List[Union[float, List[float]]] = []
+        for ind in survivors:
+            values = ind.fitness.values
+            if self.multi_objective:
+                survivor_fitnesses.append(list(values))
+            else:
+                survivor_fitnesses.append(float(values[0]))
+        
+        return survivor_arrays, survivor_fitnesses

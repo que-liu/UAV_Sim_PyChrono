@@ -44,7 +44,7 @@ class PymooGATuner(BaseGATuner):
                  random_seed: Optional[int] = None,
                  algorithm: str = 'NSGA2',
                  algorithm_params: Optional[Dict[str, Any]] = None,
-                 n_objectives: int = 4,
+                 n_objectives: int = 3,
                  adaptive_sampling: bool = False):
         """
         Initialize Pymoo GA tuner
@@ -155,6 +155,24 @@ class PymooGATuner(BaseGATuner):
             self._save_optimization_history(res, intermediate_save_path)
         
         return self.result
+
+    # The following abstract methods are unused because PymooGATuner overrides
+    # optimize with its own flow, but they are implemented to satisfy the base
+    # class interface.
+    def _initialize_population(self):
+        return []
+
+    def _select_parents(self, population, fitnesses):
+        return []
+
+    def _crossover(self, parents):
+        return []
+
+    def _mutate(self, offspring):
+        return []
+
+    def _survive(self, population, offspring, population_fitnesses, offspring_fitnesses):
+        return []
     
     def _process_results(self, res):
         """Process optimization results with enhanced metrics."""

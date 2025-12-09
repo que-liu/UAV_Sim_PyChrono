@@ -146,11 +146,14 @@ class BaseGATuner(ABC):
             
             offspring_fitnesses = self.fitness_evaluator.evaluate_population(offspring)
             
-            # Select survivors
-            population = self._survive(population, offspring, fitnesses, offspring_fitnesses)
-            
-            # Re-evaluate population after survival selection to get correct fitness values
-            fitnesses = self.fitness_evaluator.evaluate_population(population)
+            # Select survivors; allow _survive to optionally return (population, fitnesses)
+            survival_result = self._survive(population, offspring, fitnesses, offspring_fitnesses)
+            if isinstance(survival_result, tuple) and len(survival_result) == 2:
+                population, fitnesses = survival_result
+            else:
+                population = survival_result
+                # Re-evaluate only if fitnesses were not provided
+                fitnesses = self.fitness_evaluator.evaluate_population(population)
             
             # Store generation results
             self._store_generation_results(generation, population, fitnesses)
@@ -214,7 +217,7 @@ class BaseGATuner(ABC):
     def _find_pareto_front(self, 
                           population: List[np.ndarray],
                           fitnesses: List[List[float]]) -> tuple[List[np.ndarray], List[List[float]]]:
-        """Find Pareto optimal solutions."""
+        """Find Pareto optimal solutions (for minimization problems)."""
         pareto_front = []
         pareto_fitnesses = []
         
@@ -225,14 +228,19 @@ class BaseGATuner(ABC):
                 if i == j:
                     continue
                 
-                # Check if other individual dominates this one
-                dominates = True
+                # Check if other individual dominates this one (for minimization)
+                # other dominates if it's better or equal in all objectives and strictly better in at least one
+                at_least_one_better = False
+                all_better_or_equal = True
+                
                 for k in range(len(fitness)):
-                    if other_fitness[k] > fitness[k]:
-                        dominates = False
+                    if other_fitness[k] < fitness[k]:
+                        at_least_one_better = True
+                    elif other_fitness[k] > fitness[k]:
+                        all_better_or_equal = False
                         break
                 
-                if dominates:
+                if all_better_or_equal and at_least_one_better:
                     is_pareto_optimal = False
                     break
             

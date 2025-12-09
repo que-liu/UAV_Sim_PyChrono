@@ -4,6 +4,7 @@ Core fitness evaluator for genetic algorithm optimization.
 
 from typing import List, Union, Optional, Callable, Any
 import numpy as np
+import threading
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 class FitnessEvaluator:
@@ -36,11 +37,12 @@ class FitnessEvaluator:
         self.n_workers = n_workers
         self.use_processes = use_processes
         
-        # Initialize cache
+        # Initialize cache with thread lock for thread-safety
         self.cache = {}
         self.cache_size = cache_size
         self.cache_hits = 0
         self.total_evaluations = 0
+        self._cache_lock = threading.Lock()
 
         # Initialize parallel executor
         self._init_parallel_executor()
@@ -49,17 +51,12 @@ class FitnessEvaluator:
         """Initialize parallel execution environment."""
         if self.parallel:
             try:
-                print(f"[DEBUG] Initializing parallel executor: processes={self.use_processes}, workers={self.n_workers}")
                 if self.use_processes:
-                    print("[DEBUG] Using ProcessPoolExecutor")
                     self.executor = ProcessPoolExecutor(max_workers=self.n_workers)
                 else:
-                    print("[DEBUG] Using ThreadPoolExecutor")
                     self.executor = ThreadPoolExecutor(max_workers=self.n_workers)
-                print(f"[DEBUG] Parallel executor initialized successfully")
             except Exception as e:
                 print(f"Warning: Failed to initialize parallel executor: {e}")
-                print("Falling back to sequential execution")
                 self.parallel = False
                 self.executor = None
     
@@ -76,15 +73,18 @@ class FitnessEvaluator:
         Returns:
             Fitness value(s)
         """
-        self.total_evaluations += 1
+        with self._cache_lock:
+            self.total_evaluations += 1
         
         # Convert parameters to a hashable tuple for caching
         param_tuple = self._make_hashable(parameters)
         
-        # Check cache
-        if use_cache and param_tuple in self.cache:
-            self.cache_hits += 1
-            return self.cache[param_tuple]
+        # Check cache (thread-safe)
+        if use_cache:
+            with self._cache_lock:
+                if param_tuple in self.cache:
+                    self.cache_hits += 1
+                    return self.cache[param_tuple]
         
         try:
             fitness = self.evaluation_function(parameters)
@@ -150,9 +150,6 @@ class FitnessEvaluator:
         Returns:
             List of fitness values
         """
-        print(f"[DEBUG] Starting parallel evaluation: {len(population)} individuals")
-        print(f"[DEBUG] Executor type: {type(self.executor) if hasattr(self, 'executor') else 'None'}")
-
         # Check if parallel execution is available
         if not hasattr(self, 'executor') or self.executor is None:
             print("Warning: Parallel executor not available, falling back to sequential evaluation")
@@ -178,7 +175,9 @@ class FitnessEvaluator:
         if to_evaluate:
             try:
                 executor = self.executor
-                futures = [executor.submit(self.evaluation_function, ind) for ind in to_evaluate]
+                # Use evaluate_individual instead of evaluation_function directly
+                # This ensures that any overridden evaluate_individual (like _PartialEvaluatorMixin) is called
+                futures = [executor.submit(self.evaluate_individual, ind, False) for ind in to_evaluate]
                 results = [future.result() for future in futures]
 
                 # Cache new results
@@ -207,18 +206,19 @@ class FitnessEvaluator:
     
     def _cache_result(self, param_tuple: tuple, fitness: Union[float, List[float]]):
         """
-        Cache a fitness result.
+        Cache a fitness result (thread-safe).
         
         Args:
             param_tuple: Parameters as tuple
             fitness: Fitness value(s)
         """
-        # Implement LRU cache
-        if len(self.cache) >= self.cache_size:
-            # Remove oldest entry
-            self.cache.pop(next(iter(self.cache)))
-        
-        self.cache[param_tuple] = fitness
+        with self._cache_lock:
+            # Implement LRU cache
+            if len(self.cache) >= self.cache_size:
+                # Remove oldest entry
+                self.cache.pop(next(iter(self.cache)))
+            
+            self.cache[param_tuple] = fitness
     
     def __del__(self):
         """Cleanup parallel executor."""

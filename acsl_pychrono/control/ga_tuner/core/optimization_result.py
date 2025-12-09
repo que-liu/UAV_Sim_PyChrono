@@ -186,6 +186,11 @@ class OptimizationResult:
             # Single objective
             return min(self.best_fitnesses)
     
+    @property
+    def best_parameters(self) -> Optional[np.ndarray]:
+        """Alias for get_best_individual() for compatibility."""
+        return self.get_best_individual()
+    
     def get_convergence_metrics(self) -> Dict[str, float]:
         """
         Get convergence metrics.

@@ -100,14 +100,12 @@ class ControllerTuningInterface(ABC):
             Whether parameters are valid
         """
         bounds = self.get_parameter_bounds()
-        names = self.get_parameter_names()
         
-        if len(parameter_vector) != len(names):
+        if len(parameter_vector) != bounds.n_parameters:
             return False
         
-        for value, name in zip(parameter_vector, names):
-            min_val, max_val = bounds[name]
-            if value < min_val or value > max_val:
+        for i, value in enumerate(parameter_vector):
+            if value < bounds.lower_bounds[i] or value > bounds.upper_bounds[i]:
                 return False
         
         return True
@@ -123,12 +121,10 @@ class ControllerTuningInterface(ABC):
             Clipped parameter vector
         """
         bounds = self.get_parameter_bounds()
-        names = self.get_parameter_names()
         
         clipped = []
-        for value, name in zip(parameter_vector, names):
-            min_val, max_val = bounds[name]
-            clipped.append(np.clip(value, min_val, max_val))
+        for i, value in enumerate(parameter_vector):
+            clipped.append(np.clip(value, bounds.lower_bounds[i], bounds.upper_bounds[i]))
         
         return clipped
     

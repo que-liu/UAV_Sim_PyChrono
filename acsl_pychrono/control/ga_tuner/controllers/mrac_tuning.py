@@ -121,12 +121,8 @@ class MRACTuning(ControllerTuningInterface):
         self.converter = MRACParameterConverter(self._parameter_bounds)
     
     def _get_default_config(self) -> Dict[str, Any]:
-        return {
-            # 'tracking_tolerance': 0.1,        # Unused - define acceptable tracking error threshold
-            # 'adaptation_threshold': 0.01,     # Unused - set minimum threshold for adaptation
-            # 'max_parameter_drift': 10.0,      # Unused - limit adaptive parameter changes
-            # 'settling_time_weight': 0.2        # Unused - weight settling time in cost function
-        }
+        """Return default tuning configuration (currently empty, reserved for future use)."""
+        return {}
 
     def _load_default_mrac_gains(self) -> Dict[str, Any]:
         """Load baseline gains from the core MRAC implementation."""

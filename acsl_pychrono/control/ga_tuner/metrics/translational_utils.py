@@ -37,8 +37,19 @@ def calculate_position_velocity_rmse(log_data: Dict) -> Optional[Tuple[float, fl
     pos_error = pos_act - pos_des
     vel_error = vel_act - vel_des
 
-    pos_rmse = np.sqrt(np.mean(np.sum(pos_error ** 2, axis=1)))
-    vel_rmse = np.sqrt(np.mean(np.sum(vel_error ** 2, axis=1)))
+    # Filter out NaN and inf values (consistent with attitude_utils.py)
+    pos_valid_mask = ~(np.isnan(pos_error).any(axis=1) | np.isinf(pos_error).any(axis=1))
+    vel_valid_mask = ~(np.isnan(vel_error).any(axis=1) | np.isinf(vel_error).any(axis=1))
+    
+    if not np.any(pos_valid_mask) or not np.any(vel_valid_mask):
+        return None
+
+    pos_rmse = np.sqrt(np.mean(np.sum(pos_error[pos_valid_mask] ** 2, axis=1)))
+    vel_rmse = np.sqrt(np.mean(np.sum(vel_error[vel_valid_mask] ** 2, axis=1)))
+
+    # Final check for invalid results
+    if np.isnan(pos_rmse) or np.isinf(pos_rmse) or np.isnan(vel_rmse) or np.isinf(vel_rmse):
+        return None
 
     return float(pos_rmse), float(vel_rmse)
 

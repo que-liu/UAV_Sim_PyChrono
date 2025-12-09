@@ -167,8 +167,8 @@ class MRACInnerLoopMetricsCalculator:
             # Stack into matrix
             moments = np.column_stack([u2, u3, u4])
             
-            # Remove NaN values
-            valid_mask = ~np.isnan(moments).any(axis=1)
+            # Remove NaN and inf values
+            valid_mask = ~(np.isnan(moments).any(axis=1) | np.isinf(moments).any(axis=1))
             moments_clean = moments[valid_mask]
             
             if len(moments_clean) == 0:
@@ -178,10 +178,12 @@ class MRACInnerLoopMetricsCalculator:
             moment_magnitude = np.linalg.norm(moments_clean, axis=1)
             rms_moment = np.sqrt(np.mean(moment_magnitude ** 2))
             
+            # Return penalty if result is invalid
+            if np.isnan(rms_moment) or np.isinf(rms_moment):
+                return 999.0
+            
             return float(rms_moment)
             
         except Exception as e:
             print(f"Error computing rotational_control_effort: {e}")
             return 999.0
-    
-    pass

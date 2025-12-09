@@ -96,13 +96,19 @@ class MRACOuterLoopMetricsCalculator:
 
             if arr.size == 0:
                 continue
+            
+            # Filter out NaN and inf values
+            valid_arr = arr[~(np.isnan(arr) | np.isinf(arr))]
+            if valid_arr.size == 0:
+                continue
 
-            total_effort += np.mean(arr ** 2)
+            total_effort += np.mean(valid_arr ** 2)
 
-        if total_effort == 0.0:
+        if total_effort == 0.0 or np.isnan(total_effort) or np.isinf(total_effort):
             return 999.0
 
-        return float(np.sqrt(total_effort))
+        result = float(np.sqrt(total_effort))
+        return 999.0 if np.isnan(result) or np.isinf(result) else result
     
     def _create_default_metrics(self) -> MRACOuterLoopMetrics:
         """Create default metrics for failed calculations."""

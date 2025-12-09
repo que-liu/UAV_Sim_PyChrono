@@ -69,12 +69,13 @@ def calculate_attitude_tracking_error(log_data: Dict[str, Dict[str, list]]) -> O
     yaw_error = _wrap_angle(actual_angles[:, 2] - ref_angles[:, 2])
 
     attitude_error = np.column_stack([roll_error, pitch_error, yaw_error])
-    valid_mask = ~np.isnan(attitude_error).any(axis=1)
+    valid_mask = ~(np.isnan(attitude_error).any(axis=1) | np.isinf(attitude_error).any(axis=1))
     if not np.any(valid_mask):
         return None
 
     error_magnitude = np.linalg.norm(attitude_error[valid_mask], axis=1)
-    return float(np.sqrt(np.mean(error_magnitude ** 2)))
+    result = float(np.sqrt(np.mean(error_magnitude ** 2)))
+    return None if np.isnan(result) or np.isinf(result) else result
 
 
 def calculate_angular_velocity_tracking_error(log_data: Dict[str, Dict[str, list]]) -> Optional[float]:
@@ -113,9 +114,10 @@ def calculate_angular_velocity_tracking_error(log_data: Dict[str, Dict[str, list
     ])
 
     omega_error = actual_rates - ref_rates
-    valid_mask = ~np.isnan(omega_error).any(axis=1)
+    valid_mask = ~(np.isnan(omega_error).any(axis=1) | np.isinf(omega_error).any(axis=1))
     if not np.any(valid_mask):
         return None
 
     error_magnitude = np.linalg.norm(omega_error[valid_mask], axis=1)
-    return float(np.sqrt(np.mean(error_magnitude ** 2)))
+    result = float(np.sqrt(np.mean(error_magnitude ** 2)))
+    return None if np.isnan(result) or np.isinf(result) else result

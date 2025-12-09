@@ -26,6 +26,8 @@ from .mrac_outer_loop_metrics import (
     load_simulation_log
 )
 
+from .normalizer import MetricNormalizer
+
 __all__ = [
     # Inner loop
     'MRACInnerLoopMetrics',
@@ -34,6 +36,9 @@ __all__ = [
     # Outer loop
     'MRACOuterLoopMetrics',
     'MRACOuterLoopMetricsCalculator',
+    
+    # Normalizer
+    'MetricNormalizer',
     
     # Utility
     'load_simulation_log'

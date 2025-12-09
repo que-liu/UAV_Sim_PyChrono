@@ -78,10 +78,9 @@ class EnvironmentConfig:
 class WrapperParams: # Add here the params to be sweeped by the wrapper with their default values
   my_ball_density: float = 7850
   # Optional fields used by GA tuner integrations
-  pid_gains: list[float] | None = None
+  pid_params: list[float] | None = None
   mrac_params: list[float] | None = None
-  use_ga_tuner: bool = False  # NEW: Flag to enable/disable GA tuner
-  external_controller_params: dict[str, Any] | None = None  # NEW: GA tuner parameters
+  external_controller_params: dict[str, Any] | None = None  # GA tuner parameters
 
 @dataclass
 class SimulationConfig:

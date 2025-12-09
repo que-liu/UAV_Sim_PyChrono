@@ -1,4 +1,9 @@
-"""Structured configuration helpers for GA tuning runs."""
+"""Structured configuration helpers for GA tuning runs.
+
+This file integrates all modular configurations from separate config files.
+Please modify the individual config files (param_config.py, mission_config.py, etc.)
+under the subfolder ga_config for customization.
+"""
 
 from __future__ import annotations
 
@@ -6,23 +11,33 @@ from dataclasses import dataclass, field, fields
 from typing import Any, Dict, Literal, Mapping, MutableMapping, Optional, Sequence
 
 from .ga_config import GAConfig
-
+from .metrics_config import MetricsConfig
+from .param_config import TUNED_PARAMETERS
+from .mission_config import MISSION_CONFIG
+from .evaluator_config import EVALUATOR_TYPE, LOG_DIRECTORY, PARALLEL_CONFIG
 
 @dataclass(frozen=True)
 class EvaluatorConfig:
-    evaluator_type: Literal["inner", "outer"] = "inner"
-    log_directory: str = "simulation_logs/ga_mrac_nsga2"
-    parallel_config: Dict[str, Any] = field(
-        default_factory=lambda: {"enabled": True, "n_workers": 2, "use_processes": False}
-    )
-    multi_objective: bool = True
+    """Configuration for the fitness evaluator. Values loaded from evaluator_config.py."""
+    evaluator_type: Literal["inner", "outer"]
+    log_directory: str
+    parallel_config: Dict[str, Any]
+    metrics: MetricsConfig
 
+def _default_evaluator_config() -> EvaluatorConfig:
+    """Create default EvaluatorConfig with required arguments."""
+    return EvaluatorConfig(
+        evaluator_type=EVALUATOR_TYPE,
+        log_directory=LOG_DIRECTORY,
+        parallel_config=PARALLEL_CONFIG,
+        metrics=MetricsConfig(),
+    )
 
 @dataclass(frozen=True)
 class TuningConfig:
     tuned_parameters: Sequence[str] = field(default_factory=tuple)
     mission_overrides: Dict[str, Any] = field(default_factory=dict)
-    evaluator: EvaluatorConfig = field(default_factory=EvaluatorConfig)
+    evaluator: EvaluatorConfig = field(default_factory=_default_evaluator_config)
     ga: GAConfig = field(default_factory=GAConfig)
     n_objectives_inner: int = 3
     n_objectives_outer: int = 3
@@ -64,51 +79,55 @@ def tuning_config_from_mapping(
     )
 
 def _merge_dataclass(cls, base_value, overrides: Optional[MutableMapping[str, Any]]):
+    """Recursively merge dataclass with overrides, handling nested dataclasses."""
     if overrides is None:
         return base_value
+    
     init_kwargs = {}
     for field_info in fields(cls):
-        if field_info.name in overrides:
-            value = overrides[field_info.name]
-            if isinstance(value, Mapping) and isinstance(getattr(base_value, field_info.name), dict):
-                init_kwargs[field_info.name] = dict(value)
+        field_name = field_info.name
+        base_field_value = getattr(base_value, field_name)
+        
+        if field_name in overrides:
+            override_value = overrides[field_name]
+            
+            # Check if this field is a dataclass that needs recursive merging
+            if hasattr(field_info.type, '__dataclass_fields__') and isinstance(override_value, Mapping):
+                # Recursively merge nested dataclass
+                init_kwargs[field_name] = _merge_dataclass(
+                    field_info.type, 
+                    base_field_value, 
+                    override_value
+                )
+            elif isinstance(override_value, Mapping) and isinstance(base_field_value, dict):
+                # Regular dict merging
+                init_kwargs[field_name] = dict(override_value)
             else:
-                init_kwargs[field_info.name] = value
+                # Direct value assignment
+                init_kwargs[field_name] = override_value
         else:
-            attr_value = getattr(base_value, field_info.name)
-            if isinstance(attr_value, dict):
-                init_kwargs[field_info.name] = dict(attr_value)
+            # No override, keep base value
+            if isinstance(base_field_value, dict):
+                init_kwargs[field_name] = dict(base_field_value)
             else:
-                init_kwargs[field_info.name] = attr_value
+                init_kwargs[field_name] = base_field_value
+    
     return cls(**init_kwargs)
 
 
-DEFAULT_TUNING_CONFIG = tuning_config_from_mapping(
-    {
-        "tuned_parameters": (
-            "gamma_x_rot_L11",
-            "gamma_x_rot_L21",
-            "gamma_x_rot_L22",
-            "gamma_x_rot_L31",
+# Default multi-objective inner loop tuning config
+def _create_tuning_config() -> TuningConfig:
+    """Create default config by composing from modular config files."""
+    return TuningConfig(
+        tuned_parameters=TUNED_PARAMETERS,
+        mission_overrides=MISSION_CONFIG,
+        evaluator=EvaluatorConfig(
+            evaluator_type=EVALUATOR_TYPE,
+            log_directory=LOG_DIRECTORY,
+            parallel_config=PARALLEL_CONFIG,
+            metrics=MetricsConfig(),
         ),
-        "mission_overrides": {
-            "trajectory_type": "piecewise_polynomial_trajectory",
-            "duration": 30.0,
-            "visualization": False,
-            "wrapper_flag": True,
-        },
-        "evaluator": {
-            "evaluator_type": "inner",  # Change to "outer" for outer loop metrics
-            "log_directory": "simulation_logs/ga_mrac_nsga2",
-        },
-        "ga": {
-            "controller_type": "MRAC",
-            "algorithm": "PYMOO",
-            "pymoo_variant": "NSGA2",
-            "population_size": 2,
-            "num_generations": 2,
-            "random_seed": 42,
-        },
-    },
-    base=_BASE_TUNING_CONFIG,
-)
+        ga=GAConfig(),
+    )
+
+TUNING_CONFIG = _create_tuning_config()

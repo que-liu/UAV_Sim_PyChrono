@@ -6,11 +6,11 @@ from typing import Any, Dict, Optional
 class GAConfig:
     """Central configuration for GA tuning runs."""
 
-    controller_type: str = "PID"
-    algorithm: str = "DEAP"  # 'DEAP' or 'PYMOO'
+    controller_type: str = "MRAC"  # 'PID' or 'MRAC'
+    algorithm: str = "PYMOO"  # 'DEAP' or 'PYMOO'
 
-    population_size: int = 50
-    num_generations: int = 100
+    population_size: int = 2
+    num_generations: int = 2
     crossover_rate: float = 0.8
     mutation_rate: float = 0.1
 
@@ -32,3 +32,4 @@ class GAConfig:
     def __post_init__(self):
         self.algorithm = self.algorithm.upper()
         self.controller_type = self.controller_type.upper()
+

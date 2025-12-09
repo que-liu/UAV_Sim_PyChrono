@@ -38,9 +38,8 @@ def instantiateControllerWithGA(controller_type: str, ode_input, flight_params, 
     gains = GainsClass(flight_params)
 
     # Apply GA parameters if provided
-    if wrapper_params is not None and getattr(wrapper_params, "use_ga_tuner", False):
-        external_params = getattr(wrapper_params, "external_controller_params", None)
-        if external_params:
+    external_params = getattr(wrapper_params, "external_controller_params", None) if wrapper_params else None
+    if external_params:
             try:
                 if controller_type == "PID":
                     _apply_pid_ga_parameters(gains, external_params)

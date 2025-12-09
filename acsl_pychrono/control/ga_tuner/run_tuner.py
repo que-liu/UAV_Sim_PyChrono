@@ -6,25 +6,40 @@ import os
 import sys
 from pathlib import Path
 
-from acsl_pychrono.control.ga_tuner.ga_config.config import (
-    DEFAULT_TUNING_CONFIG,
-    TuningConfig,
-)
-from acsl_pychrono.control.ga_tuner.runner import run_mrac_ga, summarize_result
-
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 os.chdir(PROJECT_ROOT)
 
+from acsl_pychrono.control.ga_tuner.ga_config.config import (
+    TUNING_CONFIG,
+    TuningConfig,
+)
+from acsl_pychrono.control.ga_tuner.uav_integration import (
+    create_uav_ga_tuner,
+    summarize_tuner_result,
+)
+
 
 def run_from_config(config: TuningConfig) -> None:
-    result, tuned_names, all_names, evaluator_type = run_mrac_ga(config)
-    summarize_result(result, tuned_names, all_names, evaluator_type)
+    """Run GA tuning using the provided configuration."""
+    tuner = create_uav_ga_tuner(
+        ga_config=config.ga,
+        evaluator_type=config.evaluator.evaluator_type,
+        metrics_config=config.evaluator.metrics,
+        tuned_parameters=list(config.tuned_parameters) if config.tuned_parameters else None,
+        mission_overrides=dict(config.mission_overrides) if config.mission_overrides else None,
+        log_directory=config.evaluator.log_directory,
+        parallel_config=dict(config.evaluator.parallel_config),
+        n_objectives=config.get_objective_count(),
+    )
+    
+    result = tuner.optimize(verbose=False)
+    summarize_tuner_result(tuner, result)
 
 
 def main() -> None:
-    config = DEFAULT_TUNING_CONFIG
+    config = TUNING_CONFIG
     run_from_config(config)
 
 

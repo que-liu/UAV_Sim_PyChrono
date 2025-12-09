@@ -1,5 +1,15 @@
 """
 UAV-specific fitness evaluators for genetic algorithm optimization.
+
+Architecture Overview:
+---------------------
+This module provides simulation-based fitness evaluators for UAV controller tuning:
+
+1. UAVSimulationEvaluator: Base class for all simulation-based evaluators
+2. PIDSimulationEvaluator: For PID controller tuning (translational control)
+3. MRACInnerLoopEvaluator: For MRAC inner loop tuning (attitude/rotational)
+4. MRACOuterLoopEvaluator: For MRAC outer loop tuning (position/translational)
+
 """
 
 from abc import ABC, abstractmethod
@@ -7,6 +17,7 @@ from typing import List, Union, Dict, Any, Optional, Tuple
 import numpy as np
 import os
 import pickle
+import traceback
 from datetime import datetime
 
 from .core.fitness_evaluator import FitnessEvaluator
@@ -14,329 +25,29 @@ from .metrics.translational_utils import (
     calculate_position_velocity_rmse,
     extract_position_velocity_vectors,
 )
+from .ga_config.metrics_config import MetricsConfig
+from .metrics import MRACInnerLoopMetrics, MRACInnerLoopMetricsCalculator, MRACOuterLoopMetrics, MRACOuterLoopMetricsCalculator, MetricNormalizer
 
 
-class MetricNormalizer:
+def failure_penalty(multi_objective: bool, n_objectives: int = 3) -> Union[float, List[float]]:
     """
-    Normalizer for inner loop metrics using max-min normalization for sensitivity analysis after all simulations are complete.
+    Return an INF penalty for failed evaluations.
+    
+    Args:
+        multi_objective: Whether using multi-objective optimization
+        n_objectives: Number of objectives (used when multi_objective=True)
+        
+    Returns:
+        List of inf values for multi-objective, single inf for single-objective
     """
-    
-    def __init__(self):
-        self.metric_mins = None
-        self.metric_maxs = None
-        self.metric_names = [
-            'attitude_tracking_error',
-            'angular_velocity_tracking_error',
-            'rotational_control_effort'
-        ]
-        self.fitted = False
-    
-    def fit(self, metrics_array: np.ndarray):
-        """
-        Fit the normalizer by computing min and max for each metric.
-        
-        Args:
-            metrics_array: Array of shape (n_samples, n_metrics) containing all metric values
-        """
-        if metrics_array.ndim != 2:
-            raise ValueError(f"Expected 2D array, got shape {metrics_array.shape}")
-        
-        if metrics_array.shape[1] != 3:
-            raise ValueError(f"Expected 3 metrics, got {metrics_array.shape[1]}")
-        
-        # Filter out inf values for computing bounds
-        valid_mask = ~np.isinf(metrics_array)
-        
-        self.metric_mins = np.zeros(3)
-        self.metric_maxs = np.zeros(3)
-        
-        for i in range(3):
-            valid_values = metrics_array[valid_mask[:, i], i]
-            if len(valid_values) > 0:
-                self.metric_mins[i] = np.min(valid_values)
-                self.metric_maxs[i] = np.max(valid_values)
-            else:
-                # If all values are inf, set default range
-                self.metric_mins[i] = 0.0
-                self.metric_maxs[i] = 1.0
-        
-        self.fitted = True
-        
-        print("\n[METRIC NORMALIZER] Fitted normalization bounds:")
-        for i, name in enumerate(self.metric_names):
-            print(f"  {name:40s}: [{self.metric_mins[i]:.6f}, {self.metric_maxs[i]:.6f}]")
-    
-    def transform(self, metrics_array: np.ndarray) -> np.ndarray:
-        """
-        Normalize metrics using min-max normalization to [0, 1].
-        
-        Args:
-            metrics_array: Array of shape (n_samples, n_metrics) or (n_metrics,)
-            
-        Returns:
-            Normalized array with same shape as input
-        """
-        if not self.fitted:
-            raise RuntimeError("Normalizer must be fitted before transform. Call fit() first.")
-        
-        original_shape = metrics_array.shape
-        metrics_array = np.atleast_2d(metrics_array)
-        
-        if metrics_array.shape[1] != 3:
-            raise ValueError(f"Expected 3 metrics, got {metrics_array.shape[1]}")
-        
-        normalized = np.zeros_like(metrics_array)
-        
-        for i in range(3):
-            metric_range = self.metric_maxs[i] - self.metric_mins[i]
-            
-            if metric_range > 1e-10:
-                # Standard min-max normalization
-                normalized[:, i] = (metrics_array[:, i] - self.metric_mins[i]) / metric_range
-            else:
-                # Range is too small, set to 0.5 (middle of [0, 1])
-                normalized[:, i] = 0.5
-            
-            # Handle inf values: set to 1.0 (worst case in normalized space)
-            inf_mask = np.isinf(metrics_array[:, i])
-            normalized[inf_mask, i] = 1.0
-            
-            # Clip to [0, 1] to handle numerical errors
-            normalized[:, i] = np.clip(normalized[:, i], 0.0, 1.0)
-        
-        # Restore original shape if input was 1D
-        if len(original_shape) == 1:
-            return normalized[0]
-        
-        return normalized
-    
-    def fit_transform(self, metrics_array: np.ndarray) -> np.ndarray:
-        """
-        Fit the normalizer and transform in one step.
-        
-        Args:
-            metrics_array: Array of shape (n_samples, n_metrics)
-            
-        Returns:
-            Normalized array
-        """
-        self.fit(metrics_array)
-        return self.transform(metrics_array)
-    
-    def get_bounds(self) -> Dict[str, Tuple[float, float]]:
-        """
-        Get the fitted min-max bounds for each metric.
-        
-        Returns:
-            Dictionary mapping metric names to (min, max) tuples
-        """
-        if not self.fitted:
-            raise RuntimeError("Normalizer must be fitted first. Call fit() first.")
-        
-        return {
-            name: (self.metric_mins[i], self.metric_maxs[i])
-            for i, name in enumerate(self.metric_names)
-        }
+    return [float("inf")] * n_objectives if multi_objective else float("inf")
 
 
-class InnerLoopSensitivityHelper:
-    """
-    Helper class for conducting sensitivity analysis on inner loop metrics.
-    Handles metric collection, normalization, and preparation for Morris/Sobol analysis.
-    """
-    
-    def __init__(self, evaluator: 'MRACInnerLoopEvaluator'):
-        """
-        Initialize the sensitivity helper.
-        
-        Args:
-            evaluator: MRACInnerLoopEvaluator instance (must have multi_objective=True)
-        """
-        if not isinstance(evaluator, MRACInnerLoopEvaluator):
-            raise TypeError("evaluator must be an instance of MRACInnerLoopEvaluator")
-        
-        if not evaluator.multi_objective:
-            raise ValueError("evaluator must have multi_objective=True for sensitivity analysis")
-        
-        self.evaluator = evaluator
-        self.normalizer = MetricNormalizer()
-        
-        # Storage for all evaluations
-        self.parameter_vectors = []
-        self.raw_metrics = []
-        self.normalized_metrics = None
-    
-    def evaluate_parameter_set(self, parameters: List[float]) -> List[float]:
-        """
-        Evaluate a single parameter set and store results.
-        
-        Args:
-            parameters: Parameter values to evaluate
-            
-        Returns:
-            Raw metrics (not normalized)
-        """
-        metrics = self.evaluator.evaluate_individual(parameters, use_cache=False)
-        
-        self.parameter_vectors.append(parameters)
-        self.raw_metrics.append(metrics)
-        
-        return metrics
-    
-    def evaluate_parameter_sets(self, parameter_array: np.ndarray) -> np.ndarray:
-        """
-        Evaluate multiple parameter sets and store results.
-        
-        Args:
-            parameter_array: Array of shape (n_samples, n_parameters)
-            
-        Returns:
-            Array of raw metrics with shape (n_samples, 3)
-        """
-        results = []
-        for params in parameter_array:
-            metrics = self.evaluate_parameter_set(params.tolist())
-            results.append(metrics)
-        
-        return np.array(results)
-    
-    def normalize_metrics(self) -> np.ndarray:
-        """
-        Normalize all collected metrics using min-max normalization.
-        This should be called after all simulations are complete.
-        
-        Returns:
-            Array of normalized metrics with shape (n_samples, 3)
-        """
-        if len(self.raw_metrics) == 0:
-            raise RuntimeError("No metrics collected yet. Call evaluate_parameter_set first.")
-        
-        raw_array = np.array(self.raw_metrics)
-        self.normalized_metrics = self.normalizer.fit_transform(raw_array)
-        
-        print(f"\n[SENSITIVITY] Normalized {len(self.raw_metrics)} metric sets")
-        
-        return self.normalized_metrics
-    
-    def get_normalized_metric(self, metric_index: int) -> np.ndarray:
-        """
-        Get normalized values for a specific metric across all evaluations.
-        
-        Args:
-            metric_index: Index of metric (0-2)
-            
-        Returns:
-            1D array of normalized metric values
-        """
-        if self.normalized_metrics is None:
-            raise RuntimeError("Metrics not normalized yet. Call normalize_metrics first.")
-        
-        if not 0 <= metric_index < 3:
-            raise ValueError(f"metric_index must be 0-2, got {metric_index}")
-        
-        return self.normalized_metrics[:, metric_index]
-    
-    def get_normalized_metric_by_name(self, metric_name: str) -> np.ndarray:
-        """
-        Get normalized values for a specific metric by name.
-        
-        Args:
-            metric_name: Name of metric ('attitude_tracking_error', 
-                        'angular_velocity_tracking_error', 'rotational_control_effort')
-                        
-        Returns:
-            1D array of normalized metric values
-        """
-        metric_index = self.normalizer.metric_names.index(metric_name)
-        return self.get_normalized_metric(metric_index)
-    
-    def prepare_for_morris(self) -> Dict[str, np.ndarray]:
-        """
-        Prepare data for Morris sensitivity analysis.
-        
-        Returns:
-            Dictionary with keys for each metric containing normalized values
-        """
-        if self.normalized_metrics is None:
-            self.normalize_metrics()
-        
-        return {
-            'attitude_tracking_error': self.normalized_metrics[:, 0],
-            'angular_velocity_tracking_error': self.normalized_metrics[:, 1],
-            'rotational_control_effort': self.normalized_metrics[:, 2]
-        }
-    
-    def prepare_for_sobol(self, metric_index: int = None) -> np.ndarray:
-        """
-        Prepare data for Sobol sensitivity analysis.
-        
-        Args:
-            metric_index: If specified, return only that metric. 
-                         If None, return all metrics stacked.
-                         
-        Returns:
-            Array of normalized metric values
-        """
-        if self.normalized_metrics is None:
-            self.normalize_metrics()
-        
-        if metric_index is not None:
-            return self.get_normalized_metric(metric_index)
-        
-        return self.normalized_metrics
-    
-    def get_summary(self) -> Dict[str, Any]:
-        """
-        Get summary statistics for all metrics (raw and normalized).
-        
-        Returns:
-            Dictionary with statistics
-        """
-        if len(self.raw_metrics) == 0:
-            return {"status": "No evaluations performed"}
-        
-        raw_array = np.array(self.raw_metrics)
-        
-        summary = {
-            "n_evaluations": len(self.raw_metrics),
-            "raw_metrics": {},
-            "normalized_metrics": {}
-        }
-        
-        for i, name in enumerate(self.normalizer.metric_names):
-            raw_values = raw_array[:, i]
-            valid_mask = ~np.isinf(raw_values)
-            
-            if np.any(valid_mask):
-                summary["raw_metrics"][name] = {
-                    "min": float(np.min(raw_values[valid_mask])),
-                    "max": float(np.max(raw_values[valid_mask])),
-                    "mean": float(np.mean(raw_values[valid_mask])),
-                    "std": float(np.std(raw_values[valid_mask])),
-                    "n_valid": int(np.sum(valid_mask)),
-                    "n_inf": int(np.sum(~valid_mask))
-                }
-            else:
-                summary["raw_metrics"][name] = {"status": "All values are inf"}
-        
-        if self.normalized_metrics is not None:
-            for i, name in enumerate(self.normalizer.metric_names):
-                norm_values = self.normalized_metrics[:, i]
-                summary["normalized_metrics"][name] = {
-                    "min": float(np.min(norm_values)),
-                    "max": float(np.max(norm_values)),
-                    "mean": float(np.mean(norm_values)),
-                    "std": float(np.std(norm_values))
-                }
-        
-        return summary
-    
-    def reset(self):
-        """Reset all stored data."""
-        self.parameter_vectors = []
-        self.raw_metrics = []
-        self.normalized_metrics = None
-        self.normalizer = MetricNormalizer()
+def _log_objectives(params: List[float], metrics: List[float], label: str) -> None:
+    """Print objective vectors consistently."""
+    trimmed_params = params[:3]
+    joined = ", ".join(f"{m:.6f}" for m in metrics)
+    print(f"[{label}] Parameters {trimmed_params} -> Objectives: {joined}")
 
 
 class UAVSimulationEvaluator(FitnessEvaluator):
@@ -392,6 +103,50 @@ class UAVSimulationEvaluator(FitnessEvaluator):
         # Set controller type for parallel processing
         self.controller_type = self._get_controller_type()
     
+    def _create_eval_log_dir(self, prefix: str) -> str:
+        """Create a timestamped log directory for a single evaluation."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        eval_log_dir = os.path.join(self.log_directory, f"{prefix}_{timestamp}")
+        os.makedirs(eval_log_dir, exist_ok=True)
+        return eval_log_dir
+
+    def _simulate_with_logs(self, parameters: List[float], prefix: str) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]]]:
+        """
+        Run a simulation and attach log metadata to the config.
+        Returns (config, log_data).
+        """
+        eval_log_dir = self._create_eval_log_dir(prefix)
+
+        config = self.uav_adapter.create_simulation_config(
+            parameters,
+            eval_log_dir,
+            controller_type=self._get_controller_type(),
+        )
+
+        log_data = self.uav_adapter.run_simulation(config)
+        config["log_data"] = log_data
+
+        log_path = self._find_log_file(eval_log_dir)
+        config["log_path"] = log_path
+
+        return config, log_data
+
+    def _get_log_data_from_config(self, config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve inline log data or load it from disk if available.
+        """
+        if "log_data" in config and config["log_data"] is not None:
+            return config["log_data"]
+
+        log_path = config.get("log_path")
+        if log_path and os.path.exists(log_path):
+            try:
+                with open(log_path, "rb") as f:
+                    return pickle.load(f)
+            except Exception as e:
+                print(f"Warning: Failed to load log data from {log_path}: {e}")
+        return None
+
     def _evaluate_parameters(self, parameters: List[float]) -> float:
         """
         Evaluate fitness for given parameters by running UAV simulation.
@@ -402,44 +157,19 @@ class UAVSimulationEvaluator(FitnessEvaluator):
         Returns:
             Fitness value (lower is better)
         """
-        try:
-            # Create unique log directory for this evaluation
-            from datetime import datetime
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            eval_log_dir = os.path.join(self.log_directory, f"eval_{timestamp}")
-            os.makedirs(eval_log_dir, exist_ok=True)
-            
-            # Create simulation configuration
-            config = self.uav_adapter.create_simulation_config(
-                parameters, 
-                eval_log_dir,
-                controller_type=self._get_controller_type()
-            )
-            
-            # Run simulation
-            log_data = self.uav_adapter.run_simulation(config)
-            
-            if log_data is None:
-                return float('inf')  # Worst possible fitness
-            
-            # Add log data directly to config for fitness computation
-            config['log_data'] = log_data
-            
-            # Find the log file path after simulation (for backup)
-            log_path = self._find_log_file(eval_log_dir)
-            config['log_path'] = log_path
-            
-            # Compute fitness from simulation results
-            fitness = self._compute_fitness(config, parameters)
-            
-            if fitness is None:
-                return float('inf')
-            
-            return fitness
-            
-        except Exception as e:
-            print(f"Error evaluating parameters {parameters}: {e}")
+        config, log_data = self._simulate_with_logs(parameters, prefix="eval")
+
+        if log_data is None:
             return float('inf')  # Worst possible fitness
+
+        # Compute fitness from simulation results
+        fitness = self._compute_fitness(config, parameters)
+        
+        if fitness is None:
+            return float('inf')
+            
+        return fitness
+
     
     def _find_log_file(self, log_dir: str) -> Optional[str]:
         """Find the simulation log file in the given directory."""
@@ -482,7 +212,7 @@ class UAVSimulationEvaluator(FitnessEvaluator):
         """Compute fitness value from simulation configuration and results."""
         # Try to call the derived class method if it exists
         if hasattr(self, '_compute_fitness_from_log_data'):
-            log_data = config.get('log_data')
+            log_data = self._get_log_data_from_config(config)
             if log_data is not None:
                 return self._compute_fitness_from_log_data(log_data, parameters)
         
@@ -490,7 +220,7 @@ class UAVSimulationEvaluator(FitnessEvaluator):
         raise NotImplementedError("Derived class must implement _compute_fitness or _compute_fitness_from_log_data")
 
 
-class UAVFitnessEvaluator(UAVSimulationEvaluator):
+class PIDSimulationEvaluator(UAVSimulationEvaluator):
     """
     UAV fitness evaluator for general UAV simulations.
     """
@@ -498,7 +228,8 @@ class UAVFitnessEvaluator(UAVSimulationEvaluator):
     def __init__(self, 
                  uav_adapter,
                  log_directory="simulation_logs",
-                 cost_function_weights=None,
+                 cost_function_weights: Optional[Dict[str, float]] = None,
+                 metrics_config: Optional[MetricsConfig] = None,
                  parallel_config=None,
                  multi_objective=False):
         """
@@ -507,12 +238,15 @@ class UAVFitnessEvaluator(UAVSimulationEvaluator):
         Args:
             uav_adapter: UAV model adapter instance
             log_directory: Directory to store simulation logs
-            cost_function_weights: Weights for different cost components
+            cost_function_weights: Weights for different cost components (position, velocity, control)
+            metrics_config: Optional MetricsConfig providing default translational weights
             parallel_config: Optional parallel configuration dict
             multi_objective: Whether to use multi-objective optimization
         """
         super().__init__(uav_adapter, log_directory, parallel_config)
-        self.cost_function_weights = cost_function_weights or {'total': 1.0}
+        if metrics_config is None or cost_function_weights is None:
+            raise ValueError("metrics_config and cost_function_weights must be provided")
+        self.cost_function_weights = cost_function_weights
         self.multi_objective = multi_objective
     
     def _get_controller_type(self) -> str:
@@ -521,299 +255,167 @@ class UAVFitnessEvaluator(UAVSimulationEvaluator):
     
     def _compute_fitness(self, config: Dict[str, Any], parameters: List[float]) -> float:
         """Compute fitness value from simulation configuration and results."""
-        try:
-            # Check if we have log data directly in config (from simulation)
-            log_data = config.get('log_data')
-            
-            if log_data is not None:
-                # Use log data directly from simulation
-                result = self._compute_fitness_from_log_data(log_data, parameters)
-                if result is None:
-                    if hasattr(self, 'multi_objective') and self.multi_objective:
-                        return [float('inf'), float('inf'), float('inf')]
-                    else:
-                        return float('inf')
-                return result
-            else:
-                # Simulation failed, no log data
-                if hasattr(self, 'multi_objective') and self.multi_objective:
-                    return [float('inf'), float('inf'), float('inf')]
-                else:
-                    return float('inf')
-            
-            # Fallback: try to load from file
-            log_path = config.get('log_path')
-            
-            if not log_path or not os.path.exists(log_path):
-                if hasattr(self, 'multi_objective') and self.multi_objective:
-                    return [float('inf'), float('inf'), float('inf')]
-                else:
-                    return float('inf')  # Worst possible fitness
-            
-            # Load simulation log
-            with open(log_path, 'rb') as f:
-                log = pickle.load(f)
-            
-            result = self._compute_fitness_from_log_data(log, parameters)
-            return result
-            
-        except Exception as e:
-            print(f"Error computing fitness: {e}")
-            import traceback
-            traceback.print_exc()
-            if hasattr(self, 'multi_objective') and self.multi_objective:
-                return [float('inf'), float('inf'), float('inf')]
-            else:
-                return float('inf')
-        
-        if hasattr(self, 'multi_objective') and self.multi_objective:
-            return [float('inf'), float('inf'), float('inf')]
-        else:
-            return float('inf')  # Fallback
+        log_data = self._get_log_data_from_config(config)
+        if log_data is None:
+            return failure_penalty(self.multi_objective)
+
+        result = self._compute_fitness_from_log_data(log_data, parameters)
+        if result is None:
+            return failure_penalty(self.multi_objective)
+        return result
     
     def _compute_fitness_from_log_data(self, log_data: Dict[str, Any], parameters: List[float]) -> Union[float, List[float]]:
         """Compute fitness from log data dictionary. Returns single objective or multi-objective based on mode."""
-        try:
-            # Extract control effort data
-            control_input = log_data.get("control_input", {})
-            if isinstance(control_input, dict) and len(control_input) > 0:
-                try:
-                    # Control input is a dictionary with keys like 'U1', 'U2', 'U3', 'U4'
-                    # Each value is a numpy array of control inputs over time
-                    translational_control_efforts = []
-                    for key, control_array in control_input.items():
-                        if hasattr(control_array, '__len__') and len(control_array) > 0:
-                            # Calculate RMS for this control input
-                            if control_array.ndim > 1:
-                                # Flatten if multi-dimensional
-                                control_array = control_array.flatten()
-                            translational_control_efforts.append(np.sqrt(np.mean(control_array**2)))
-                    
-                    if translational_control_efforts:
-                        # Total control effort as sum of individual control efforts
-                        translational_control_effort = np.sum(translational_control_efforts)
-                    else:
-                        translational_control_effort = 0.0
-                except (ValueError, TypeError, IndexError) as e:
-                    print(f"Warning: Error calculating control effort: {e}")
-                    translational_control_effort = 0.0
-            else:
-                translational_control_effort = 0.0
-            
-            # Compute tracking RMSE metrics using shared helper
-            rmse_values = calculate_position_velocity_rmse(log_data)
-            if rmse_values is None:
-                if hasattr(self, 'multi_objective') and self.multi_objective:
-                    return [float('inf'), float('inf'), float('inf')]
-                return float('inf')
+        control_input = log_data.get("control_input", {})
+        if isinstance(control_input, dict) and len(control_input) > 0:
+            translational_control_efforts = []
+            for control_array in control_input.values():
+                if hasattr(control_array, '__len__') and len(control_array) > 0:
+                    control_array = control_array.flatten() if getattr(control_array, "ndim", 1) > 1 else control_array
+                    translational_control_efforts.append(np.sqrt(np.mean(control_array**2)))
+            translational_control_effort = np.sum(translational_control_efforts) if translational_control_efforts else 0.0
+        else:
+            translational_control_effort = 0.0
 
-            pos_tracking_error, vel_tracking_error = rmse_values
-            
-            # Check for NaN or Inf values
-            if (np.isnan(pos_tracking_error) or np.isinf(pos_tracking_error) or
-                np.isnan(vel_tracking_error) or np.isinf(vel_tracking_error) or
-                np.isnan(translational_control_effort) or np.isinf(translational_control_effort)):
-                if hasattr(self, 'multi_objective') and self.multi_objective:
-                    return [float('inf'), float('inf'), float('inf')]
-                else:
-                    return float('inf')
-            
-            # Return based on optimization mode
-            if hasattr(self, 'multi_objective') and self.multi_objective:
-                # Multi-objective: return list of objectives
-                objectives = [pos_tracking_error, vel_tracking_error, translational_control_effort]
-                print(f"[FITNESS] Parameters {parameters[:3]} -> Objectives: pos={pos_tracking_error:.6f}, vel={vel_tracking_error:.6f}, control={translational_control_effort:.6f}")
-                return objectives
-            else:
-                # Single-objective: return weighted sum
-                weights = [3.0, 0.1, 0.01]  # [pos_weight, vel_weight, control_weight]
-                total_fitness = (weights[0] * pos_tracking_error + 
-                               weights[1] * vel_tracking_error + 
-                               weights[2] * translational_control_effort)
-                print(f"[FITNESS] Parameters {parameters[:3]} -> Fitness: {total_fitness:.6f} (pos={pos_tracking_error:.6f}, vel={vel_tracking_error:.6f}, control={translational_control_effort:.6f})")
-                return float(total_fitness)
-                
-        except (KeyError, IndexError, ValueError) as e:
-            print(f"Warning: Error processing simulation log: {e}")
-            import traceback
-            traceback.print_exc()
-            if hasattr(self, 'multi_objective') and self.multi_objective:
-                return [float('inf'), float('inf'), float('inf')]
-            else:
-                return float('inf')
-                
-        except Exception as e:
-            print(f"Error computing fitness: {e}")
-            import traceback
-            traceback.print_exc()
-            return float('inf')  # Worst possible fitness
+        rmse_values = calculate_position_velocity_rmse(log_data)
+        if rmse_values is None:
+            return failure_penalty(self.multi_objective)
 
+        pos_tracking_error, vel_tracking_error = rmse_values
 
-class MRACSimulationEvaluator(UAVSimulationEvaluator):
-    """
-    MRAC-specific fitness evaluator for UAV simulations.
-    """
+        if any(np.isnan(val) or np.isinf(val) for val in (pos_tracking_error, vel_tracking_error, translational_control_effort)):
+            return failure_penalty(self.multi_objective)
+
+        if self.multi_objective:
+            objectives = [pos_tracking_error, vel_tracking_error, translational_control_effort]
+            _log_objectives(parameters, objectives, label="FITNESS")
+            return objectives
+
+        w = self.cost_function_weights
+        total_fitness = (
+            w.get('position_error', 0.0) * pos_tracking_error +
+            w.get('velocity_error', 0.0) * vel_tracking_error +
+            w.get('translational_control_effort', 0.0) * translational_control_effort
+        )
+        print(f"[FITNESS] Parameters {parameters[:3]} -> Fitness: {total_fitness:.6f} (pos={pos_tracking_error:.6f}, vel={vel_tracking_error:.6f}, control={translational_control_effort:.6f})")
+        return float(total_fitness)
+
+class BaseMRACEvaluator(UAVSimulationEvaluator):
+    """Base class for MRAC evaluators with common metric handling."""
     
-    def __init__(self, 
+    def __init__(self,
                  uav_adapter,
-                 log_directory="simulation_logs",
-                 cost_function_weights=None,
-                 parallel_config=None):
+                 log_directory: str,
+                 parallel_config: Optional[Dict[str, Any]],
+                 multi_objective: bool,
+                 metric_weights: Dict[str, float],
+                 normalize_metrics: bool,
+                 metric_names: List[str],
+                 metrics_config: MetricsConfig):
+        """Initialize base MRAC evaluator with common configuration."""
+        super().__init__(uav_adapter, log_directory, parallel_config)
+        self.multi_objective = multi_objective
+        self.normalize_metrics = normalize_metrics
+        self.metric_weights = metric_weights
+        
+        # Initialize normalizer
+        self.normalizer = MetricNormalizer(metric_names=metric_names)
+        self.normalizer_fitted = False
+        self.collected_metrics = []
+        self._objective_count = len(metric_names)
+
+    def _failure_objective(self):
+        """Consistent INF penalty for MRAC evaluators."""
+        return failure_penalty(self.multi_objective, self._objective_count)
+
+    def _process_metric_array(
+        self,
+        metrics_array: np.ndarray,
+        metric_names: List[str],
+        units: Optional[List[str]] = None,
+        parameters: Optional[List[float]] = None,
+    ) -> Union[float, List[float]]:
+        """Handle common metric logging, normalization, and output."""
+        self.collected_metrics.append(metrics_array.copy())
+
+        if (
+            parameters is not None
+            and hasattr(self, '_tuned_indices')
+            and hasattr(self, '_template')
+            and len(parameters) == len(self._template)
+        ):
+            ga_parameters = [parameters[i] for i in self._tuned_indices]
+            print(f"\n[Metrics - Tuned Parameters (n={len(ga_parameters)})] {ga_parameters[:5]}...:")
+        else:
+            print(f"\n[Metrics - Raw]:")
+
+        for idx, name in enumerate(metric_names):
+            unit = f" {units[idx]}" if units and idx < len(units) else ""
+            print(f"  {name.replace('_', ' ').title():30s} {metrics_array[idx]:.6f}{unit}")
+
+        # Apply normalization if enabled and normalizer is fitted
+        if self.normalize_metrics and self.normalizer_fitted:
+            metrics_array = self.normalizer.transform(metrics_array.reshape(1, -1))[0]
+            print(f"[Metrics - Normalized]:")
+            for idx, name in enumerate(metric_names):
+                unit = f" {units[idx]}" if units and idx < len(units) else ""
+                print(f"  {name.replace('_', ' ').title():30s} {metrics_array[idx]:.6f}{unit}")
+
+        if self.multi_objective:
+            print(f"  [MODE: Multi-Objective - returning {len(metrics_array)} objectives for Pareto]")
+            return metrics_array.tolist()
+
+        total = sum(self.metric_weights[name] * metrics_array[idx] for idx, name in enumerate(metric_names))
+        print(f"  [MODE: Single-Objective - weighted sum]")
+        print(f"  Weighted Fitness:                {total:.6f}")
+        return float(total)
+
+    def fit_normalizer(self):
         """
-        Initialize MRAC simulation evaluator.
+        Fit the normalizer using collected metrics from all evaluations.
+        Fallback method - prefer fit_normalizer_from_baseline().
+        """
+        if len(self.collected_metrics) > 0:
+            metrics_matrix = np.array(self.collected_metrics)
+            self.normalizer.fit(metrics_matrix)
+            self.normalizer_fitted = True
+            print(f"\n[NORMALIZER] Fitted with {len(self.collected_metrics)} samples")
+
+    def fit_normalizer_from_reference(self, default_parameters: List[float]) -> bool:
+        """
+        Fit the normalizer using default gains as reference.
+        
+        Runs one simulation with default parameters to get reference metrics,
+        then normalizes all future metrics relative to this reference.
         
         Args:
-            uav_adapter: UAV model adapter instance
-            log_directory: Directory to store simulation logs
-            cost_function_weights: Weights for different cost components
-            parallel_config: Optional parallel configuration dict
+            default_parameters: Full parameter vector from default gains
+            
+        Returns:
+            True if reference evaluation succeeded, False otherwise
         """
-        super().__init__(uav_adapter, log_directory, parallel_config)
-        self.cost_function_weights = cost_function_weights or {
-            'tracking_error': 1.0,
-            'adaptation_rate': 0.5,
-            'translational_control_effort': 0.3
-        }
-    
-    def _get_controller_type(self) -> str:
-        """Get the controller type for this evaluator."""
-        return 'MRAC'
-    
-    def _compute_fitness(self, config: Dict[str, Any], parameters: List[float]) -> float:
-        """Compute fitness value from MRAC simulation results."""
-        try:
-            # Check if we have log data directly in config (from simulation)
-            log_data = config.get('log_data')
-            if log_data is not None:
-                # Use log data directly from simulation
-                return self._compute_fitness_from_log_data(log_data, parameters)
-            
-            # Fallback: try to load from file
-            log_path = config.get('log_path')
-            if not log_path or not os.path.exists(log_path):
-                print(f"Warning: Log file not found at {log_path}, using fallback fitness")
-                # Use parameter-based fallback with some variation to avoid zero sensitivity
-                return 1000.0 + sum(abs(p) for p in parameters) * 0.1
-            
-            # Load the log data
-            import pickle
-            with open(log_path, 'rb') as f:
-                log_data = pickle.load(f)
-            
-            return self._compute_fitness_from_log_data(log_data, parameters)
-            
-        except Exception as e:
-            print(f"Error computing MRAC fitness: {e}")
-            return float('inf')
-    
-    def _compute_fitness_from_log_data(self, log_data: Dict[str, Any], parameters: List[float]) -> float:
-        """Compute fitness from log data dictionary."""
-        try:
-            
-            # Create a more sensitive fitness function based on available data
-            fitness = self._compute_sensitive_fitness(log_data, parameters)
-            
-            print(f"[MRAC FITNESS] Parameters {parameters[:3]} -> Fitness: {fitness:.6f}")
-            return fitness
-            
-        except Exception as e:
-            print(f"Warning: Failed to compute MRAC fitness from simulation logs: {e}")
-            # Fallback to parameter-based fitness with high penalty and some variation
-            return 1000.0 + sum(abs(p) for p in parameters) * 0.1
-    
-    def _compute_sensitive_fitness(self, log_data: Dict[str, Any], parameters: List[float]) -> float:
-        """Compute a more sensitive fitness function based on available simulation data."""
-        try:
-            vectors = extract_position_velocity_vectors(log_data)
-            if vectors is None:
-                return float('inf')
-
-            actual_pos, desired_pos, actual_vel, desired_vel = vectors
-
-            # Remove NaN values
-            valid_mask = ~(np.isnan(actual_pos).any(axis=1) | np.isnan(desired_pos).any(axis=1))
-            actual_pos_clean = actual_pos[valid_mask]
-            desired_pos_clean = desired_pos[valid_mask]
-            
-            if len(actual_pos_clean) == 0:
-                return float('inf')
-            
-            # Calculate tracking errors
-            pos_error = actual_pos_clean - desired_pos_clean
-            pos_error_magnitude = np.linalg.norm(pos_error, axis=1)
-            
-            # Remove NaN values for velocity
-            valid_vel_mask = ~(np.isnan(actual_vel).any(axis=1) | np.isnan(desired_vel).any(axis=1))
-            actual_vel_clean = actual_vel[valid_vel_mask]
-            desired_vel_clean = desired_vel[valid_vel_mask]
-            
-            if len(actual_vel_clean) > 0:
-                vel_error = actual_vel_clean - desired_vel_clean
-                vel_error_magnitude = np.linalg.norm(vel_error, axis=1)
-            else:
-                vel_error_magnitude = np.array([0.0])
-            
-            # Calculate control effort
-            thrust_arrays = []
-            for motor_key, thrust_data in log_data['thrust_motors_N'].items():
-                thrust_array = np.array(thrust_data).flatten()
-                thrust_arrays.append(thrust_array)
-            
-            if thrust_arrays:
-                all_thrusts = np.column_stack(thrust_arrays)
-                total_thrust_per_timestep = np.sum(all_thrusts, axis=1)
-                valid_thrust = total_thrust_per_timestep[~np.isnan(total_thrust_per_timestep)]
-                translational_control_effort = np.mean(valid_thrust) if len(valid_thrust) > 0 else 0.0
-            else:
-                translational_control_effort = 0.0
-            
-            # Calculate fitness components based on ACTUAL PERFORMANCE
-            pos_fitness = np.mean(pos_error_magnitude)
-            vel_fitness = np.mean(vel_error_magnitude)
-            
-            # Check if parameters are actually being applied by looking for gamma values in log
-            gamma_values = log_data.get('gamma_x_rot', [])
-            if gamma_values:
-                print(f"[DEBUG] Found gamma_x_rot in log: {gamma_values}")
-            else:
-                print(f"[DEBUG] No gamma_x_rot found in log data - parameters may not be applied!")
-            
-            # Normalize control effort to make it comparable to tracking errors
-            # Typical control effort is ~20-40 N, normalize by expected value (30 N)
-            normalized_translational_control_effort = translational_control_effort / 30.0
-            total_fitness = (
-                20.0 * pos_fitness +                   
-                10.0 * vel_fitness +              
-                0.1 * normalized_translational_control_effort         
-            )
-            
-            # Add very small random component to break ties (but minimal)
-            param_hash = sum(parameters) % 1000
-            total_fitness += param_hash * 0.0001  # Very small tie-breaker
-            
-            # Debug: Print detailed fitness breakdown
-            print(f"[DEBUG] Performance-based fitness for params {parameters[:3]}:")
-            print(f"  pos_error: {pos_fitness:.6f} → weighted: {10.0 * pos_fitness:.6f}")
-            print(f"  vel_error: {vel_fitness:.6f} → weighted: {1.0 * vel_fitness:.6f}")
-            print(f"  translational_control_effort: {translational_control_effort:.6f} → normalized: {normalized_translational_control_effort:.6f} → weighted: {0.1 * normalized_translational_control_effort:.6f}")
-            print(f"  tie_breaker: {param_hash * 0.0001:.6f}")
-            print(f"  TOTAL FITNESS: {total_fitness:.6f}")
-            
-            if np.isnan(total_fitness) or np.isinf(total_fitness):
-                return float('inf')
-            
-            return float(total_fitness)
-            
-        except Exception as e:
-            print(f"Error in sensitive fitness computation: {e}")
-            return float('inf')
+        print("\n[NORMALIZER] Evaluating default parameters for normalization reference...")
+        
+        reference_result = self.evaluate_individual(default_parameters, use_cache=False)
+        
+        # Check if evaluation failed
+        if reference_result is None:
+            print("[NORMALIZER] WARNING: Reference evaluation returned None")
+            return False
+        
+        reference_metrics = np.array(reference_result if isinstance(reference_result, list) else [reference_result])
+        
+        # Check for inf/nan in reference
+        if np.any(np.isinf(reference_metrics)) or np.any(np.isnan(reference_metrics)):
+            print("[NORMALIZER] WARNING: Reference evaluation produced inf/nan values")
+            return False
+        
+        self.normalizer.fit_from_reference(reference_metrics)
+        self.normalizer_fitted = True
+        return True
 
 
-# Import MRAC inner loop metrics from centralized metrics module
-from .metrics import MRACInnerLoopMetrics, MRACOuterLoopMetricsCalculator
-
-
-class MRACInnerLoopEvaluator(UAVSimulationEvaluator):
+class MRACInnerLoopEvaluator(BaseMRACEvaluator):
     """
     MRAC inner loop fitness evaluator with separate metrics.
     Computes attitude tracking, angular velocity tracking, and moment effort.
@@ -823,21 +425,29 @@ class MRACInnerLoopEvaluator(UAVSimulationEvaluator):
                  uav_adapter,
                  log_directory="simulation_logs",
                  parallel_config=None,
-                 multi_objective=False):
-        """
-        Initialize MRAC inner loop evaluator.
+                 multi_objective: bool = False,
+                 metric_weights: Dict[str, float] = None,
+                 normalize_metrics: bool = True,
+                 metrics_config: MetricsConfig = None):
+        """Initialize MRAC inner loop evaluator."""
+        if metrics_config is None or metric_weights is None:
+            raise ValueError("metrics_config and metric_weights must be provided for MRACInnerLoopEvaluator")
+
+        super().__init__(
+            uav_adapter=uav_adapter,
+            log_directory=log_directory,
+            parallel_config=parallel_config,
+            multi_objective=multi_objective,
+            metric_weights=metric_weights,
+            normalize_metrics=normalize_metrics,
+            metric_names=[
+                'attitude_tracking_error',
+                'angular_velocity_tracking_error',
+                'rotational_control_effort'
+            ],
+            metrics_config=metrics_config,
+        )
         
-        Args:
-            uav_adapter: UAV model adapter instance
-            log_directory: Directory to store simulation logs
-            parallel_config: Optional parallel configuration dict
-            multi_objective: Whether to return list of objectives (True) or combined fitness (False)
-        """
-        super().__init__(uav_adapter, log_directory, parallel_config)
-        self.multi_objective = multi_objective
-        
-        # Initialize shared inner loop metrics calculator for consistency
-        from .metrics import MRACInnerLoopMetricsCalculator
         self.metrics_calculator = MRACInnerLoopMetricsCalculator()
     
     def _get_controller_type(self) -> str:
@@ -855,99 +465,57 @@ class MRACInnerLoopEvaluator(UAVSimulationEvaluator):
             Inner loop metrics (list if multi_objective=True, float otherwise)
         """
         try:
-            # Create unique log directory for this evaluation
-            from datetime import datetime
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            eval_log_dir = os.path.join(self.log_directory, f"inner_loop_eval_{timestamp}")
-            os.makedirs(eval_log_dir, exist_ok=True)
-            
-            # Create simulation configuration
-            config = self.uav_adapter.create_simulation_config(
-                parameters, 
-                eval_log_dir,
-                controller_type=self._get_controller_type()
-            )
-            
-            # Run simulation - this returns log_data directly
-            log_data = self.uav_adapter.run_simulation(config)
-            
+            config, log_data = self._simulate_with_logs(parameters, prefix="inner_loop_eval")
+
             if log_data is None:
                 print(f"Warning: Simulation failed for parameters {parameters[:3]}")
                 return self._get_fallback_fitness()
-            
-            # Add log data to config for consistency with base class
-            config['log_data'] = log_data
-            
-            # Find the log file path after simulation (for backup)
-            log_path = self._find_log_file(eval_log_dir)
-            config['log_path'] = log_path
-            
+
             # Compute inner loop fitness from log data
             return self._compute_fitness_from_log_data(log_data, parameters)
             
         except Exception as e:
             print(f"Error in inner loop evaluation: {e}")
-            import traceback
             traceback.print_exc()
             return self._get_fallback_fitness()
     
     def _compute_fitness(self, config: Dict[str, Any], parameters: List[float]) -> Union[float, List[float]]:
         """Compute fitness value from MRAC simulation results."""
         # Check if we have log data directly in config (from simulation)
-        log_data = config.get('log_data')
+        log_data = self._get_log_data_from_config(config)
         if log_data is not None:
             # Use log data directly from simulation
             return self._compute_fitness_from_log_data(log_data, parameters)
         
         # Fallback: try to load from file
-        log_path = config.get('log_path')
-        if not log_path or not os.path.exists(log_path):
-            print(f"Warning: Log file not found at {log_path}, using fallback fitness")
-            return self._get_fallback_fitness()
-        
-        # Load the log data
-        import pickle
-        with open(log_path, 'rb') as f:
-            log_data = pickle.load(f)
-        
-        return self._compute_fitness_from_log_data(log_data, parameters)
+        print(f"Warning: Log data not found, using fallback fitness")
+        return self._get_fallback_fitness()
     
     def _get_fallback_fitness(self) -> Union[float, List[float]]:
         """Return fallback fitness for failed simulations."""
-        if self.multi_objective:
-            return [float('inf'), float('inf'), float('inf')]
-        else:
-            return float('inf')
+        return self._failure_objective()
     
     def _compute_fitness_from_log_data(self, log_data: Dict[str, Any], parameters: List[float]) -> Union[float, List[float]]:
         """Compute fitness metrics from log data dictionary."""
         # Calculate inner loop metrics
         metrics = self._calculate_inner_loop_metrics(log_data, parameters)
         
-        # Print detailed metrics - show actual parameters being optimized if this is a partial evaluator
-        if hasattr(self, '_tuned_indices') and hasattr(self, '_template'):
-            # This is a partial evaluator - show the actual GA parameters being optimized
-            ga_parameters = [parameters[i] for i in self._tuned_indices]
-            print(f"\n[Parameters tuned] {ga_parameters}:")
-        else:
-            pass
-        print(f"  Attitude Tracking Error:        {metrics.attitude_tracking_error:.6f} rad")
-        print(f"  Angular Velocity Tracking Error: {metrics.angular_velocity_tracking_error:.6f} rad/s")
-        print(f"  Rotational Control Effort:      {metrics.rotational_control_effort:.6f} N·m")
-        
-        if self.multi_objective:
-            # Return list of objectives for multi-objective optimization
-            return metrics.to_list()
-        else:
-            # Return combined fitness with equal weights for single-objective
-            # User can adjust weights or use multi-objective mode for sensitivity analysis
-            combined_fitness = (
-                metrics.attitude_tracking_error +
-                metrics.angular_velocity_tracking_error +
-                0.1 * metrics.rotational_control_effort
-            )
-            print(f"  Combined Fitness:                {combined_fitness:.6f}")
-            return float(combined_fitness)
+        # Convert metrics to array for normalization
+        metrics_array = np.array([
+            metrics.attitude_tracking_error,
+            metrics.angular_velocity_tracking_error,
+            metrics.rotational_control_effort
+        ])
+        return self._process_metric_array(
+            metrics_array,
+            [
+                'attitude_tracking_error',
+                'angular_velocity_tracking_error',
+                'rotational_control_effort'
+            ],
+            units=["rad", "rad/s", "N·m"],
+            parameters=parameters,
+        )
     
     def _calculate_inner_loop_metrics(self, log_data: Dict[str, Any], parameters: List[float]) -> MRACInnerLoopMetrics:
         """Calculate all inner loop metrics from simulation log data."""
@@ -963,7 +531,7 @@ class MRACInnerLoopEvaluator(UAVSimulationEvaluator):
         return metrics
 
 
-class MRACOuterLoopEvaluator(UAVSimulationEvaluator):
+class MRACOuterLoopEvaluator(BaseMRACEvaluator):
     """
     MRAC outer loop fitness evaluator using translational metrics
     (position error, velocity error, control effort).
@@ -974,14 +542,28 @@ class MRACOuterLoopEvaluator(UAVSimulationEvaluator):
                  log_directory: str = "simulation_logs",
                  parallel_config: Optional[Dict[str, Any]] = None,
                  multi_objective: bool = False,
-                 cost_function_weights: Optional[Dict[str, float]] = None):
-        super().__init__(uav_adapter, log_directory, parallel_config)
-        self.multi_objective = multi_objective
-        self.cost_function_weights = cost_function_weights or {
-            'position_error': 1.0,
-            'velocity_error': 0.5,
-            'translational_control_effort': 0.2
-        }
+                 metric_weights: Dict[str, float] = None,
+                 normalize_metrics: bool = True,
+                 metrics_config: MetricsConfig = None):
+        """Initialize MRAC outer loop evaluator."""
+        if metrics_config is None or metric_weights is None:
+            raise ValueError("metrics_config and metric_weights must be provided for MRACOuterLoopEvaluator")
+
+        super().__init__(
+            uav_adapter=uav_adapter,
+            log_directory=log_directory,
+            parallel_config=parallel_config,
+            multi_objective=multi_objective,
+            metric_weights=metric_weights,
+            normalize_metrics=normalize_metrics,
+            metric_names=[
+                'position_error',
+                'velocity_error',
+                'translational_control_effort'
+            ],
+            metrics_config=metrics_config,
+        )
+        
         self.metrics_calculator = MRACOuterLoopMetricsCalculator()
 
     def _get_controller_type(self) -> str:
@@ -992,24 +574,20 @@ class MRACOuterLoopEvaluator(UAVSimulationEvaluator):
                                        log_data: Dict[str, Any],
                                        parameters: List[float]) -> Union[float, List[float]]:
         metrics = self.metrics_calculator.calculate_metrics(log_data)
-        metrics_dict = metrics.to_dict()
-
-        # Log metrics for debugging
-        if hasattr(self, '_tuned_indices') and hasattr(self, '_template'):
-            ga_parameters = [parameters[i] for i in self._tuned_indices]
-            print(f"\n[OUTER LOOP METRICS] Tuned parameters {ga_parameters}:")
-        else:
-            print(f"\n[OUTER LOOP METRICS] Parameters preview {parameters[:3]}:")
-        print(f"  Position Error:  {metrics_dict['position_error']:.6f} m")
-        print(f"  Velocity Error:  {metrics_dict['velocity_error']:.6f} m/s")
-        print(f"  Translational Control Effort:  {metrics_dict['translational_control_effort']:.6f} N")
-
-        if self.multi_objective:
-            return metrics.to_list()
-
-        total_cost = 0.0
-        for metric_name, weight in self.cost_function_weights.items():
-            total_cost += weight * metrics_dict.get(metric_name, 0.0)
-
-        print(f"  Weighted Fitness: {total_cost:.6f}")
-        return float(total_cost)
+        
+        # Convert metrics to array for normalization
+        metrics_array = np.array([
+            metrics.position_error,
+            metrics.velocity_error,
+            metrics.translational_control_effort
+        ])
+        return self._process_metric_array(
+            metrics_array,
+            [
+                'position_error',
+                'velocity_error',
+                'translational_control_effort'
+            ],
+            units=["m", "m/s", "N"],
+            parameters=parameters,
+        )

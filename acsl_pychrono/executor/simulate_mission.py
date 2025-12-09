@@ -22,9 +22,9 @@ def simulateMission(sim: Simulation, git_info: dict | None = None):
   )
 
   wrapper_params = getattr(getattr(sim, "simulation_config", None), "wrapper_params", None)
-  use_ga_tuner = getattr(wrapper_params, "use_ga_tuner", False)
+  external_params = getattr(wrapper_params, "external_controller_params", None) if wrapper_params else None
 
-  if use_ga_tuner:
+  if external_params:
     (gains, controller, logger) = instantiateControllerWithGA(
       sim.mission_config.controller_type,
       ode_input,

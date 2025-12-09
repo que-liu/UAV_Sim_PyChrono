@@ -25,7 +25,7 @@ _FALLBACK_MRAC_DEFAULTS = {
 GAMMA_MATRIX_CONFIGS = {
     name: {
         # keep the 'Gamma_' -> 'gamma_' prefix but preserve the remainder's original case
-        'prefix': name.replace('Gamma_', 'gamma_'),
+        'prefix': name.replace('Gamma_', 'gamma_').lower(),  # Convert to all lowercase for consistency
         'size': _FALLBACK_MRAC_DEFAULTS[name].shape[0] if isinstance(_FALLBACK_MRAC_DEFAULTS[name], np.ndarray) else None
     }
     for name in _FALLBACK_MRAC_DEFAULTS

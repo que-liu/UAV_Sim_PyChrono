@@ -9,6 +9,7 @@ and MRAC controllers.
 from functools import lru_cache
 from typing import Mapping, Sequence
 import numpy as np
+from scipy import linalg
 
 from .controllers.mrac_tuning import MRACTuning
 from .controllers.pid_tuning import PIDTuning
@@ -134,6 +135,19 @@ def _apply_mrac_ga_parameters(gains, external_params):
                 setattr(gains, key, np.matrix(value))
             else:
                 setattr(gains, key, value)
+    
+    # Recompute P matrices via Lyapunov equation if Q matrices were changed
+    if 'Q_tran' in gain_dict and hasattr(gains, 'A_ref_tran'):
+        gains.P_tran = np.matrix(linalg.solve_continuous_lyapunov(
+            gains.A_ref_tran.T, -gains.Q_tran
+        ))
+        print(f"[GA TUNER] Recomputed P_tran from Q_tran via Lyapunov equation")
+    
+    if 'Q_rot' in gain_dict and hasattr(gains, 'A_ref_rot'):
+        gains.P_rot = np.matrix(linalg.solve_continuous_lyapunov(
+            gains.A_ref_rot.T, -gains.Q_rot
+        ))
+        print(f"[GA TUNER] Recomputed P_rot from Q_rot via Lyapunov equation")
 
 
 def _extract_named_params_from_mapping(data: Mapping):

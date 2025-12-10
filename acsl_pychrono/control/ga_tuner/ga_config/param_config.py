@@ -18,6 +18,7 @@ MRAC Options (per matrix):
 MRAC Available Matrices (with sizes):
     - gamma_x_tran (6x6), gamma_r_tran (3x3), gamma_theta_tran (6x6)
     - gamma_x_rot (3x3), gamma_r_rot (3x3), gamma_theta_rot (6x6)
+    - q_tran (6x6): Q matrix for Lyapunov equation (affects P_tran computation)
 """
 
 from typing import Literal
@@ -45,15 +46,15 @@ PID_TUNING_SELECTION = "translational"
 # Examples of different selection methods:
 MRAC_TUNING_SELECTION = {
     # Simple: tune only diagonal elements (3 params)
-    "gamma_x_rot": "diagonal",
+    #"gamma_x_rot": "diagonal",
     
     # Simple: tune all lower-triangular Cholesky elements (6 params for 3x3)
-    "gamma_r_rot": "full",
+    # "gamma_r_rot": "full",
     
     # Custom diagonal mask: [1,1,0,1,1,0] means tune L11,L22,L44,L55 but skip L33,L66
-    "gamma_theta_tran": {
-        "diagonal": [1, 1, 0, 1, 1, 0],
-    },
+    # "gamma_theta_tran": {
+    #     "diagonal": [1, 1, 0, 1, 1, 0],
+    # },
     
     # Custom selection matrix (lower-triangular, row by row):
     # Row 0: [1]           -> tune L11
@@ -62,16 +63,19 @@ MRAC_TUNING_SELECTION = {
     # Row 3: [0, 1, 0, 0]  -> tune L42 only
     # Row 4: [0, 0, 0, 0, 0]
     # Row 5: [0, 0, 0, 0, 0, 0]
-    "gamma_x_tran": {
-        "selection_matrix": [
-            [1],
-            [0, 1],
-            [0, 0, 0],
-            [0, 1, 0, 0],
-            [0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0],
-        ]
-    },
+    # "gamma_x_tran": {
+    #     "selection_matrix": [
+    #         [1],
+    #         [0, 1],
+    #         [0, 0, 0],
+    #         [0, 1, 0, 0],
+    #         [0, 0, 0, 0, 0],
+    #         [0, 0, 0, 0, 0, 0],
+    #     ]
+    # },
+    
+    # Q_tran: Q matrix for Lyapunov equation (P_tran = solve_lyapunov(A_ref_tran.T, -Q_tran))
+    "q_tran": "diagonal",  # tune all 6 diagonal elements
 }
 
 # =============================================================================

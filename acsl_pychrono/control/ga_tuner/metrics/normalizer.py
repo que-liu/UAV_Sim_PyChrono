@@ -134,6 +134,13 @@ class MetricNormalizer:
         self.fit(metrics_array)
         return self.transform(metrics_array)
     
+    def inverse_transform(self, normalized_array: np.ndarray) -> np.ndarray:
+        """Convert normalized metrics back to raw values: raw = normalized * reference."""
+        if not self.fitted:
+            return normalized_array
+        normalized_array = np.atleast_1d(normalized_array)
+        return normalized_array * self.reference_values
+
     def get_reference_values(self) -> Dict[str, float]:
         """
         Get the reference values used for normalization.

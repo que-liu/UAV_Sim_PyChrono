@@ -12,11 +12,11 @@ from typing import Dict, Any
 EVALUATOR_TYPE: str = "outer"
 
 # Directory where simulation logs will be saved
-LOG_DIRECTORY: str = "simulation_logs/ga_mrac_nsga2"
+LOG_DIRECTORY: str = "simulation_logs/small_batch_with_all"
 
 # Parallel evaluation configuration
 PARALLEL_CONFIG: Dict[str, Any] = {
-    "enabled": True,
+    "enabled": False,
     "n_workers": 2,
     "use_processes": False,
 }

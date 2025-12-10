@@ -18,6 +18,7 @@ from acsl_pychrono.control.ga_tuner.ga_config.config import (
 from acsl_pychrono.control.ga_tuner.uav_integration import (
     create_uav_ga_tuner,
     summarize_tuner_result,
+    save_pareto_front_logs,
 )
 
 
@@ -36,6 +37,7 @@ def run_from_config(config: TuningConfig) -> None:
     
     result = tuner.optimize(verbose=False)
     summarize_tuner_result(tuner, result)
+    save_pareto_front_logs(tuner, result)
 
 
 def main() -> None:

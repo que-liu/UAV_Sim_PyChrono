@@ -5,6 +5,7 @@ Integration module for connecting the GA tuner with the UAV simulation model.
 from pathlib import Path
 from typing import Dict, Any, Literal, Optional, List, Sequence, Tuple, Union
 from copy import deepcopy
+import numpy as np
 
 from acsl_pychrono.simulation.simulation import Simulation
 from acsl_pychrono.control.logging import Logging
@@ -60,8 +61,6 @@ class UAVModelAdapter:
 
         mission_cfg.controller_type = controller_type
         mission_cfg.wrapper_batch_dir = log_dir
-        mission_cfg.visualization_flag = False
-        mission_cfg.wrapper_flag = True
 
         sim_config = SimulationConfig(
             mission_config=mission_cfg,
@@ -430,11 +429,20 @@ def summarize_tuner_result(tuner, result) -> None:
     else:
         metrics_label = "Outer loop metrics [position_error, velocity_error, control_effort]"
 
+    # Get normalizer to convert back to raw metrics
+    evaluator = getattr(tuner, 'fitness_evaluator', None)
+    normalizer = getattr(evaluator, 'normalizer', None) if evaluator else None
+
     if result.pareto_front is not None and len(result.pareto_front) > 0:
         print(f"\nPareto front ({len(result.pareto_front)} solutions, showing up to 5):")
         for idx, (params, metrics) in enumerate(zip(result.pareto_front[:5], result.pareto_fitnesses[:5])):
             tuned_values = [f"{v:.4f}" for v in params]
-            metrics_str = [f"{m:.4f}" for m in metrics]
+            # Convert normalized metrics to raw values
+            if normalizer and hasattr(normalizer, 'inverse_transform'):
+                raw_metrics = normalizer.inverse_transform(np.array(metrics))
+                metrics_str = [f"{m:.4f}" for m in raw_metrics]
+            else:
+                metrics_str = [f"{m:.4f}" for m in metrics]
             print(f"  Solution {idx + 1}:")
             print(f"    Tuned values: [{', '.join(tuned_values)}]")
             print(f"    {metrics_label}: [{', '.join(metrics_str)}]")
@@ -442,3 +450,29 @@ def summarize_tuner_result(tuner, result) -> None:
         print(f"\nBest solution:")
         print(f"  Parameters: {result.best_parameters}")
         print(f"  Fitness: {result.get_best_fitness()}")
+
+
+def save_pareto_front_logs(tuner, result, max_solutions: int = None):
+    """Re-run simulations for Pareto front and save .mat logs in pareto_N_* folders."""
+    solutions = result.pareto_front if result.pareto_front else ([result.best_parameters] if result.best_parameters is not None else [])
+    if not solutions:
+        return
+    if max_solutions:
+        solutions = solutions[:max_solutions]
+    
+    evaluator = tuner.fitness_evaluator
+    print(f"\nSaving logs for {len(solutions)} Pareto solutions (look for pareto_* folders)...")
+    
+    for i, params in enumerate(solutions):
+        # Expand partial params to full vector if using partial evaluator
+        if hasattr(evaluator, '_tuned_indices') and hasattr(evaluator, '_template'):
+            full_params = list(evaluator._template)
+            for idx, value in zip(evaluator._tuned_indices, params):
+                full_params[idx] = float(value)
+        else:
+            full_params = list(params)
+        
+        # Directly call _simulate_with_logs with pareto prefix
+        evaluator._simulate_with_logs(full_params, prefix=f"pareto_{i+1}")
+    
+    print("Done.")

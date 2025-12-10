@@ -177,20 +177,36 @@ class PymooGATuner(BaseGATuner):
     def _process_results(self, res):
         """Process optimization results with enhanced metrics."""
         # Extract final population and their fitnesses
-        population = [ind.X for ind in res.pop]
-        fitnesses = [ind.F for ind in res.pop]
+        last_population = [ind.X for ind in res.pop]
+        last_fitnesses = [ind.F for ind in res.pop]
         
         # Extract Pareto front
         pareto_front = [ind.X for ind in res.opt]
         pareto_fitnesses = [ind.F for ind in res.opt]
+
+        # Use best-performing solutions (Pareto set for multi-objective, best single for single-objective)
+        if pareto_front:
+            final_population = pareto_front
+            final_fitnesses = pareto_fitnesses
+        else:
+            # Single-objective or empty Pareto: take best of last generation
+            best_idx = int(np.argmin([f[0] if isinstance(f, (list, np.ndarray)) else f for f in last_fitnesses]))
+            final_population = [last_population[best_idx]]
+            final_fitnesses = [last_fitnesses[best_idx]]
+            pareto_front = None
+            pareto_fitnesses = None
         
         # Store results with additional metrics
         self.result.set_final_results(
-            population=population,
-            fitnesses=fitnesses,
+            population=final_population,
+            fitnesses=final_fitnesses,
             pareto_front=pareto_front,
             pareto_fitnesses=pareto_fitnesses
         )
+
+        # Track best solutions explicitly for downstream consumers (MAT export, summaries)
+        self.result.best_individuals = final_population
+        self.result.best_fitnesses = final_fitnesses
         
         # Store additional metrics
         metrics = {}
@@ -205,6 +221,8 @@ class PymooGATuner(BaseGATuner):
 
         metrics['execution_time'] = getattr(res, 'exec_time', None)
         metrics['n_evaluations'] = getattr(res, 'n_eval', None)
+        metrics['last_population'] = last_population
+        metrics['last_fitnesses'] = last_fitnesses
 
         self.result.additional_metrics = metrics
     

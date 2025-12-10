@@ -9,6 +9,7 @@ import pickle
 import os
 from datetime import datetime
 
+
 class OptimizationResult:
     """
     Class to store and analyze optimization results.
@@ -225,7 +226,7 @@ class OptimizationResult:
             'diversity_trend': np.polyfit(range(len(self.diversity_history)),
                                         self.diversity_history, 1)[0]
         }
-    
+
     def save(self, filepath: str, format: str = 'pickle'):
         """
         Save optimization results to file.

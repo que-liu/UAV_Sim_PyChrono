@@ -14,7 +14,7 @@ except ImportError:
 from .core.fitness_evaluator import FitnessEvaluator
 from .core.parameter_bounds import ParameterBounds
 from .core.optimization_result import OptimizationResult
-from .uav_integration import UAVModelAdapter, create_uav_ga_tuner, summarize_tuner_result
+from .uav_integration import UAVModelAdapter, create_uav_ga_tuner, summarize_tuner_result, save_pareto_front_logs
 from .ga_config import GAConfig
 from .uav_evaluators import UAVSimulationEvaluator, PIDSimulationEvaluator, MRACInnerLoopEvaluator, MRACOuterLoopEvaluator
 
@@ -29,6 +29,7 @@ __all__ = [
     'UAVModelAdapter',
     'create_uav_ga_tuner',
     'summarize_tuner_result',
+    'save_pareto_front_logs',
     'UAVSimulationEvaluator',
     'PIDSimulationEvaluator',
     'MRACInnerLoopEvaluator',

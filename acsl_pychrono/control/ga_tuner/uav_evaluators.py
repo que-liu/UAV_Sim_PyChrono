@@ -105,7 +105,7 @@ class UAVSimulationEvaluator(FitnessEvaluator):
     
     def _create_eval_log_dir(self, prefix: str) -> str:
         """Create a timestamped log directory for a single evaluation."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         eval_log_dir = os.path.join(self.log_directory, f"{prefix}_{timestamp}")
         os.makedirs(eval_log_dir, exist_ok=True)
         return eval_log_dir

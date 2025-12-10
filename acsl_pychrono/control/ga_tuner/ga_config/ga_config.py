@@ -9,8 +9,8 @@ class GAConfig:
     controller_type: str = "MRAC"  # 'PID' or 'MRAC'
     algorithm: str = "PYMOO"  # 'DEAP' or 'PYMOO'
 
-    population_size: int = 5
-    num_generations: int = 2
+    population_size: int = 100
+    num_generations: int = 30
     crossover_rate: float = 0.8
     mutation_rate: float = 0.1
 

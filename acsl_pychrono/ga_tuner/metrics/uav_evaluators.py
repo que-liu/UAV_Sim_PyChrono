@@ -522,7 +522,7 @@ class MRACInnerLoopEvaluator(BaseMRACEvaluator):
         # Use shared metrics calculator for consistency with mrac_tuning.py
         metrics = self.metrics_calculator.compute_metrics_object(log_data)
         
-        # Validate all metrics
+        # Validate all metrics (NaN/Inf only - large values handled by normalizer)
         for key, value in metrics.to_dict().items():
             if value is None or np.isnan(value) or np.isinf(value):
                 print(f"Warning: Invalid metric {key} = {value}, setting to high penalty")
@@ -575,7 +575,7 @@ class MRACOuterLoopEvaluator(BaseMRACEvaluator):
                                        parameters: List[float]) -> Union[float, List[float]]:
         metrics = self.metrics_calculator.calculate_metrics(log_data)
         
-        # Convert metrics to array for normalization
+        # Convert metrics to array for normalization (large values handled by normalizer)
         metrics_array = np.array([
             metrics.position_error,
             metrics.velocity_error,
@@ -589,5 +589,129 @@ class MRACOuterLoopEvaluator(BaseMRACEvaluator):
                 'translational_control_effort'
             ],
             units=["m", "m/s", "N"],
+            parameters=parameters,
+        )
+
+
+class MRACGroupedEvaluator(BaseMRACEvaluator):
+    """
+    MRAC evaluator that computes all 6 metrics and groups them into 3 composite objectives:
+    1. Translational Error = position_error + velocity_error (weighted)
+    2. Rotational Error = attitude_tracking_error + angular_velocity_tracking_error (weighted)
+    3. Control Effort = translational_control_effort + rotational_control_effort (weighted)
+    
+    This enables 3-objective NSGA-II optimization covering both inner and outer loop performance.
+    """
+
+    def __init__(self,
+                 uav_adapter,
+                 log_directory: str = "simulation_logs",
+                 parallel_config: Optional[Dict[str, Any]] = None,
+                 normalize_metrics: bool = True,
+                 metrics_config: MetricsConfig = None):
+        """Initialize MRAC grouped evaluator."""
+        if metrics_config is None:
+            raise ValueError("metrics_config must be provided for MRACGroupedEvaluator")
+
+        # Use grouped weights from config
+        self.grouped_weights = metrics_config.grouped_weights
+        
+        # Dummy metric_weights for base class (we override _process_metric_array)
+        metric_weights = {
+            'translational_error': 1.0,
+            'rotational_error': 1.0,
+            'control_effort': 1.0,
+        }
+
+        super().__init__(
+            uav_adapter=uav_adapter,
+            log_directory=log_directory,
+            parallel_config=parallel_config,
+            multi_objective=True,  # Always multi-objective for grouped mode
+            metric_weights=metric_weights,
+            normalize_metrics=normalize_metrics,
+            metric_names=[
+                'translational_error',
+                'rotational_error',
+                'control_effort'
+            ],
+            metrics_config=metrics_config,
+        )
+        
+        # Initialize both metrics calculators
+        self.inner_metrics_calculator = MRACInnerLoopMetricsCalculator()
+        self.outer_metrics_calculator = MRACOuterLoopMetricsCalculator()
+
+    def _get_controller_type(self) -> str:
+        """Grouped evaluator targets MRAC controller."""
+        return 'MRAC'
+
+    def _compute_fitness_from_log_data(self,
+                                       log_data: Dict[str, Any],
+                                       parameters: List[float]) -> List[float]:
+        """Compute grouped fitness metrics from log data."""
+        # Calculate inner loop metrics (rotational)
+        inner_metrics = self.inner_metrics_calculator.compute_metrics_object(log_data)
+        
+        # Calculate outer loop metrics (translational)
+        outer_metrics = self.outer_metrics_calculator.calculate_metrics(log_data)
+        
+        # Validate metrics
+        all_raw_metrics = {
+            'position_error': outer_metrics.position_error,
+            'velocity_error': outer_metrics.velocity_error,
+            'attitude_tracking_error': inner_metrics.attitude_tracking_error,
+            'angular_velocity_tracking_error': inner_metrics.angular_velocity_tracking_error,
+            'translational_control_effort': outer_metrics.translational_control_effort,
+            'rotational_control_effort': inner_metrics.rotational_control_effort,
+        }
+        
+        for key, value in all_raw_metrics.items():
+            if value is None or np.isnan(value) or np.isinf(value):
+                print(f"Warning: Invalid metric {key} = {value}, returning failure penalty")
+                return self._failure_objective()
+        
+        # Group metrics into 3 composite objectives
+        w = self.grouped_weights
+        
+        translational_error = (
+            w.position_weight * outer_metrics.position_error +
+            w.velocity_weight * outer_metrics.velocity_error
+        )
+        
+        rotational_error = (
+            w.attitude_weight * inner_metrics.attitude_tracking_error +
+            w.angular_velocity_weight * inner_metrics.angular_velocity_tracking_error
+        )
+        
+        control_effort = (
+            w.trans_effort_weight * outer_metrics.translational_control_effort +
+            w.rot_effort_weight * inner_metrics.rotational_control_effort
+        )
+        
+        # Print raw metrics for debugging
+        print(f"\n[Grouped Metrics - Raw Components]:")
+        print(f"  Position Error:                    {outer_metrics.position_error:.6f} m")
+        print(f"  Velocity Error:                    {outer_metrics.velocity_error:.6f} m/s")
+        print(f"  Attitude Tracking Error:           {inner_metrics.attitude_tracking_error:.6f} rad")
+        print(f"  Angular Velocity Tracking Error:   {inner_metrics.angular_velocity_tracking_error:.6f} rad/s")
+        print(f"  Translational Control Effort:      {outer_metrics.translational_control_effort:.6f} N")
+        print(f"  Rotational Control Effort:         {inner_metrics.rotational_control_effort:.6f} N·m")
+        
+        # Create grouped metrics array
+        metrics_array = np.array([
+            translational_error,
+            rotational_error,
+            control_effort
+        ])
+        
+        return self._process_metric_array(
+            metrics_array,
+            [
+                'translational_error',
+                'rotational_error',
+                'control_effort'
+            ],
+            units=["(weighted)", "(weighted)", "(weighted)"],
             parameters=parameters,
         )

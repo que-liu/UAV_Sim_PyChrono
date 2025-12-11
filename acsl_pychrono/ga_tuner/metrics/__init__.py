@@ -33,6 +33,7 @@ from .uav_evaluators import (
     PIDSimulationEvaluator,
     MRACInnerLoopEvaluator,
     MRACOuterLoopEvaluator,
+    MRACGroupedEvaluator,
 )
 
 __all__ = [
@@ -52,6 +53,7 @@ __all__ = [
     'PIDSimulationEvaluator',
     'MRACInnerLoopEvaluator',
     'MRACOuterLoopEvaluator',
+    'MRACGroupedEvaluator',
     
     # Utility
     'load_simulation_log'

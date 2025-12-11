@@ -19,6 +19,7 @@ MRAC Available Matrices (with sizes):
     - gamma_x_tran (6x6), gamma_r_tran (3x3), gamma_theta_tran (6x6)
     - gamma_x_rot (3x3), gamma_r_rot (3x3), gamma_theta_rot (6x6)
     - q_tran (6x6): Q matrix for Lyapunov equation (affects P_tran computation)
+    - q_rot (3x3): Q matrix for Lyapunov equation (affects P_rot computation)
 """
 
 from typing import Literal
@@ -76,6 +77,13 @@ MRAC_TUNING_SELECTION = {
     
     # Q_tran: Q matrix for Lyapunov equation (P_tran = solve_lyapunov(A_ref_tran.T, -Q_tran))
     "q_tran": "diagonal",  # tune all 6 diagonal elements
+    "gamma_x_tran": "diagonal",
+    "gamma_r_tran": "diagonal",
+    "gamma_theta_tran": "diagonal",
+    "q_rot": "diagonal",
+    "gamma_x_rot": "diagonal",
+    "gamma_r_rot": "diagonal",
+    "gamma_theta_rot": "diagonal",
 }
 
 # =============================================================================

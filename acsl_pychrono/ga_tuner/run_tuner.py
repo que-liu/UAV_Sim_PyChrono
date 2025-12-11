@@ -35,7 +35,7 @@ def run_from_config(config: TuningConfig) -> None:
         n_objectives=config.get_objective_count(),
     )
     
-    result = tuner.optimize(verbose=False)
+    result = tuner.optimize(verbose=config.ga.verbose)
     summarize_tuner_result(tuner, result)
     save_pareto_front_logs(tuner, result, clean_eval_folders=config.evaluator.clean_eval_folders)
 

@@ -17,6 +17,7 @@ class GAConfig:
     selection_method: str = "tournament"
     tournament_size: int = 5
     random_seed: Optional[int] = None
+    verbose: bool = True  # Print generation progress during optimization
 
     # Pymoo-specific parameters
     pymoo_variant: str = "NSGA2"

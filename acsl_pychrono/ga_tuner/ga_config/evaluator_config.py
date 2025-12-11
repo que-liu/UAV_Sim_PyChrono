@@ -12,7 +12,7 @@ from typing import Dict, Any
 EVALUATOR_TYPE: str = "outer"
 
 # Directory where simulation logs will be saved
-LOG_DIRECTORY: str = "simulation_logs/small_batch_with_all"
+LOG_DIRECTORY: str = "simulation_logs/Inner_and_Outer_Loop_Test"
 
 # Parallel evaluation configuration
 PARALLEL_CONFIG: Dict[str, Any] = {

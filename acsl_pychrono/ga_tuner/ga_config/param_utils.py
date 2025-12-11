@@ -47,6 +47,7 @@ MRAC_MATRIX_SIZES = {
     "gamma_r_rot": 3,
     "gamma_theta_rot": 6,
     "q_tran": 6,  # Q matrix for Lyapunov equation (affects P_tran)
+    "q_rot": 3,   # Q matrix for Lyapunov equation (affects P_rot)
 }
 
 

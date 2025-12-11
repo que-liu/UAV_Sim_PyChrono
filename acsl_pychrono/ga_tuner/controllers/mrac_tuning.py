@@ -48,6 +48,10 @@ class MRACTuning(ControllerTuningInterface):
         scale_factor = 10.0
         log_scale_span = np.log(scale_factor)
         vector_factor = 5.0
+        
+        # Tighter bounds for Q matrices (affect Lyapunov stability)
+        q_scale_factor = 5.0  # Q matrices can only vary by 3x up/down
+        q_log_scale_span = np.log(q_scale_factor)
 
         def _positive_bounds(value: float, factor: float = 10.0,
                              *, min_lower: float = 1e-6,
@@ -66,13 +70,18 @@ class MRACTuning(ControllerTuningInterface):
             if baseline_matrix is None:
                 continue
 
-            diag_bound_fn = lambda value, span=log_scale_span: [value - span, value + span]
+            # Use tighter bounds for Q matrices
+            is_q_matrix = matrix_name.startswith('Q_')
+            current_log_span = q_log_scale_span if is_q_matrix else log_scale_span
+            current_off_diag_factor = 2.0 if is_q_matrix else vector_factor
+            
+            diag_bound_fn = lambda value, span=current_log_span: [value - span, value + span]
             matrix_bounds, parameter_names = build_cholesky_parameter_bounds(
                 baseline_matrix,
                 prefix,
                 diag_bound_fn,
-                off_diag_factor=vector_factor,
-                min_off_diag_span=1.0,
+                off_diag_factor=current_off_diag_factor,
+                min_off_diag_span=0.5 if is_q_matrix else 1.0,
                 log_diagonals=True,
             )
 

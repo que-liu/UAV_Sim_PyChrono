@@ -9,6 +9,7 @@ _FALLBACK_MRAC_DEFAULTS = {
     'Gamma_r_rot': np.diag([5e0, 5e0, 5e0]),
     'Gamma_Theta_rot': np.diag([2e3, 2e3, 2e3, 2e3, 2e3, 2e3]),
     'Q_tran': np.diag([6e-2, 6e-2, 72e-2, 6e-2, 6e-2, 12e-2]),  # 6e-2 * [1,1,12,1,1,2]
+    'Q_rot': np.diag([0.3333e-3, 0.4e-3, 0.6e-3]),  # 1e-3 * [0.3333, 0.4, 0.6]
     'K_P_omega_ref': np.diag([3.8e1 * 0.8, 3.8e1 * 0.8, 3.8e1 * 1.2]),
     'K_I_omega_ref': np.diag([5e-1, 5e-1, 1e-1]),
     'sigma_x_tran': 0.5,
@@ -30,7 +31,7 @@ GAMMA_MATRIX_CONFIGS = {
         'size': _FALLBACK_MRAC_DEFAULTS[name].shape[0] if isinstance(_FALLBACK_MRAC_DEFAULTS[name], np.ndarray) else None
     }
     for name in _FALLBACK_MRAC_DEFAULTS
-    if name.startswith('Gamma_') or name == 'Q_tran'
+    if name.startswith('Gamma_') or name in ('Q_tran', 'Q_rot')
 }
 
 # Mapping from diagonal matrix names in MRAC gains to individual scalar parameter names
@@ -66,7 +67,7 @@ SCALAR_PARAMETER_GROUPS = [
 target_names = {
     'Gamma_x_tran', 'Gamma_r_tran', 'Gamma_Theta_tran',
     'Gamma_x_rot', 'Gamma_r_rot', 'Gamma_Theta_rot',
-    'Q_tran',
+    'Q_tran', 'Q_rot',
     'K_P_omega_ref', 'K_I_omega_ref',
     'sigma_x_tran', 'sigma_r_tran', 'sigma_Theta_tran',
     'sigma_x_rot', 'sigma_r_rot', 'sigma_Theta_rot',

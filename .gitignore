@@ -26,3 +26,5 @@ DATA*.csv
 !/logs/_example_workspace_log_20250517_172211.mat
 
 
+assets/.DS_Store
+.DS_Store

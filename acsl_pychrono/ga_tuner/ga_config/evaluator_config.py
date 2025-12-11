@@ -20,3 +20,6 @@ PARALLEL_CONFIG: Dict[str, Any] = {
     "n_workers": 2,
     "use_processes": False,
 }
+
+# Whether to clean up eval_* folders after saving Pareto solution logs
+CLEAN_EVAL_FOLDERS: bool = True

@@ -28,6 +28,13 @@ from .mrac_outer_loop_metrics import (
 
 from .normalizer import MetricNormalizer
 
+from .uav_evaluators import (
+    UAVSimulationEvaluator,
+    PIDSimulationEvaluator,
+    MRACInnerLoopEvaluator,
+    MRACOuterLoopEvaluator,
+)
+
 __all__ = [
     # Inner loop
     'MRACInnerLoopMetrics',
@@ -39,6 +46,12 @@ __all__ = [
     
     # Normalizer
     'MetricNormalizer',
+    
+    # Evaluators
+    'UAVSimulationEvaluator',
+    'PIDSimulationEvaluator',
+    'MRACInnerLoopEvaluator',
+    'MRACOuterLoopEvaluator',
     
     # Utility
     'load_simulation_log'

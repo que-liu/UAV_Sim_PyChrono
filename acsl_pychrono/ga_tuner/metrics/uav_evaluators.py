@@ -20,13 +20,13 @@ import pickle
 import traceback
 from datetime import datetime
 
-from .core.fitness_evaluator import FitnessEvaluator
-from .metrics.translational_utils import (
+from ..core.fitness_evaluator import FitnessEvaluator
+from .translational_utils import (
     calculate_position_velocity_rmse,
     extract_position_velocity_vectors,
 )
-from .ga_config.metrics_config import MetricsConfig
-from .metrics import MRACInnerLoopMetrics, MRACInnerLoopMetricsCalculator, MRACOuterLoopMetrics, MRACOuterLoopMetricsCalculator, MetricNormalizer
+from ..ga_config.metrics_config import MetricsConfig
+from ..metrics import MRACInnerLoopMetrics, MRACInnerLoopMetricsCalculator, MRACOuterLoopMetrics, MRACOuterLoopMetricsCalculator, MetricNormalizer
 
 
 def failure_penalty(multi_objective: bool, n_objectives: int = 3) -> Union[float, List[float]]:

@@ -13,13 +13,13 @@ Also requires `pychrono` - see project installation guide.
 ## Quick Start
 
 ```bash
-python acsl_pychrono/control/ga_tuner/run_tuner.py
+python acsl_pychrono/ga_tuner/run_tuner.py
 ```
 
 Or in Python:
 
 ```python
-from acsl_pychrono.control.ga_tuner import create_uav_ga_tuner, summarize_tuner_result, GAConfig
+from acsl_pychrono.ga_tuner import create_uav_ga_tuner, summarize_tuner_result, GAConfig
 
 tuner = create_uav_ga_tuner(ga_config=GAConfig())
 result = tuner.optimize()

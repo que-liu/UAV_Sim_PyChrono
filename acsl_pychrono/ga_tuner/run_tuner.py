@@ -6,16 +6,16 @@ import os
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 os.chdir(PROJECT_ROOT)
 
-from acsl_pychrono.control.ga_tuner.ga_config.config import (
+from acsl_pychrono.ga_tuner.ga_config.config import (
     TUNING_CONFIG,
     TuningConfig,
 )
-from acsl_pychrono.control.ga_tuner.uav_integration import (
+from acsl_pychrono.ga_tuner.integration.uav_integration import (
     create_uav_ga_tuner,
     summarize_tuner_result,
     save_pareto_front_logs,
@@ -37,7 +37,7 @@ def run_from_config(config: TuningConfig) -> None:
     
     result = tuner.optimize(verbose=False)
     summarize_tuner_result(tuner, result)
-    save_pareto_front_logs(tuner, result)
+    save_pareto_front_logs(tuner, result, clean_eval_folders=config.evaluator.clean_eval_folders)
 
 
 def main() -> None:

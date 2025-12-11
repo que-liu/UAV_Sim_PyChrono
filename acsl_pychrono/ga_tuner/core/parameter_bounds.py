@@ -2,7 +2,7 @@
 Parameter bounds and constraints for genetic algorithm optimization.
 """
 
-from typing import List, Optional, Union, Dict
+from typing import List, Optional, Union, Dict, Tuple
 import numpy as np
 
 class ParameterBounds:
@@ -126,7 +126,7 @@ class ParameterBounds:
         """
         return np.clip(parameters, self.lower_bounds, self.upper_bounds)
     
-    def get_parameter_range(self, param_index: int) -> tuple[float, float]:
+    def get_parameter_range(self, param_index: int) -> Tuple[float, float]:
         """
         Get the range for a specific parameter.
         

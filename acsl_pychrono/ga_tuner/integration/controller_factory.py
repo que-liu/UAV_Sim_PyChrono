@@ -11,8 +11,8 @@ from typing import Mapping, Sequence
 import numpy as np
 from scipy import linalg
 
-from .controllers.mrac_tuning import MRACTuning
-from .controllers.pid_tuning import PIDTuning
+from ..controllers.mrac_tuning import MRACTuning
+from ..controllers.pid_tuning import PIDTuning
 from acsl_pychrono.control import controller_classes as CONTROLLER_CLASSES
 
 

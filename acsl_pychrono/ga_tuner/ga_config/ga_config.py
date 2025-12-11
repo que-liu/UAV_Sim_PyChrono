@@ -17,7 +17,6 @@ class GAConfig:
     selection_method: str = "tournament"
     tournament_size: int = 5
     random_seed: Optional[int] = None
-    multi_objective: bool = True
 
     # Pymoo-specific parameters
     pymoo_variant: str = "NSGA2"

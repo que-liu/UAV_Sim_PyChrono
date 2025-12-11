@@ -14,7 +14,7 @@ from .ga_config import GAConfig
 from .metrics_config import MetricsConfig
 from .param_config import TUNED_PARAMETERS
 from .mission_config import MISSION_CONFIG
-from .evaluator_config import EVALUATOR_TYPE, LOG_DIRECTORY, PARALLEL_CONFIG
+from .evaluator_config import EVALUATOR_TYPE, LOG_DIRECTORY, PARALLEL_CONFIG, CLEAN_EVAL_FOLDERS
 
 @dataclass(frozen=True)
 class EvaluatorConfig:
@@ -23,6 +23,7 @@ class EvaluatorConfig:
     log_directory: str
     parallel_config: Dict[str, Any]
     metrics: MetricsConfig
+    clean_eval_folders: bool = True
 
 def _default_evaluator_config() -> EvaluatorConfig:
     """Create default EvaluatorConfig with required arguments."""
@@ -31,6 +32,7 @@ def _default_evaluator_config() -> EvaluatorConfig:
         log_directory=LOG_DIRECTORY,
         parallel_config=PARALLEL_CONFIG,
         metrics=MetricsConfig(),
+        clean_eval_folders=CLEAN_EVAL_FOLDERS,
     )
 
 @dataclass(frozen=True)

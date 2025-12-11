@@ -5,6 +5,8 @@ Integration module for connecting the GA tuner with the UAV simulation model.
 from pathlib import Path
 from typing import Dict, Any, Literal, Optional, List, Sequence, Tuple, Union
 from copy import deepcopy
+import os
+import shutil
 import numpy as np
 
 from acsl_pychrono.simulation.simulation import Simulation
@@ -12,14 +14,14 @@ from acsl_pychrono.control.logging import Logging
 from acsl_pychrono.executor.simulate_mission import simulateMission
 from acsl_pychrono.config.config import MissionConfig, WrapperParams, SimulationConfig
 
-from .uav_evaluators import PIDSimulationEvaluator, MRACInnerLoopEvaluator, MRACOuterLoopEvaluator
-from .controllers.pid_tuning import PIDTuning
-from .controllers.mrac_tuning import MRACTuning
-from .algorithms.deap_ga import DEAPGATuner
-from .algorithms.pymoo_ga import PymooGATuner
-from .core.parameter_bounds import ParameterBounds
-from .ga_config import GAConfig
-from .ga_config.metrics_config import MetricsConfig
+from ..metrics.uav_evaluators import PIDSimulationEvaluator, MRACInnerLoopEvaluator, MRACOuterLoopEvaluator
+from ..controllers.pid_tuning import PIDTuning
+from ..controllers.mrac_tuning import MRACTuning
+from ..algorithms.deap_ga import DEAPGATuner
+from ..algorithms.pymoo_ga import PymooGATuner
+from ..core.parameter_bounds import ParameterBounds
+from ..ga_config import GAConfig
+from ..ga_config.metrics_config import MetricsConfig
 
 class UAVModelAdapter:
     """
@@ -276,7 +278,7 @@ def create_uav_ga_tuner(
         _apply_mission_overrides(uav_adapter, mission_overrides)
     
     # Determine objective count expected from evaluators/GA
-    objective_count = n_objectives if ga_config.multi_objective else 1
+    objective_count = n_objectives if metrics_config.multi_objective else 1
 
     # Build parameter bounds and evaluator based on controller type
     if controller == 'PID':
@@ -304,7 +306,7 @@ def create_uav_ga_tuner(
                 cost_function_weights=cost_function_weights,
                 metrics_config=metrics_config,
                 parallel_config=parallel_config,
-                multi_objective=ga_config.multi_objective,
+                multi_objective=metrics_config.multi_objective,
             )
         else:
             fitness_evaluator = PIDSimulationEvaluator(
@@ -313,7 +315,7 @@ def create_uav_ga_tuner(
                 cost_function_weights=cost_function_weights,
                 metrics_config=metrics_config,
                 parallel_config=parallel_config,
-                multi_objective=ga_config.multi_objective,
+                multi_objective=metrics_config.multi_objective,
             )
         
     elif controller == 'MRAC':
@@ -349,7 +351,7 @@ def create_uav_ga_tuner(
             uav_adapter=uav_adapter,
             log_directory=log_directory,
             parallel_config=parallel_config,
-            multi_objective=ga_config.multi_objective,
+            multi_objective=metrics_config.multi_objective,
             metric_weights=metric_weights,
             normalize_metrics=metrics_config.normalize_metrics,
             metrics_config=metrics_config,
@@ -371,7 +373,7 @@ def create_uav_ga_tuner(
             'mutation_prob': ga_config.mutation_rate,
             'selection_method': ga_config.selection_method,
             'tournament_size': ga_config.tournament_size,
-            'multi_objective': ga_config.multi_objective,
+            'multi_objective': metrics_config.multi_objective,
             'n_objectives': objective_count,
         })
         tuner = DEAPGATuner(
@@ -452,8 +454,16 @@ def summarize_tuner_result(tuner, result) -> None:
         print(f"  Fitness: {result.get_best_fitness()}")
 
 
-def save_pareto_front_logs(tuner, result, max_solutions: int = None):
-    """Re-run simulations for Pareto front and save .mat logs in pareto_N_* folders."""
+def save_pareto_front_logs(tuner, result, max_solutions: int = None, clean_eval_folders: bool = True):
+    """Re-run simulations for Pareto front and save .mat logs in a single pareto_solutions folder.
+    
+    Args:
+        tuner: The GA tuner instance
+        result: The optimization result
+        max_solutions: Maximum number of solutions to save (None = all)
+        clean_eval_folders: If True, remove all eval_* folders after saving Pareto logs
+    """
+    
     solutions = result.pareto_front if result.pareto_front else ([result.best_parameters] if result.best_parameters is not None else [])
     if not solutions:
         return
@@ -461,7 +471,13 @@ def save_pareto_front_logs(tuner, result, max_solutions: int = None):
         solutions = solutions[:max_solutions]
     
     evaluator = tuner.fitness_evaluator
-    print(f"\nSaving logs for {len(solutions)} Pareto solutions (look for pareto_* folders)...")
+    log_dir = evaluator.log_directory
+    
+    # Create pareto_solutions folder
+    pareto_dir = os.path.join(log_dir, "pareto_solutions")
+    os.makedirs(pareto_dir, exist_ok=True)
+    
+    print(f"\nSaving logs for {len(solutions)} Pareto solutions in: {pareto_dir}")
     
     for i, params in enumerate(solutions):
         # Expand partial params to full vector if using partial evaluator
@@ -472,7 +488,24 @@ def save_pareto_front_logs(tuner, result, max_solutions: int = None):
         else:
             full_params = list(params)
         
-        # Directly call _simulate_with_logs with pareto prefix
-        evaluator._simulate_with_logs(full_params, prefix=f"pareto_{i+1}")
+        # Run simulation with pareto_solutions as the log directory
+        config = evaluator.uav_adapter.create_simulation_config(
+            full_params,
+            pareto_dir,
+            controller_type=evaluator._get_controller_type(),
+        )
+        evaluator.uav_adapter.run_simulation(config)
     
-    print("Done.")
+    # Clean up eval_* folders if requested
+    if clean_eval_folders:
+        print("Cleaning up evaluation folders...")
+        removed_count = 0
+        for item in os.listdir(log_dir):
+            item_path = os.path.join(log_dir, item)
+            if os.path.isdir(item_path) and item.startswith("eval_"):
+                shutil.rmtree(item_path)
+                removed_count += 1
+        if removed_count > 0:
+            print(f"  Removed {removed_count} evaluation folder(s)")
+    
+    print(f"Done. Pareto solution logs saved in: {pareto_dir}")

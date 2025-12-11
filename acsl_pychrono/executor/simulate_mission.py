@@ -5,7 +5,7 @@ import acsl_pychrono.control as Ctrl
 from acsl_pychrono.control.logging import Logging
 from acsl_pychrono.simulation.ode_input import OdeInput
 from acsl_pychrono.simulation.flight_params import FlightParams
-from acsl_pychrono.control.ga_tuner.controller_factory import instantiateControllerWithGA
+from acsl_pychrono.ga_tuner.integration.controller_factory import instantiateControllerWithGA
 
 def simulateMission(sim: Simulation, git_info: dict | None = None):
   # Instantiation of classes

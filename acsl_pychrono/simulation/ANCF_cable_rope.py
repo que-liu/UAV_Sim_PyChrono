@@ -13,8 +13,8 @@ class ANCFCableRope:
 
   def __init__(self,
     system: chrono.ChSystem,
-    start_pos: chrono.ChVectorD,
-    end_pos: chrono.ChVectorD,
+    start_pos: chrono.ChVector3d,
+    end_pos: chrono.ChVector3d,
     uav_body: chrono.ChBody,
     payload_body: chrono.ChBody,
     n_elements: int = 10,
@@ -58,7 +58,7 @@ class ANCFCableRope:
     self.section.SetDensity(self.density)
     self.section.SetYoungModulus(self.young_modulus)
     self.section.SetDiameter(self.cable_diameter)
-    self.section.SetBeamRaleyghDamping(self.damping)
+    self.section.SetRayleighDamping(self.damping)
 
     self.builder.BuildBeam(
       self.mesh,       # the mesh where to put the created nodes and elements
@@ -67,9 +67,6 @@ class ANCFCableRope:
       self.start_pos,  # the 'A' point space (beginning of beam)
       self.end_pos     # the 'B' point space (end of beam)
     )
-
-    # # Apply force to the last node of the cable (example force)
-    # self.builder.GetLastBeamNodes().back().SetForce(chrono.ChVectorD(.8, -0.6, .8))
 
     self.attach_start(uav_body)
     self.attach_end(payload_body)
@@ -80,11 +77,10 @@ class ANCFCableRope:
     """
     Attach first cable node to a rigid body using a point-frame constraint.
     """
-    constraint_hinge = fea.ChLinkPointFrame()
+    constraint_hinge = fea.ChLinkNodeFrame()
     constraint_hinge.Initialize(self.builder.GetLastBeamNodes().front(), body)
     self.system.Add(constraint_hinge)
-    msphere = chrono.ChSphereShape()
-    msphere.GetSphereGeometry().rad = 0.008
+    msphere = chrono.ChVisualShapeSphere(0.008)
     constraint_hinge.AddVisualShape(msphere)
 
   # ----------------------------------------------------------------------
@@ -93,33 +89,26 @@ class ANCFCableRope:
     """
     Attach last cable node to a rigid body.
     """
-    constraint_hinge = fea.ChLinkPointFrame()
+    constraint_hinge = fea.ChLinkNodeFrame()
     constraint_hinge.Initialize(self.builder.GetLastBeamNodes().back(), body)
     self.system.Add(constraint_hinge)
-    msphere = chrono.ChSphereShape()
-    msphere.GetSphereGeometry().rad = 0.008
+    msphere = chrono.ChVisualShapeSphere(0.008)
     constraint_hinge.AddVisualShape(msphere)
 
-    constraint_dir = fea.ChLinkDirFrame()
+    constraint_dir = fea.ChLinkNodeSlopeFrame()
     constraint_dir.Initialize(self.builder.GetLastBeamNodes().back(), body)
-    constraint_dir.SetDirectionInAbsoluteCoords(chrono.ChVectorD(0, 1, 0))
+    constraint_dir.SetDirectionInAbsoluteCoords(chrono.ChVector3d(0, 1, 0))
     self.system.Add(constraint_dir)
 
   def _addVisualization(self, mesh: fea.ChMesh):
-    # ==Asset== attach a visualization of the FEM mesh.
-    # This will automatically update a triangle mesh (a ChTriangleMeshShape
-    # asset that is internally managed) by setting  proper
-    # coordinates and vertex colors as in the FEM elements.
-    # Such triangle mesh can be rendered by Irrlicht or POVray or whatever
-    # postprocessor that can handle a colored ChTriangleMeshShape).
-    visualizebeamA = chrono.ChVisualShapeFEA(mesh)
+    visualizebeamA = chrono.ChVisualShapeFEA()
     visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
-    visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
+    visualizebeamA.SetColormapRange(-0.4, 0.4)
     visualizebeamA.SetSmoothFaces(True)
     visualizebeamA.SetWireframe(False)
     mesh.AddVisualShapeFEA(visualizebeamA)
 
-    visualizebeamB = chrono.ChVisualShapeFEA(mesh)
+    visualizebeamB = chrono.ChVisualShapeFEA()
     visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS) # NODE_CSYS
     visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
     visualizebeamB.SetSymbolsThickness(0.006)

@@ -11,24 +11,24 @@ import math
 import numpy as np
 import pychrono as chrono
 
-# Function that takes as input a ChVectorD element and converts it to a list
-def chvector_to_list(v: chrono.ChVectorD) -> list:
-    "Function that takes as input a ChVectorD element and converts it to a list"
+# Function that takes as input a ChVector3d element and converts it to a list
+def chvector_to_list(v: chrono.ChVector3d) -> list:
+    "Function that takes as input a ChVector3d element and converts it to a list"
     return [v.x, v.y, v.z]
 
-# Function that takes as input a ChQuaternionD element and converts it to a list
-def chquaternion_to_list(q: chrono.ChQuaternionD) -> list:
-    "Function that takes as input a ChQuaternionD element and converts it to a list"
+# Function that takes as input a ChQuaterniond element and converts it to a list
+def chquaternion_to_list(q: chrono.ChQuaterniond) -> list:
+    "Function that takes as input a ChQuaterniond element and converts it to a list"
     return [q.e0, q.e1, q.e2, q.e3]
 
-# Function that takes as input a ChCoordsysD element and converts it to a list
-def chcoordsys_to_list(c: chrono.ChCoordsysD) -> list:
-    "Function that takes as input a ChCoordsysD element and converts it to a list"
+# Function that takes as input a ChCoordsysd element and converts it to a list
+def chcoordsys_to_list(c: chrono.ChCoordsysd) -> list:
+    "Function that takes as input a ChCoordsysd element and converts it to a list"
     return [chvector_to_list(c.pos), chquaternion_to_list(c.rot)]
 
-# Function that takes as input a ChMatrix33D element and converts it to a list
-def chmatrix33_to_list(M: chrono.ChMatrix33D) -> list:
-    "Function that takes as input a ChMatrix33D element and converts it to a list"
+# Function that takes as input a ChMatrix33d element and converts it to a list
+def chmatrix33_to_list(M: chrono.ChMatrix33d) -> list:
+    "Function that takes as input a ChMatrix33d element and converts it to a list"
     MATRIX = [[M[0,0], M[0,1], M[0,2]],
               [M[1,0], M[1,1], M[1,2]],
               [M[2,0], M[2,1], M[2,2]]]
@@ -47,7 +47,7 @@ def list_to_array(List):
 # Function that takes a quaternion expressed in Global coord and builds the rotation Matrix to go from GLOBAL coord to LOCAL coord
 # The output is in the form of an array
 # For reference see the book: Baruh, Analytical Dynamics, pag.384, formula 7.7.19"
-def rotmat_fromQ_Glob_to_Loc_asarray(q: chrono.ChQuaternionD) -> list:
+def rotmat_fromQ_Glob_to_Loc_asarray(q: chrono.ChQuaterniond) -> list:
     "Function that takes a quaternion expressed in Global coord and builds the rotation Matrix to go from GLOBAL coord to LOCAL coord. The output is in the form of an array. For reference see the book: Baruh, Analytical Dynamics, pag.384, formula 7.7.19"
     
     e0 = q.e0
@@ -60,10 +60,10 @@ def rotmat_fromQ_Glob_to_Loc_asarray(q: chrono.ChQuaternionD) -> list:
     return RotMat
 
 # Function that takes a quaternion expressed in Global coord and builds the rotation Matrix to go from GLOBAL coord to LOCAL coord
-# The output is in the form of a ChMatrix33D
+# The output is in the form of a ChMatrix33d
 # For reference see the book: Baruh, Analytical Dynamics, pag.384, formula 7.7.19"
-def rotmat_fromQ_Glob_to_Loc_asChMatrix33(q: chrono.ChQuaternionD) -> chrono.ChMatrix33D:
-    "Function that takes a quaternion expressed in Global coord and builds the rotation Matrix to go from GLOBAL coord to LOCAL coord. The output is in the form of a ChMatrix33D. For reference see the book: Baruh, Analytical Dynamics, pag.384, formula 7.7.19"
+def rotmat_fromQ_Glob_to_Loc_asChMatrix33(q: chrono.ChQuaterniond) -> chrono.ChMatrix33d:
+    "Function that takes a quaternion expressed in Global coord and builds the rotation Matrix to go from GLOBAL coord to LOCAL coord. The output is in the form of a ChMatrix33d. For reference see the book: Baruh, Analytical Dynamics, pag.384, formula 7.7.19"
     e0 = q.e0
     e1 = q.e1
     e2 = q.e2
@@ -72,15 +72,15 @@ def rotmat_fromQ_Glob_to_Loc_asChMatrix33(q: chrono.ChQuaternionD) -> chrono.ChM
                [2*(e1*e2 - e0*e3), (e0**2 - e1**2 + e2**2 - e3**2), 2*(e2*e3 + e0*e1)],
                [2*(e1*e3 + e0*e2), 2*(e2*e3 - e0*e1), (e0**2 - e1**2 - e2**2 + e3**2)]]
     
-    RotMat_asChMatrix33 = chrono.ChMatrix33D()
+    RotMat_asChMatrix33 = chrono.ChMatrix33d()
     RotMat_asChMatrix33.SetMatr(RotMat)
     return RotMat_asChMatrix33
 
 # Function that takes a quaternion expressed in Local coord and builds the rotation Matrix to go from LOCAL coord to GLOBAL coord
-# The output is in the form of a ChMatrix33D
+# The output is in the form of a ChMatrix33d
 # For reference see the book: Baruh, Analytical Dynamics, pag.384, formula 7.7.19"
-def rotmat_fromQ_Loc_to_Glob_asChMatrix33(q: chrono.ChQuaternionD) -> chrono.ChMatrix33D:
-    "Function that takes a quaternion expressed in Local coord and builds the rotation Matrix to go from LOCAL coord to GLOBAL coord. The output is in the form of a ChMatrix33D. For reference see the book: Baruh, Analytical Dynamics, pag.384, formula 7.7.19"
+def rotmat_fromQ_Loc_to_Glob_asChMatrix33(q: chrono.ChQuaterniond) -> chrono.ChMatrix33d:
+    "Function that takes a quaternion expressed in Local coord and builds the rotation Matrix to go from LOCAL coord to GLOBAL coord. The output is in the form of a ChMatrix33d. For reference see the book: Baruh, Analytical Dynamics, pag.384, formula 7.7.19"
     e0 = q.e0
     e1 = q.e1
     e2 = q.e2
@@ -90,15 +90,15 @@ def rotmat_fromQ_Loc_to_Glob_asChMatrix33(q: chrono.ChQuaternionD) -> chrono.ChM
               [2*(e1*e2 + e0*e3), (e0**2 - e1**2 + e2**2 - e3**2), 2*(e2*e3 - e0*e1)],
               [2*(e1*e3 - e0*e2), 2*(e2*e3 + e0*e1), (e0**2 - e1**2 - e2**2 + e3**2)]]
     
-    RotMat_asChMatrix33 = chrono.ChMatrix33D()
+    RotMat_asChMatrix33 = chrono.ChMatrix33d()
     RotMat_asChMatrix33.SetMatr(RotMat)
     return RotMat_asChMatrix33
 
 # Function that takes a quaternion expressed in Global coord and computes the 3-2-1 sequence of Euler angles.
-# The output is in the form of a ChVectorD.
+# The output is in the form of a ChVector3d.
 # For reference see: 'https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles'
-def euler321_fromQ_asChVector(q: chrono.ChQuaternionD) -> chrono.ChVectorD:
-    "Function that takes a quaternion expressed in Global coord and computes the 3-2-1 sequence of Euler angles. The output is in the form of a ChVectorD. For reference see: 'https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles'"
+def euler321_fromQ_asChVector(q: chrono.ChQuaterniond) -> chrono.ChVector3d:
+    "Function that takes a quaternion expressed in Global coord and computes the 3-2-1 sequence of Euler angles. The output is in the form of a ChVector3d. For reference see: 'https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles'"
     e0 = q.e0
     e1 = q.e1
     e2 = q.e2
@@ -124,7 +124,7 @@ def euler321_fromQ_asChVector(q: chrono.ChQuaternionD) -> chrono.ChVectorD:
     y2 = 1 - 2*(e2**2 + e3**2)
     yaw = math.atan2(y1, y2)
     
-    euler_321_ChVector = chrono.ChVectorD()
+    euler_321_ChVector = chrono.ChVector3d()
     euler_321_ChVector.Set(roll, pitch, yaw)
     
     return euler_321_ChVector
@@ -132,7 +132,7 @@ def euler321_fromQ_asChVector(q: chrono.ChQuaternionD) -> chrono.ChVectorD:
 # Function that takes as input a ChVector representing a 321 sequence of euler angles (roll, pitch, yaw)
 # and gives as output a rotation matrix as a ChMatrix33.
 # For reference see "A. L'Afflitto, A Mathematical Perspective on Flight Dynamics and Control, Section 1.4.2"
-def rotmat_from_euler321(euler321: chrono.ChVectorD):
+def rotmat_from_euler321(euler321: chrono.ChVector3d):
     "Function that takes as input a ChVector representing a 321 sequence of euler angles (roll, pitch, yaw) and gives as output a rotation matrix as a ChMatrix33. For reference see A. L'Afflitto, A Mathematical Perspective on Flight Dynamics and Control, Section 1.4.2"
     r = euler321.x # roll
     p = euler321.y # pitch
@@ -159,14 +159,14 @@ def rotmat_from_euler321(euler321: chrono.ChVectorD):
     
     R = np.matmul(phi_t, np.matmul(theta_t, psi_t))
     
-    RotMat = chrono.ChMatrix33D()
+    RotMat = chrono.ChMatrix33d()
    
     RotMat.SetMatr(R.tolist())
     
     return RotMat
 
 # Function that takes in input a ChVector of Euler angles in radians and outputs a ChVector of Euler angles in degrees
-def rad2deg(angles_in_rad: chrono.ChVectorD):
+def rad2deg(angles_in_rad: chrono.ChVector3d):
     "Function that takes in input a ChVector of Euler angles in radians and outputs a ChVector of Euler angles in degrees"
     
     x_rad = angles_in_rad.x
@@ -177,22 +177,22 @@ def rad2deg(angles_in_rad: chrono.ChVectorD):
     y_deg = y_rad * 180/math.pi
     z_deg = z_rad * 180/math.pi
     
-    angles_in_deg = chrono.ChVectorD()
+    angles_in_deg = chrono.ChVector3d()
     angles_in_deg.Set(x_deg, y_deg, z_deg)
     
     return angles_in_deg
     
     
-# Function that takes as input a ChMatrix33D representing a rotation matrix and
-# gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVectorD.
+# Function that takes as input a ChMatrix33d representing a rotation matrix and
+# gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVector3d.
 # For reference see Matlab quaternion codes  
-def euler321_from_rotmat(M: chrono.ChMatrix33D) -> chrono.ChVectorD:
-    "Function that takes as input a ChMatrix33D representing a rotation matrix and gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVectorD. For reference see Matlab quaternion codes"
+def euler321_from_rotmat(M: chrono.ChMatrix33d) -> chrono.ChVector3d:
+    "Function that takes as input a ChMatrix33d representing a rotation matrix and gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVector3d. For reference see Matlab quaternion codes"
     R = np.array([[M[0,0], M[0,1], M[0,2]],
                   [M[1,0], M[1,1], M[1,2]],
                   [M[2,0], M[2,1], M[2,2]]])
     
-    euler321 = chrono.ChVectorD()
+    euler321 = chrono.ChVector3d()
     
     if ((R[2][0] - 1) < 0.01) and  ((R[2][0] - 1) > -0.01):
         euler321.Set(math.atan2(-R[0][1], R[1][1]), -math.pi/2, 0) # As ROLL, PITCH, YAW
@@ -205,16 +205,16 @@ def euler321_from_rotmat(M: chrono.ChMatrix33D) -> chrono.ChVectorD:
     
     return euler321 # As ROLL, PITCH, YAW
 
-# Function that takes as input a ChMatrix33D representing a rotation matrix and
-# gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVectorD.
+# Function that takes as input a ChMatrix33d representing a rotation matrix and
+# gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVector3d.
 # For reference see Matlab quaternion codes "from_quaternion_to_321_angles_new2"  
-def euler321_from_rotmat_matlab(M: chrono.ChMatrix33D) -> chrono.ChVectorD:
-    "Function that takes as input a ChMatrix33D representing a rotation matrix and gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVectorD. For reference see Matlab quaternion codes"
+def euler321_from_rotmat_matlab(M: chrono.ChMatrix33d) -> chrono.ChVector3d:
+    "Function that takes as input a ChMatrix33d representing a rotation matrix and gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVector3d. For reference see Matlab quaternion codes"
     R = np.array([[M[0,0], M[0,1], M[0,2]],
                   [M[1,0], M[1,1], M[1,2]],
                   [M[2,0], M[2,1], M[2,2]]])
     
-    euler321 = chrono.ChVectorD()
+    euler321 = chrono.ChVector3d()
     
     if ((R[0][2] - 1) < 0.01) and  ((R[0][2] - 1) > -0.01):
         euler321.Set(math.atan2(-R[1][0], R[1][1]), -math.pi/2, 0) # As ROLL, PITCH, YAW
@@ -227,13 +227,13 @@ def euler321_from_rotmat_matlab(M: chrono.ChMatrix33D) -> chrono.ChVectorD:
     
     return euler321 # As ROLL, PITCH, YAW
 
-def euler321_from_rotmat_matlab_opposite_direction(M: chrono.ChMatrix33D) -> chrono.ChVectorD:
-    "Function that takes as input a ChMatrix33D representing a rotation matrix and gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVectorD. For reference see Matlab quaternion codes"
+def euler321_from_rotmat_matlab_opposite_direction(M: chrono.ChMatrix33d) -> chrono.ChVector3d:
+    "Function that takes as input a ChMatrix33d representing a rotation matrix and gives as output a 321 sequence of euler angles (roll, pitch, yaw) as a ChVector3d. For reference see Matlab quaternion codes"
     R = np.array([[M[0,0], M[0,1], M[0,2]],
                   [M[1,0], M[1,1], M[1,2]],
                   [M[2,0], M[2,1], M[2,2]]])
     
-    euler321 = chrono.ChVectorD()
+    euler321 = chrono.ChVector3d()
     
     if ((R[0][2] - 1) < 0.01) and  ((R[0][2] - 1) > -0.01):
         euler321.Set(math.atan2(-R[1][0], R[1][1]), -math.pi/2, 0) # As ROLL, PITCH, YAW

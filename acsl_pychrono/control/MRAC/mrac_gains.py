@@ -71,6 +71,15 @@ class MRACGains(BaseMRACGains):
     self.Q_tran = np.matrix(6e-2 * np.diag([1,1,12,1,1,2]))
     self.P_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_tran.T, -self.Q_tran))
 
+    # # **Translational** adaptive parameters (GA Tuned on rollercoaster_trajectory1p2)
+    # self.Gamma_x_tran = np.matrix(np.diag([366.4388, 1.1364 , 75.8971, 1.4661, 0.6732, 1.4233]))
+    # self.Gamma_r_tran = np.matrix(np.diag([0.0089, 0.0779, 9.4984]))
+    # self.Gamma_Theta_tran = np.matrix(np.diag([726.4229, 38.6627, 73.8380, 73.3722, 5.2841, 1934.8502]))
+
+    # # **Translational** parameters Lyapunov equation (GA Tuned on rollercoaster_trajectory1p2)
+    # self.Q_tran = np.matrix(np.diag([0.2255, 0.1624, 0.1613, 0.0315, 0.0050, 0.0717]))
+    # self.P_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_tran.T, -self.Q_tran))
+
     # ----------------------------------------------------------------
     #                   Rotational Parameters MRAC
     # ----------------------------------------------------------------

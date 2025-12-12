@@ -5,52 +5,52 @@ import pychrono as chrono
 @dataclass
 class PixhawkState:
   # Global coordinates of the pixhawk containing both its position and rotation (quaternion)
-  coord_GLOB: chrono.ChCoordsysD = field(default_factory=chrono.ChCoordsysD)
+  coord_GLOB: chrono.ChCoordsysd = field(default_factory=chrono.ChCoordsysd)
   # Global velocities of the pixhawk derived from its position and rotation (quaternion)
-  coord_dt_GLOB: chrono.ChCoordsysD = field(default_factory=chrono.ChCoordsysD)
+  coord_dt_GLOB: chrono.ChCoordsysd = field(default_factory=chrono.ChCoordsysd)
   # Global accelerations of the pixhawk derived from its position and rotation (quaternion)
-  coord_dtdt_GLOB: chrono.ChCoordsysD = field(default_factory=chrono.ChCoordsysD)
+  coord_dtdt_GLOB: chrono.ChCoordsysd = field(default_factory=chrono.ChCoordsysd)
   # Angular velocity of the pixhawk respect to global coordinates, expressed in global coordinates
-  Wvel_GLOB: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  Wvel_GLOB: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
   # Angular acceleration of the pixhawk respect to global coordinates, expressed in global coordinates
-  Wacc_GLOB: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  Wacc_GLOB: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
   # Rotation matrix of the pixhawk given by pychrono (computed using pixhawk quaternion expressed in glob coord)
-  rotmat: chrono.ChMatrix33D = field(default_factory=chrono.ChMatrix33D)
+  rotmat: chrono.ChMatrix33d = field(default_factory=chrono.ChMatrix33d)
   # Rotation matrix of the pixhawk to go from Global to Local coordinates
   # (computed using Mattia's function: fun.rotmat_fromQ_Glob_to_Loc_asChMatrix33)
-  rotmat_F: chrono.ChMatrix33D = field(default_factory=chrono.ChMatrix33D)
+  rotmat_F: chrono.ChMatrix33d = field(default_factory=chrono.ChMatrix33d)
   # Local position of the pixhawk
-  pos_LOC: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  pos_LOC: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
   # Local velocities of the pixhawk
-  vel_LOC: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  vel_LOC: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
   # Local accelerations of the pixhawk 
-  acc_LOC: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  acc_LOC: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
   # Local Angular velocity of the pixhawk 
-  Wvel_LOC: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  Wvel_LOC: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
   # Local Angular acceleration of the pixhawk 
-  Wacc_LOC: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  Wacc_LOC: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
   # Global position of pixhawk obtained starting from the Local position
   # and premultiplying times the rotation matrix
-  pos_LOC_to_GLOB: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  pos_LOC_to_GLOB: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
   # Global position of pixhawk in NED convention obtained starting from the Local position
   # and premultiplying times the rotation matrix
-  pos_LOC_to_GLOB_NED: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  pos_LOC_to_GLOB_NED: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
   # Global velocity of pixhawk obtained starting from the Local velocity
   # and premultiplying times the rotation matrix
-  vel_LOC_to_GLOB: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  vel_LOC_to_GLOB: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
   # Global velocity of pixhawk in NED convention obtained starting from the Local position
   # and premultiplying times the rotation matrix
-  vel_LOC_to_GLOB_NED: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  vel_LOC_to_GLOB_NED: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
   # Global angular velocity of pixhawk obtained starting from the Local position
   # and premultiplying times the rotation matrix
-  Wvel_LOC_to_GLOB: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  Wvel_LOC_to_GLOB: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
   # Global angular velocity of pixhawk in NED convention obtained starting from the Local position
   # and premultiplying times the rotation matrix
-  Wvel_LOC_to_GLOB_NED: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  Wvel_LOC_to_GLOB_NED: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
   # Pixhawk quaternion with y and z components flipped
-  quat_fixed: chrono.ChQuaternionD = field(default_factory=lambda: chrono.ChQuaternionD(1, 0, 0, 0))
+  quat_fixed: chrono.ChQuaterniond = field(default_factory=lambda: chrono.ChQuaterniond(1, 0, 0, 0))
   # 321 sequence of euler angle (roll, pitch, yaw)
-  euler321: chrono.ChVectorD = field(default_factory=lambda: chrono.ChVectorD(0, 0, 0))
+  euler321: chrono.ChVector3d = field(default_factory=lambda: chrono.ChVector3d(0, 0, 0))
 
 @dataclass
 class VehicleState:

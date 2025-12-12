@@ -1,10 +1,10 @@
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass
 class MissionConfig:
   # Total simulation duration in seconds
-  simulation_duration_seconds: float = 21.5 # 21.5
+  simulation_duration_seconds: float = 29.5 # 21.5
   # Run the simulator in Wrapper mode (more simulations automatically run sequentially)
   wrapper_flag: bool = False
   # If True, perform real-time rendering of the simulation with Irrlicht
@@ -19,7 +19,7 @@ class MissionConfig:
   # "orbit"
   # "follow_smooth"
   # "topdown"
-  camera_mode: str = "fixed"
+  camera_mode: str = "fpv"
   # Simulation timestep used by Chrono
   timestep: float = 0.005 #0.005
 
@@ -31,7 +31,7 @@ class MissionConfig:
   # "HybridMRAC",
   # "HybridTwoLayerMRAC",
   # "NonAdaptiveEBCI"
-  controller_type: str = "FunnelMRAC"
+  controller_type: str = "MRAC"
 
   # User-defined trajectory types:
   # "circular_trajectory",
@@ -88,8 +88,8 @@ class WrapperParams: # Add here the params to be sweeped by the wrapper with the
 
 @dataclass
 class SimulationConfig:
-  mission_config: MissionConfig = MissionConfig()
-  vehicle_config: VehicleConfig = VehicleConfig()
-  environment_config: EnvironmentConfig = EnvironmentConfig()
-  wrapper_params: WrapperParams = WrapperParams()
+  mission_config: MissionConfig = field(default_factory=MissionConfig)
+  vehicle_config: VehicleConfig = field(default_factory=VehicleConfig)
+  environment_config: EnvironmentConfig = field(default_factory=EnvironmentConfig)
+  wrapper_params: WrapperParams = field(default_factory=WrapperParams)
   

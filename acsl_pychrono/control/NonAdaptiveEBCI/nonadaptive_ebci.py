@@ -1,18 +1,17 @@
 import math
 import numpy as np  
 from acsl_pychrono.control.outerloop_safetymech import OuterLoopSafetyMechanism
-from acsl_pychrono.control.TwoLayerMRAC.two_layer_mrac_gains import TwoLayerMRACGains
+from acsl_pychrono.control.NonAdaptiveEBCI.nonadaptive_ebci_gains import NonAdaptiveEBCIGains
 from acsl_pychrono.simulation.ode_input import OdeInput
 from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.control.control import Control
 from acsl_pychrono.control.base_mrac import BaseMRAC
 from acsl_pychrono.control.MRAC.m_mrac import M_MRAC
-from acsl_pychrono.control.TwoLayerMRAC.m_two_layer_mrac import M_TwoLayerMRAC
 from acsl_pychrono.control.NonAdaptiveEBCI.m_nonadaptive_ebci import M_NonAdaptiveEBCI
 from acsl_pychrono.control.projection_operator import ProjectionOperator
 
-class TwoLayerMRAC(BaseMRAC, Control):
-  def __init__(self, gains: TwoLayerMRACGains, ode_input: OdeInput, flight_params: FlightParams, timestep: float):
+class NonAdaptiveEBCI(BaseMRAC, Control):
+  def __init__(self, gains: NonAdaptiveEBCIGains, ode_input: OdeInput, flight_params: FlightParams, timestep: float):
     super().__init__(odein=ode_input, gains=gains)
     self.gains = gains
     self.fp = flight_params
@@ -43,12 +42,10 @@ class TwoLayerMRAC(BaseMRAC, Control):
     self.Theta_hat_rot = self.y[79:97] # \hat{\Theta} (rotational)
     self.integral_e_rot = self.y[97:100] # Integral of 'e_rot' = (angular_velocity - omega_ref) 
     self.integral_angular_error = self.y[100:103] # Integral of angular_error = attitude - attitude_ref
-    self.integral_e_omega_ref_cmd = self.y[103:106] # Integral of (omega_ref - omega_cmd)
-    self.K_hat_g_tran = self.y[106:124] # \hat{K}_g translational (Two-layer)
-    self.K_hat_g_rot = self.y[124:133] # \hat{K}_g rotational (Two-layer)
+    self.integral_e_omega_ref_cmd = self.y[103:106] #Integral of (omega_ref - omega_cmd)
 
     # Reshapes all adaptive gains to their correct (row, col) shape as matrices
-    self.reshapeAdaptiveGainsToMatricesTwoLayerMRAC()
+    self.reshapeAdaptiveGainsToMatricesMRAC()
 
     # compute translational and rotational trajectory tracking error
     self.computeTrajectoryTrackingErrors(self.odein)
@@ -61,11 +58,10 @@ class TwoLayerMRAC(BaseMRAC, Control):
 
     self.Phi_adaptive_tran_augmented = self.computeRegressorVectorOuterLoop()
 
-    self.mu_adaptive_mrac_tran = M_TwoLayerMRAC.computeControlLaw(
+    self.mu_adaptive_mrac_tran = M_MRAC.computeControlLaw(
       self.K_hat_x_tran, self.x_tran,
       self.K_hat_r_tran, self.r_tran,
-      self.Theta_hat_tran, self.Phi_adaptive_tran_augmented,
-      self.K_hat_g_tran, self.e_tran
+      self.Theta_hat_tran, self.Phi_adaptive_tran_augmented
     )
 
     self.mu_adaptive_ebci_tran = M_NonAdaptiveEBCI.computeErrorBoundingControlInput(
@@ -148,11 +144,10 @@ class TwoLayerMRAC(BaseMRAC, Control):
 
     self.Moment_baseline = self.computeMomentBaselineInnerLoop()
 
-    self.Moment_adaptive_mrac = M_TwoLayerMRAC.computeControlLaw(
+    self.Moment_adaptive_mrac = M_MRAC.computeControlLaw(
       self.K_hat_x_rot, self.odein.angular_velocity,
       self.K_hat_r_rot, self.r_rot,
-      self.Theta_hat_rot, self.Phi_adaptive_rot_augmented,
-      self.K_hat_g_rot, self.e_rot
+      self.Theta_hat_rot, self.Phi_adaptive_rot_augmented
     )
 
     self.Moment_adaptive_ebci = M_NonAdaptiveEBCI.computeErrorBoundingControlInput(
@@ -195,8 +190,6 @@ class TwoLayerMRAC(BaseMRAC, Control):
     self.dy[97:100] = self.odein.angular_velocity - self.omega_ref
     self.dy[100:103] = self.angular_error
     self.dy[103:106] = self.omega_ref - self.omega_cmd
-    self.dy[106:124] = self.K_hat_g_tran_dot.reshape(18,1)
-    self.dy[124:133] = self.K_hat_g_rot_dot.reshape(9,1)
 
     return np.array(self.dy)
   
@@ -219,18 +212,16 @@ class TwoLayerMRAC(BaseMRAC, Control):
     # Outer Loop Adaptive Laws
     (self.K_hat_x_tran_dot,
      self.K_hat_r_tran_dot,
-     self.Theta_hat_tran_dot,
-     self.K_hat_g_tran_dot
-    ) = M_TwoLayerMRAC.computeAllRobustAdaptiveLaws(
+     self.Theta_hat_tran_dot
+    ) = M_MRAC.computeAllRobustAdaptiveLaws(
       self.gains.Gamma_x_tran, self.x_tran,
       self.gains.Gamma_r_tran, self.r_tran,
       self.gains.Gamma_Theta_tran, self.Phi_adaptive_tran_augmented,
-      self.gains.Gamma_g_tran, self.e_tran,
       eTranspose_P_B_tran,
       self.dead_zone_value_tran,
-      self.gains.sigma_x_tran, self.gains.sigma_r_tran, self.gains.sigma_Theta_tran, self.gains.sigma_g_tran,
+      self.gains.sigma_x_tran, self.gains.sigma_r_tran, self.gains.sigma_Theta_tran,
       eTranspose_P_B_norm_tran,
-      self.K_hat_x_tran, self.K_hat_r_tran, self.Theta_hat_tran, self.K_hat_g_tran,
+      self.K_hat_x_tran, self.K_hat_r_tran, self.Theta_hat_tran,
       self.gains.use_dead_zone_modification, self.gains.use_e_modification
     )
 
@@ -266,16 +257,6 @@ class TwoLayerMRAC(BaseMRAC, Control):
         self.gains.epsilon_Theta_tran
       )
 
-      (self.K_hat_g_tran_dot,
-       self.proj_op_activated_K_hat_g_tran
-      ) = ProjectionOperator.Ellipsoid.projectionMatrix(
-        self.K_hat_g_tran,
-        self.K_hat_g_tran_dot,
-        self.gains.x_e_g_tran,
-        self.gains.S_g_tran,
-        self.gains.epsilon_g_tran
-      )
-
   def updateAdaptiveLawsInnerLoop(self):
     """
     Update the inner loop adaptive laws with deadzone modification, e-modification, and
@@ -295,18 +276,16 @@ class TwoLayerMRAC(BaseMRAC, Control):
     # Inner Loop Adaptive Laws
     (self.K_hat_x_rot_dot,
      self.K_hat_r_rot_dot,
-     self.Theta_hat_rot_dot,
-     self.K_hat_g_rot_dot
-    ) = M_TwoLayerMRAC.computeAllRobustAdaptiveLaws(
+     self.Theta_hat_rot_dot
+    ) = M_MRAC.computeAllRobustAdaptiveLaws(
       self.gains.Gamma_x_rot, self.odein.angular_velocity,
       self.gains.Gamma_r_rot, self.r_rot,
       self.gains.Gamma_Theta_rot, self.Phi_adaptive_rot_augmented,
-      self.gains.Gamma_g_rot, self.e_rot,
       eTranspose_P_B_rot,
       self.dead_zone_value_rot,
-      self.gains.sigma_x_rot, self.gains.sigma_r_rot, self.gains.sigma_Theta_rot, self.gains.sigma_g_rot,
+      self.gains.sigma_x_rot, self.gains.sigma_r_rot, self.gains.sigma_Theta_rot,
       eTranspose_P_B_norm_rot,
-      self.K_hat_x_rot, self.K_hat_r_rot, self.Theta_hat_rot, self.K_hat_g_rot,
+      self.K_hat_x_rot, self.K_hat_r_rot, self.Theta_hat_rot,
       self.gains.use_dead_zone_modification, self.gains.use_e_modification
     )
 
@@ -340,16 +319,6 @@ class TwoLayerMRAC(BaseMRAC, Control):
         self.gains.x_e_Theta_rot,
         self.gains.S_Theta_rot,
         self.gains.epsilon_Theta_rot
-      )
-
-      (self.K_hat_g_rot_dot,
-       self.proj_op_activated_K_hat_g_rot
-      ) = ProjectionOperator.Ellipsoid.projectionMatrix(
-        self.K_hat_g_rot,
-        self.K_hat_g_rot_dot,
-        self.gains.x_e_g_rot,
-        self.gains.S_g_rot,
-        self.gains.epsilon_g_rot
       )
 
   def computePostIntegrationAlgorithm(self):

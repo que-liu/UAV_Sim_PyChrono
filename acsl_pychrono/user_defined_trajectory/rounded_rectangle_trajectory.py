@@ -317,13 +317,13 @@ class RoundedRectangleTrajectory(BaseUserDefinedTrajectory):
     mpath = chrono.ChLinePath()
 
     seg1 = chrono.ChLineSegment(
-      chrono.ChVectorD(0, abs(self.altitude_trajectory) + mfloor_Yposition, 0),
-      chrono.ChVectorD(self.length_horizontal, abs(self.altitude_trajectory) + mfloor_Yposition, 0)
+      chrono.ChVector3d(0, abs(self.altitude_trajectory) + mfloor_Yposition, 0),
+      chrono.ChVector3d(self.length_horizontal, abs(self.altitude_trajectory) + mfloor_Yposition, 0)
     )
     arc2 = chrono.ChLineArc(
-      chrono.ChCoordsysD(
-        chrono.ChVectorD(self.length_horizontal, abs(self.altitude_trajectory) + mfloor_Yposition, self.rounding_radius),
-        chrono.ChQuaternionD(0.70710678118, 0.70710678118, 0, 0)
+      chrono.ChCoordsysd(
+        chrono.ChVector3d(self.length_horizontal, abs(self.altitude_trajectory) + mfloor_Yposition, self.rounding_radius),
+        chrono.ChQuaterniond(0.70710678118, 0.70710678118, 0, 0)
       ),
       self.rounding_radius,
       -math.pi/2,
@@ -331,22 +331,22 @@ class RoundedRectangleTrajectory(BaseUserDefinedTrajectory):
       True
     )
     seg3 = chrono.ChLineSegment(
-      chrono.ChVectorD(self.length_horizontal + self.rounding_radius,
+      chrono.ChVector3d(self.length_horizontal + self.rounding_radius,
                        abs(self.altitude_trajectory) + mfloor_Yposition,
                        self.rounding_radius
       ),
-      chrono.ChVectorD(self.length_horizontal + self.rounding_radius,
+      chrono.ChVector3d(self.length_horizontal + self.rounding_radius,
                        abs(self.altitude_trajectory) + mfloor_Yposition,
                        self.rounding_radius + self.length_vertical
       )
     )
     arc4 = chrono.ChLineArc(
-      chrono.ChCoordsysD(
-        chrono.ChVectorD(self.length_horizontal,
+      chrono.ChCoordsysd(
+        chrono.ChVector3d(self.length_horizontal,
                          abs(self.altitude_trajectory) + mfloor_Yposition,
                          self.rounding_radius + self.length_vertical
         ),
-        chrono.ChQuaternionD(0.70710678118,0.70710678118,0,0)
+        chrono.ChQuaterniond(0.70710678118,0.70710678118,0,0)
       ),
       self.rounding_radius,
       0,
@@ -354,22 +354,22 @@ class RoundedRectangleTrajectory(BaseUserDefinedTrajectory):
       True
     )
     seg5 = chrono.ChLineSegment(
-      chrono.ChVectorD(self.length_horizontal,
+      chrono.ChVector3d(self.length_horizontal,
                        abs(self.altitude_trajectory) + mfloor_Yposition,
                        2*self.rounding_radius + self.length_vertical
       ),
-      chrono.ChVectorD(0, 
+      chrono.ChVector3d(0, 
                        abs(self.altitude_trajectory) + mfloor_Yposition,
                        2*self.rounding_radius + self.length_vertical
       )
     )
     arc6 = chrono.ChLineArc(
-      chrono.ChCoordsysD(
-        chrono.ChVectorD(0,
+      chrono.ChCoordsysd(
+        chrono.ChVector3d(0,
                          abs(self.altitude_trajectory) + mfloor_Yposition,
                          self.rounding_radius + self.length_vertical
         ),
-        chrono.ChQuaternionD(0.70710678118,0.70710678118,0,0)
+        chrono.ChQuaterniond(0.70710678118,0.70710678118,0,0)
       ),
       self.rounding_radius,
       math.pi/2,
@@ -377,19 +377,19 @@ class RoundedRectangleTrajectory(BaseUserDefinedTrajectory):
       True
     )
     seg7 = chrono.ChLineSegment(
-      chrono.ChVectorD(-self.rounding_radius,
+      chrono.ChVector3d(-self.rounding_radius,
                        abs(self.altitude_trajectory) + mfloor_Yposition,
                        self.rounding_radius + self.length_vertical
       ),
-      chrono.ChVectorD(-self.rounding_radius,
+      chrono.ChVector3d(-self.rounding_radius,
                        abs(self.altitude_trajectory) + mfloor_Yposition,
                        self.rounding_radius
       )
     )
     arc8 = chrono.ChLineArc(
-      chrono.ChCoordsysD(
-        chrono.ChVectorD(0, abs(self.altitude_trajectory) + mfloor_Yposition, self.rounding_radius),
-        chrono.ChQuaternionD(0.70710678118,0.70710678118,0,0)
+      chrono.ChCoordsysd(
+        chrono.ChVector3d(0, abs(self.altitude_trajectory) + mfloor_Yposition, self.rounding_radius),
+        chrono.ChQuaterniond(0.70710678118,0.70710678118,0,0)
       ),
       self.rounding_radius,
       -math.pi,
@@ -405,11 +405,11 @@ class RoundedRectangleTrajectory(BaseUserDefinedTrajectory):
     mpath.AddSubLine(arc6)
     mpath.AddSubLine(seg7)
     mpath.AddSubLine(arc8)
-    mpath.Set_closed(True)
+    mpath.SetClosed(True)
 
-    # Create a ChLineShape, a visualization asset for lines.
+    # Create a ChVisualShapeLine, a visualization asset for lines.
     # The ChLinePath is a special type of ChLine and it can be visualized.
-    mpathasset = chrono.ChLineShape()
+    mpathasset = chrono.ChVisualShapeLine()
     mpathasset.SetLineGeometry(mpath)
     mpathasset.SetColor(chrono.ChColor(0,0,0))
     mfloor.AddVisualShape(mpathasset)

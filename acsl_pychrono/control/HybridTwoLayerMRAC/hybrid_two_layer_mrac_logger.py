@@ -1,13 +1,13 @@
 import numpy as np  
-from acsl_pychrono.control.TwoLayerMRAC.two_layer_mrac_gains import TwoLayerMRACGains
-from acsl_pychrono.control.TwoLayerMRAC.two_layer_mrac import TwoLayerMRAC
+from acsl_pychrono.control.HybridTwoLayerMRAC.hybrid_two_layer_mrac_gains import HybridTwoLayerMRACGains
+from acsl_pychrono.control.HybridTwoLayerMRAC.hybrid_two_layer_mrac import HybridTwoLayerMRAC
 
-class TwoLayerMRACLogger:
-  def __init__(self, gains: TwoLayerMRACGains) -> None:
+class HybridTwoLayerMRACLogger:
+  def __init__(self, gains: HybridTwoLayerMRACGains) -> None:
     self.gains = gains
     self.data_list = []
 
-  def collectData(self, controller: TwoLayerMRAC, simulation_time: float):
+  def collectData(self, controller: HybridTwoLayerMRAC, simulation_time: float):
     DATA_vector = np.zeros((self.gains.size_DATA, 1))
 
     DATA_vector[0] = controller.odein.time_now

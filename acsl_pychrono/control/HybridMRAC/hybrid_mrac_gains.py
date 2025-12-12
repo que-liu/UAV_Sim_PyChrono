@@ -6,7 +6,7 @@ from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.control.projection_operator import ProjectionOperator
 from acsl_pychrono.control.base_mrac_gains import BaseMRACGains
 
-class MRACGains(BaseMRACGains):
+class HybridMRACGains(BaseMRACGains):
   def __init__(self, flight_params: FlightParams):
     # General vehicle properties
     self.I_matrix_estimated = flight_params.I_matrix_estimated
@@ -16,7 +16,7 @@ class MRACGains(BaseMRACGains):
     self.drag_coefficient_matrix_estimated = flight_params.drag_coefficient_matrix_estimated
 
     # Number of states to be integrated by RK4
-    self.number_of_states = 106
+    self.number_of_states = 108
     # Length of the array vector that will be exported 
     self.size_DATA = 181
 
@@ -70,16 +70,7 @@ class MRACGains(BaseMRACGains):
     # **Translational** parameters Lyapunov equation
     self.Q_tran = np.matrix(6e-2 * np.diag([1,1,12,1,1,2]))
     self.P_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_tran.T, -self.Q_tran))
-
-    # # **Translational** adaptive parameters (GA Tuned on rollercoaster_trajectory1p2)
-    # self.Gamma_x_tran = np.matrix(np.diag([366.4388, 1.1364 , 75.8971, 1.4661, 0.6732, 1.4233]))
-    # self.Gamma_r_tran = np.matrix(np.diag([0.0089, 0.0779, 9.4984]))
-    # self.Gamma_Theta_tran = np.matrix(np.diag([726.4229, 38.6627, 73.8380, 73.3722, 5.2841, 1934.8502]))
-
-    # # **Translational** parameters Lyapunov equation (GA Tuned on rollercoaster_trajectory1p2)
-    # self.Q_tran = np.matrix(np.diag([0.2255, 0.1624, 0.1613, 0.0315, 0.0050, 0.0717]))
-    # self.P_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_tran.T, -self.Q_tran))
-
+    
     # ----------------------------------------------------------------
     #                   Rotational Parameters MRAC
     # ----------------------------------------------------------------
@@ -133,7 +124,7 @@ class MRACGains(BaseMRACGains):
     # ----------------------------------------------------------------
     #                  e-modification Parameters
     # ----------------------------------------------------------------
-    self.use_e_modification = False
+    self.use_e_modification = True
 
     self.sigma_x_tran = 0.5
     self.sigma_r_tran = 0.5
@@ -193,5 +184,16 @@ class MRACGains(BaseMRACGains):
     self.epsilon_x_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_x_rot)
     self.epsilon_r_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_r_rot)
     self.epsilon_Theta_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_Theta_rot)
+
+    # ----------------------------------------------------------------
+    #                        Hybrid Parameters
+    # ----------------------------------------------------------------
+    self.use_hybrid = True
+
+    self.alpha_hybrid_series_tran = 1.001
+    self.tolerance_time_reset_series_hybrid_tran = 1.0e-1
+
+    self.alpha_hybrid_series_rot = 1.001
+    self.tolerance_time_reset_series_hybrid_rot = 1.0e-1
 
 

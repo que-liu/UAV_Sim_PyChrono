@@ -6,7 +6,7 @@ from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.control.projection_operator import ProjectionOperator
 from acsl_pychrono.control.base_mrac_gains import BaseMRACGains
 
-class MRACGains(BaseMRACGains):
+class FunnelMRACGains(BaseMRACGains):
   def __init__(self, flight_params: FlightParams):
     # General vehicle properties
     self.I_matrix_estimated = flight_params.I_matrix_estimated
@@ -16,14 +16,13 @@ class MRACGains(BaseMRACGains):
     self.drag_coefficient_matrix_estimated = flight_params.drag_coefficient_matrix_estimated
 
     # Number of states to be integrated by RK4
-    self.number_of_states = 106
+    self.number_of_states = 108
     # Length of the array vector that will be exported 
-    self.size_DATA = 181
+    self.size_DATA = 197
 
     # ----------------------------------------------------------------
     #                     Baseline Parameters
     # ----------------------------------------------------------------
-
     # **Translational** baseline parameters to let the reference model follow the user-defined model (mu_baseline_tran)
     self.KP_tran = np.matrix(1 * np.diag([5,5,6]))
     self.KD_tran = np.matrix(1 * np.diag([8,8,3]))
@@ -35,9 +34,9 @@ class MRACGains(BaseMRACGains):
 
     # **Rotational** baseline parameters
     self.KP_rot = np.matrix(3e0 * np.diag([10,10,5]))
-    self.KI_rot = np.matrix(2e0 * np.diag([1,1,1]))
+    self.KI_rot = np.matrix(2e0 * np.diag([1,1,1])) 
 
-    # **Rotational** parameters for the PI baseline controller (Moment_baseline_PI)       
+    # **Rotational** parameters for the PID baseline controller (Moment_baseline_PI)
     self.KP_rot_PI_baseline = np.matrix(4.5e1 * np.diag([1,1,0.5]))
     self.KI_rot_PI_baseline = np.matrix(5.5e1 * np.diag([1,1,0.5]))
 
@@ -47,20 +46,19 @@ class MRACGains(BaseMRACGains):
     # ----------------------------------------------------------------
     #                   Translational Parameters MRAC
     # ----------------------------------------------------------------
-
     # Plant parameters **Translational** dynamics
     self.A_tran = np.block([[np.zeros((3, 3)),   np.identity(3)],
-                        [np.zeros((3, 3)), np.zeros((3, 3))]])
+                            [np.zeros((3, 3)), np.zeros((3, 3))]])
 
     self.B_tran = np.matrix(np.block([[np.zeros((3, 3))],
                                       [np.identity(3)]]))
 
     # **Translational** reference model parameters and estimates
     self.A_ref_tran = np.block([[np.zeros((3, 3)),  np.identity(3)],
-                            [        -self.KP_tran,        -self.KD_tran]])
+                                [   -self.KP_tran,   -self.KD_tran]])
 
     self.B_ref_tran = np.matrix(np.block([[np.zeros((3, 3))],
-                                      [(1/self.mass_total_estimated)*np.identity(3)]]))
+                                          [(1/self.mass_total_estimated)*np.identity(3)]]))
 
     # **Translational** adaptive parameters
     self.Gamma_x_tran = np.matrix(1e1 * np.diag([1,1,10,1,1,10])) # Adaptive rates
@@ -70,20 +68,10 @@ class MRACGains(BaseMRACGains):
     # **Translational** parameters Lyapunov equation
     self.Q_tran = np.matrix(6e-2 * np.diag([1,1,12,1,1,2]))
     self.P_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_tran.T, -self.Q_tran))
-
-    # # **Translational** adaptive parameters (GA Tuned on rollercoaster_trajectory1p2)
-    # self.Gamma_x_tran = np.matrix(np.diag([366.4388, 1.1364 , 75.8971, 1.4661, 0.6732, 1.4233]))
-    # self.Gamma_r_tran = np.matrix(np.diag([0.0089, 0.0779, 9.4984]))
-    # self.Gamma_Theta_tran = np.matrix(np.diag([726.4229, 38.6627, 73.8380, 73.3722, 5.2841, 1934.8502]))
-
-    # # **Translational** parameters Lyapunov equation (GA Tuned on rollercoaster_trajectory1p2)
-    # self.Q_tran = np.matrix(np.diag([0.2255, 0.1624, 0.1613, 0.0315, 0.0050, 0.0717]))
-    # self.P_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_tran.T, -self.Q_tran))
-
+  
     # ----------------------------------------------------------------
     #                   Rotational Parameters MRAC
     # ----------------------------------------------------------------
-
     # Plant parameters **Rotational** dynamics
     self.A_rot = np.matrix(np.zeros((3,3)))
     self.B_rot = np.matrix(np.eye(3))
@@ -101,6 +89,59 @@ class MRACGains(BaseMRACGains):
     self.Gamma_r_rot = np.matrix(5e0 * np.diag([1,1,1])) # Adaptive rates
     self.Gamma_Theta_rot = np.matrix(2e3 * np.diag([1,1,1,1,1,1])) # Adaptive rates
     
+    # ----------------------------------------------------------------
+    #                   Funnel Parameters MRAC
+    # ----------------------------------------------------------------
+    # **Translational** Funnel parameters     
+    # self.Q_M_funnel_tran = np.matrix(1e-1 * np.diag([1,1,1,1,1,1]))
+    self.Q_M_funnel_tran = 1.5 * np.matrix([
+      [2.000,  0,     0,     0,     0,    -0.001],
+      [0,      2.000, 0,    -0.001, 0.001, 0.002],
+      [0,      0,     2.000, -0.001, 0.002, 0.003],
+      [0,     -0.001, -0.001, 2.488, 0,     0],
+      [0,      0.001, 0.002,  0,     4.559, 0.001],
+      [-0.001, 0.002, 0.003,  0,     0.001, 5.725]
+    ])
+    self.M_funnel_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_tran.T, -self.Q_M_funnel_tran))
+    self.xi_bar_d_funnel_tran = 1e-2
+    self.lambda_max_M_funnel_tran = float(np.max(np.linalg.eigvals(self.M_funnel_tran)))
+    self.lambda_min_Q_M_funnel_tran = float(np.min(np.linalg.eigvals(self.Q_M_funnel_tran)))
+    self.e_min_funnel_tran = 0.0001
+    self.eta_max_funnel_tran = 0.45
+    self.delta_1_funnel_tran = 0.1
+    self.delta_2_funnel_tran = 0.1
+    self.delta_3_funnel_tran = 0.15
+    self.lambda_max_P_tran = float(np.max(np.linalg.eigvals(self.P_tran)))
+    self.lambda_min_Q_tran = float(np.min(np.linalg.eigvals(self.Q_tran)))
+    self.initial_cond_diameter_funnel_tran = 0.25
+    self.initial_cond_eta_funnel_tran = math.sqrt(self.eta_max_funnel_tran - self.initial_cond_diameter_funnel_tran)
+    
+    self.u_max = 45.0
+    self.u_min = 2.4
+    self.Delta_u_min = 1.0
+    self.nu_funnel_tran = 0.0 # 0.01
+
+    self.use_eigenvalue_lambda_sat_funnel_tran = True # Set to True to use the eigenvalue-based method
+    
+    # **Rotational** Funnel parameters            
+    self.Q_M_funnel_rot = np.matrix(1e-3 * np.diag([1,1,1]))
+    self.M_funnel_rot = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_rot.T, -self.Q_M_funnel_rot))
+    self.xi_bar_d_funnel_rot = 0.1
+    self.lambda_max_M_funnel_rot = float(np.max(np.linalg.eigvals(self.M_funnel_rot)))
+    self.lambda_min_Q_M_funnel_rot = float(np.min(np.linalg.eigvals(self.Q_M_funnel_rot)))
+    self.e_min_funnel_rot = (2 * self.xi_bar_d_funnel_rot * self.lambda_max_M_funnel_rot) / self.lambda_min_Q_M_funnel_rot
+    self.eta_max_funnel_rot = 2*self.e_min_funnel_rot + 1
+    self.delta_1_funnel_rot = 0.05 * self.eta_max_funnel_rot
+    self.delta_2_funnel_rot = self.e_min_funnel_rot
+    self.delta_3_funnel_rot = self.e_min_funnel_rot + (0.05 * self.eta_max_funnel_rot)
+    self.lambda_max_P_rot = float(np.max(np.linalg.eigvals(self.P_rot)))
+    self.lambda_min_Q_rot = float(np.min(np.linalg.eigvals(self.Q_rot)))
+    
+    self.Moment_max = 5.0
+    self.Moment_min = 0.0
+    self.Delta_Moment_min = 0.01
+    self.nu_funnel_rot = 0.0
+
     # ----------------------------------------------------------------
     #                   Safety Mechanism Parameters
     # ----------------------------------------------------------------
@@ -194,4 +235,5 @@ class MRACGains(BaseMRACGains):
     self.epsilon_r_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_r_rot)
     self.epsilon_Theta_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_Theta_rot)
 
-
+    # Calling post inizialization checks
+    self.__post_init__()

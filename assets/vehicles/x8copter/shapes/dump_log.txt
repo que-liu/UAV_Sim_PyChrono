@@ -1,5 +1,5 @@
 # Dump hierarchy from SolidWorks 
-# Assembly: C:\Users\lucam\Documents\ACSL\SolidWorks\Drone_big_box_PY\drone_bb.SLDASM
+# Assembly: C:\Users\mgramuglia\Desktop\JTARV\Mattia Drone\Drone_big_box_PY\drone_bb.SLDASM
 
 
          -Comments [CommentsFolder]
@@ -12,7 +12,7 @@
          -Annotations [DetailCabinet]
            -Notes [NotesAreaFtrFolder]
            -Notes1___EndTag___ [NotesAreaFtrFolder]
-         -Lights and Cameras [EnvFolder]
+         -Lights, Cameras and Scene [EnvFolder]
            -Ambient [AmbientLight]
            -Directional1 [DirectionLight]
            -Directional2 [DirectionLight]
@@ -77,33 +77,33 @@
          -Coordinate System6 [CoordSys]
          -Coordinate System7 [CoordSys]
          -Coordinate System8 [CoordSys]
-   +drone_big_box-1 <Default>
-           -Comments [CommentsFolder]
-           -Sketch1 [ProfileFeature]
-   +3_blade_prop-1 <Default>
-           -Comments [CommentsFolder]
-           -Sketch4 [ProfileFeature]
-   +3_blade_prop-5 <Default>
-           -Comments [CommentsFolder]
-           -Sketch4 [ProfileFeature]
-   +3_blade_prop-7 <Default>
-           -Comments [CommentsFolder]
-           -Sketch4 [ProfileFeature]
    +3_blade_prop-4 <Default>
+           -Comments [CommentsFolder]
+           -Sketch4 [ProfileFeature]
+   +3_blade_prop-3 <Default>
            -Comments [CommentsFolder]
            -Sketch4 [ProfileFeature]
    +3_blade_prop-2 <Default>
            -Comments [CommentsFolder]
            -Sketch4 [ProfileFeature]
-   +box_big_200x200x100-1 <Default>
-           -Comments [CommentsFolder]
-           -Sketch1 [ProfileFeature]
-   +3_blade_prop-3 <Default>
+   +3_blade_prop-5 <Default>
            -Comments [CommentsFolder]
            -Sketch4 [ProfileFeature]
    +3_blade_prop-6 <Default>
            -Comments [CommentsFolder]
            -Sketch4 [ProfileFeature]
+   +3_blade_prop-7 <Default>
+           -Comments [CommentsFolder]
+           -Sketch4 [ProfileFeature]
    +3_blade_prop-8 <Default>
+           -Comments [CommentsFolder]
+           -Sketch4 [ProfileFeature]
+   +drone_big_box-1 <Default>
+           -Comments [CommentsFolder]
+           -Sketch1 [ProfileFeature]
+   +box_big_200x200x100-1 <Default>
+           -Comments [CommentsFolder]
+           -Sketch1 [ProfileFeature]
+   +3_blade_prop-1 <Default>
            -Comments [CommentsFolder]
            -Sketch4 [ProfileFeature]

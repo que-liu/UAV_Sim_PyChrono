@@ -1,12 +1,11 @@
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
-
 
 @dataclass
 class MissionConfig:
   # Total simulation duration in seconds
-  simulation_duration_seconds: float = 29.5 # 21.5
+  simulation_duration_seconds: float = 31.5
   # Run the simulator in Wrapper mode (more simulations automatically run sequentially)
   wrapper_flag: bool = False
   # If True, perform real-time rendering of the simulation with Irrlicht
@@ -18,22 +17,15 @@ class MissionConfig:
   # "front",
   # "follow",
   # "fpv"
-  # "orbit"
-  # "follow_smooth"
-  # "topdown"
-  camera_mode: str = "fpv"
+  camera_mode: str = "fixed"
   # Simulation timestep used by Chrono
-  timestep: float = 0.005 #0.005
+  timestep: float = 0.005 
 
   # Controller types:
   # "PID",
   # "MRAC",
   # "TwoLayerMRAC",
-  # "FunnelMRAC",
-  # "HybridMRAC",
-  # "HybridTwoLayerMRAC",
-  # "NonAdaptiveEBCI"
-  controller_type: str = "MRAC"
+  controller_type: str = "PID"
 
   # User-defined trajectory types:
   # "circular_trajectory",
@@ -45,8 +37,7 @@ class MissionConfig:
 
   # If the trajectory_type is "piecewise_polynomial_trajectory", then choose the trajectory file to run
   # Path relative to 'current_working_directory/params/user_defined_trajectory'
-  # "bean_trajectory0p2.json"
-  trajectory_data_path: str = "rollercoaster_trajectory1p2.json"
+  trajectory_data_path: str = "bean_trajectory0p6.json"
 
   # Time for which, after executing the "trajectory_data_path",
   # the vehicle is hovering before starting the landing phase
@@ -58,7 +49,6 @@ class MissionConfig:
   # "two_steel_balls"
   # "ten_steel_balls_in_two_lines"
   # "many_steel_balls_in_random_position"
-  # "sling_ball_payload"
   payload_type: str = "two_steel_balls"
 
   # Unique wrapper batch folder passed to the function used for running many parallel wrapper simulations 
@@ -94,8 +84,8 @@ class WrapperParams: # Add here the params to be sweeped by the wrapper with the
 
 @dataclass
 class SimulationConfig:
-  mission_config: MissionConfig = field(default_factory=MissionConfig)
-  vehicle_config: VehicleConfig = field(default_factory=VehicleConfig)
-  environment_config: EnvironmentConfig = field(default_factory=EnvironmentConfig)
-  wrapper_params: WrapperParams = field(default_factory=WrapperParams)
+  mission_config: MissionConfig = MissionConfig()
+  vehicle_config: VehicleConfig = VehicleConfig()
+  environment_config: EnvironmentConfig = EnvironmentConfig()
+  wrapper_params: WrapperParams = WrapperParams()
   

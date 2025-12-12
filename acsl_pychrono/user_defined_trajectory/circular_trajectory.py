@@ -80,21 +80,21 @@ class CircularTrajectory(BaseUserDefinedTrajectory):
     # Create a ChLinePath geometry, and insert sub-paths 
     mpath = chrono.ChLinePath()
     marc1 = chrono.ChLineArc(
-      chrono.ChCoordsysd(
-        chrono.ChVector3d(-self.radius_trajectory, abs(self.altitude_trajectory) + mfloor_Yposition, 0),
-        chrono.ChQuaterniond(0.70710678118,0.70710678118,0,0)
+      chrono.ChCoordsysD(
+        chrono.ChVectorD(-self.radius_trajectory, abs(self.altitude_trajectory) + mfloor_Yposition, 0),
+        chrono.ChQuaternionD(0.70710678118,0.70710678118,0,0)
       ),
       self.radius_trajectory,
-      2*math.pi,
+      chrono.CH_C_2PI,
       0,
       False
     )
     mpath.AddSubLine(marc1)
-    mpath.SetClosed(True)
+    mpath.Set_closed(True)
 
-    # Create a ChVisualShapeLine, a visualization asset for lines.
+    # Create a ChLineShape, a visualization asset for lines.
     # The ChLinePath is a special type of ChLine and it can be visualized.
-    mpathasset = chrono.ChVisualShapeLine()
+    mpathasset = chrono.ChLineShape()
     mpathasset.SetLineGeometry(mpath)
     mpathasset.SetColor(chrono.ChColor(0,0,0))
     mfloor.AddVisualShape(mpathasset)

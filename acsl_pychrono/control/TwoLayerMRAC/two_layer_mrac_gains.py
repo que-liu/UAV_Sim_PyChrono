@@ -147,7 +147,7 @@ class TwoLayerMRACGains(BaseMRACGains):
     # ----------------------------------------------------------------
     #                  e-modification Parameters
     # ----------------------------------------------------------------
-    self.use_e_modification = False
+    self.use_e_modification = True
 
     self.sigma_x_tran = 0.5
     self.sigma_r_tran = 0.5
@@ -223,18 +223,5 @@ class TwoLayerMRACGains(BaseMRACGains):
     self.epsilon_r_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_r_rot)
     self.epsilon_Theta_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_Theta_rot)
     self.epsilon_g_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_g_rot)
-
-    # ----------------------------------------------------------------
-    #     Non-Adaptive Error Bounding Control Input Parameters
-    # ----------------------------------------------------------------
-    self.use_error_bounding_control_input = False
-
-    self.xi_bar_d_tran = 2.0e1
-    self.lambda_bar_tran = 1.0
-    self.delta_ebci_tran = 1.0e-5
-
-    self.xi_bar_d_rot = 1.0e1
-    self.lambda_bar_rot = 1.0
-    self.delta_ebci_rot = 1.0e-5
 
 

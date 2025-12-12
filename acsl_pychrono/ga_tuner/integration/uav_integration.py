@@ -11,7 +11,6 @@ import numpy as np
 
 from acsl_pychrono.simulation.simulation import Simulation
 from acsl_pychrono.control.logging import Logging
-from acsl_pychrono.executor.simulate_mission import simulateMission
 from acsl_pychrono.config.config import MissionConfig, WrapperParams, SimulationConfig
 
 from ..metrics.uav_evaluators import PIDSimulationEvaluator, MRACInnerLoopEvaluator, MRACOuterLoopEvaluator, MRACGroupedEvaluator
@@ -103,6 +102,9 @@ class UAVModelAdapter:
         Returns:
             Log data dictionary if simulation completed successfully, None otherwise
         """
+        # Import here to avoid circular import with executor module
+        from acsl_pychrono.executor.simulate_mission import simulateMission
+        
         sim_config = config['simulation_config']
         simulation = Simulation(sim_config)
         git_info = Logging.getGitRepoInfo()

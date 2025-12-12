@@ -84,9 +84,9 @@ class TwoLayerMRACLogger:
     DATA_vector[201:210] = controller.K_hat_g_rot.flatten(order='F').reshape(-1, 1)
 
     DATA_vector[210:213] = controller.mu_adaptive_mrac_tran
-    DATA_vector[213:216] = np.zeros((3, 1))
+    DATA_vector[213:216] = controller.mu_adaptive_ebci_tran
     DATA_vector[216:219] = controller.Moment_adaptive_mrac
-    DATA_vector[219:222] = np.zeros((3, 1))
+    DATA_vector[219:222] = controller.Moment_adaptive_ebci
     
     self.data_list.append(DATA_vector.flatten())
 
@@ -224,6 +224,11 @@ class TwoLayerMRACLogger:
           "y": DATA_np[:, 211].reshape(-1, 1),
           "z": DATA_np[:, 212].reshape(-1, 1),
         },
+        "mu_adaptive_ebci": {
+          "x": DATA_np[:, 213].reshape(-1, 1),
+          "y": DATA_np[:, 214].reshape(-1, 1),
+          "z": DATA_np[:, 215].reshape(-1, 1),
+        },
       },
       "desired_euler_angles": {
         "roll": DATA_np[:, 20].reshape(-1, 1),
@@ -336,6 +341,11 @@ class TwoLayerMRACLogger:
           "x": DATA_np[:, 216].reshape(-1, 1),
           "y": DATA_np[:, 217].reshape(-1, 1),
           "z": DATA_np[:, 218].reshape(-1, 1),
+        },
+        "Moment_adaptive_ebci": {
+          "x": DATA_np[:, 219].reshape(-1, 1),
+          "y": DATA_np[:, 220].reshape(-1, 1),
+          "z": DATA_np[:, 221].reshape(-1, 1),
         },
       },
       "user_defined_position": {

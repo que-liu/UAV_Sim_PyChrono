@@ -8,6 +8,7 @@ from acsl_pychrono.control.control import Control
 from acsl_pychrono.control.base_mrac import BaseMRAC
 from acsl_pychrono.control.MRAC.m_mrac import M_MRAC
 from acsl_pychrono.control.TwoLayerMRAC.m_two_layer_mrac import M_TwoLayerMRAC
+from acsl_pychrono.control.NonAdaptiveEBCI.m_nonadaptive_ebci import M_NonAdaptiveEBCI
 from acsl_pychrono.control.projection_operator import ProjectionOperator
 
 class TwoLayerMRAC(BaseMRAC, Control):
@@ -67,7 +68,17 @@ class TwoLayerMRAC(BaseMRAC, Control):
       self.K_hat_g_tran, self.e_tran
     )
 
-    self.mu_adaptive_tran = self.mu_adaptive_mrac_tran
+    self.mu_adaptive_ebci_tran = M_NonAdaptiveEBCI.computeErrorBoundingControlInput(
+      self.gains.xi_bar_d_tran,
+      self.gains.lambda_bar_tran,
+      self.gains.delta_ebci_tran,
+      self.gains.B_tran,
+      self.gains.P_tran,
+      self.e_tran,
+      self.gains.use_error_bounding_control_input
+    )
+
+    self.mu_adaptive_tran = self.mu_adaptive_mrac_tran + self.mu_adaptive_ebci_tran
 
     self.mu_tran_raw = self.computeMuRawOuterLoop()
 
@@ -144,7 +155,17 @@ class TwoLayerMRAC(BaseMRAC, Control):
       self.K_hat_g_rot, self.e_rot
     )
 
-    self.Moment_adaptive = self.Moment_adaptive_mrac
+    self.Moment_adaptive_ebci = M_NonAdaptiveEBCI.computeErrorBoundingControlInput(
+      self.gains.xi_bar_d_rot,
+      self.gains.lambda_bar_rot,
+      self.gains.delta_ebci_rot,
+      self.gains.B_rot,
+      self.gains.P_rot,
+      self.e_rot,
+      self.gains.use_error_bounding_control_input
+    )
+
+    self.Moment_adaptive = self.Moment_adaptive_mrac + self.Moment_adaptive_ebci
 
     (self.u2,
      self.u3,

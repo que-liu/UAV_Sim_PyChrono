@@ -2,11 +2,12 @@ import math
 import numpy as np
 from numpy import linalg as LA
 from scipy import linalg
+import scipy
 from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.control.projection_operator import ProjectionOperator
 from acsl_pychrono.control.base_mrac_gains import BaseMRACGains
 
-class MRACGains(BaseMRACGains):
+class HybridTwoLayerMRACGains(BaseMRACGains):
   def __init__(self, flight_params: FlightParams):
     # General vehicle properties
     self.I_matrix_estimated = flight_params.I_matrix_estimated
@@ -16,9 +17,9 @@ class MRACGains(BaseMRACGains):
     self.drag_coefficient_matrix_estimated = flight_params.drag_coefficient_matrix_estimated
 
     # Number of states to be integrated by RK4
-    self.number_of_states = 106
+    self.number_of_states = 135
     # Length of the array vector that will be exported 
-    self.size_DATA = 181
+    self.size_DATA = 222
 
     # ----------------------------------------------------------------
     #                     Baseline Parameters
@@ -63,22 +64,12 @@ class MRACGains(BaseMRACGains):
                                       [(1/self.mass_total_estimated)*np.identity(3)]]))
 
     # **Translational** adaptive parameters
-    self.Gamma_x_tran = np.matrix(1e1 * np.diag([1,1,10,1,1,10])) # Adaptive rates
-    self.Gamma_r_tran = np.matrix(3e-2 * np.diag([1,1,4])) # Adaptive rates
-    self.Gamma_Theta_tran = np.matrix(1e1 * np.diag([1,1,2,1,1,2])) # Adaptive rates
+    self.Gamma_x_tran = np.matrix(3e3 * np.diag([1,1,10,1,1,10])) # Adaptive rates
+    self.Gamma_r_tran = np.matrix(5e2 * np.diag([1,1,4])) # Adaptive rates
+    self.Gamma_Theta_tran = np.matrix(1e3 * np.diag([1,1,2,1,1,2])) # Adaptive rates
 
     # **Translational** parameters Lyapunov equation
-    self.Q_tran = np.matrix(6e-2 * np.diag([1,1,12,1,1,2]))
-    self.P_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_tran.T, -self.Q_tran))
-
-    # # **Translational** adaptive parameters (GA Tuned on rollercoaster_trajectory1p2)
-    # self.Gamma_x_tran = np.matrix(np.diag([366.4388, 1.1364 , 75.8971, 1.4661, 0.6732, 1.4233]))
-    # self.Gamma_r_tran = np.matrix(np.diag([0.0089, 0.0779, 9.4984]))
-    # self.Gamma_Theta_tran = np.matrix(np.diag([726.4229, 38.6627, 73.8380, 73.3722, 5.2841, 1934.8502]))
-
-    # # **Translational** parameters Lyapunov equation (GA Tuned on rollercoaster_trajectory1p2)
-    # self.Q_tran = np.matrix(np.diag([0.2255, 0.1624, 0.1613, 0.0315, 0.0050, 0.0717]))
-    # self.P_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_tran.T, -self.Q_tran))
+    self.Q_tran = np.matrix(2e-2 * np.diag([1,1,12,1,1,2]))
 
     # ----------------------------------------------------------------
     #                   Rotational Parameters MRAC
@@ -93,13 +84,36 @@ class MRACGains(BaseMRACGains):
     self.B_ref_rot = np.matrix(np.eye(3))
 
     # **Rotational** parameters Lyapunov equation
-    self.Q_rot = np.matrix(1e-3 * np.diag([0.3333, 0.4, 0.6]))
-    self.P_rot = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_rot.T, -self.Q_rot))
-
+    self.Q_rot = np.matrix(1e-3 * np.diag([1,1,1]))
+    
     # **Rotational** adaptive parameters
     self.Gamma_x_rot = np.matrix(1e4 * np.diag([1,1,1])) # Adaptive rates
     self.Gamma_r_rot = np.matrix(5e0 * np.diag([1,1,1])) # Adaptive rates
     self.Gamma_Theta_rot = np.matrix(2e3 * np.diag([1,1,1,1,1,1])) # Adaptive rates
+
+    # ----------------------------------------------------------------
+    #                   Two-Layer MRAC Parameters
+    # ----------------------------------------------------------------
+
+    # **Translational** second layer parameters
+    poles_ref_tran = LA.eig(self.A_ref_tran)[0]
+    poles_transient_tran = poles_ref_tran + 2*np.min(np.real(poles_ref_tran))
+    K_transient_tran = scipy.signal.place_poles(self.A_tran, self.B_ref_tran, poles_transient_tran)
+    K_transient_tran = np.matrix(K_transient_tran.gain_matrix)
+    self.A_transient_tran = self.A_tran - self.B_ref_tran*K_transient_tran 
+
+    self.P_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_transient_tran.T, -self.Q_tran))
+    self.Gamma_g_tran = np.matrix(1e4 * np.diag([1,1,1,1,1,1])) # Adaptive rates
+
+    # **Rotational** second layer parameters
+    poles_ref_rot = LA.eig(self.A_ref_rot)[0]
+    poles_transient_rot = poles_ref_rot + np.min(np.real(poles_ref_rot))
+    K_transient_rot = scipy.signal.place_poles(self.A_rot, self.B_ref_rot, poles_transient_rot)
+    K_transient_rot = np.matrix(K_transient_rot.gain_matrix)
+    self.A_transient_rot = self.A_rot - self.B_ref_rot*K_transient_rot
+    
+    self.P_rot = np.matrix(linalg.solve_continuous_lyapunov(self.A_transient_rot.T, -self.Q_rot))
+    self.Gamma_g_rot = np.matrix(1e2 * np.diag([2,2,1])) # Adaptive rates
     
     # ----------------------------------------------------------------
     #                   Safety Mechanism Parameters
@@ -133,15 +147,17 @@ class MRACGains(BaseMRACGains):
     # ----------------------------------------------------------------
     #                  e-modification Parameters
     # ----------------------------------------------------------------
-    self.use_e_modification = False
+    self.use_e_modification = True
 
     self.sigma_x_tran = 0.5
     self.sigma_r_tran = 0.5
     self.sigma_Theta_tran = 0.5
+    self.sigma_g_tran = 0.5
 
     self.sigma_x_rot = 0.5
     self.sigma_r_rot = 0.5
     self.sigma_Theta_rot = 0.5
+    self.sigma_g_rot = 0.5
 
     # ----------------------------------------------------------------
     #                  Projection Operator Parameters
@@ -163,6 +179,11 @@ class MRACGains(BaseMRACGains):
     self.S_diagonal_Theta_tran = 7.5 * np.ones((18, 1))
     self.alpha_Theta_tran = 0.1
 
+    # K_g_hat translational
+    self.x_e_g_tran = np.zeros((18, 1))
+    self.S_diagonal_g_tran = 60 * np.ones((18, 1))
+    self.alpha_g_tran = 0.1
+
     # K_x_hat rotational
     self.x_e_x_rot = np.zeros((9, 1))
     self.S_diagonal_x_rot = 5.0 * np.ones((9, 1))
@@ -178,20 +199,53 @@ class MRACGains(BaseMRACGains):
     self.S_diagonal_Theta_rot = 10 * np.ones((18, 1))
     self.alpha_Theta_rot = 0.1
 
+    # K_g_hat rotational
+    self.x_e_g_rot = np.zeros((9, 1))
+    self.S_diagonal_g_rot = 10.0 * np.ones((9, 1))
+    self.alpha_g_rot = 0.1
+
     # Generate S matrices from diagonal
     self.S_x_tran = ProjectionOperator.generateEllipsoidMatrixFromDiagonal(self.S_diagonal_x_tran.flatten())
     self.S_r_tran = ProjectionOperator.generateEllipsoidMatrixFromDiagonal(self.S_diagonal_r_tran.flatten())
     self.S_Theta_tran = ProjectionOperator.generateEllipsoidMatrixFromDiagonal(self.S_diagonal_Theta_tran.flatten())
+    self.S_g_tran = ProjectionOperator.generateEllipsoidMatrixFromDiagonal(self.S_diagonal_g_tran.flatten())
     self.S_x_rot = ProjectionOperator.generateEllipsoidMatrixFromDiagonal(self.S_diagonal_x_rot.flatten())
     self.S_r_rot = ProjectionOperator.generateEllipsoidMatrixFromDiagonal(self.S_diagonal_r_rot.flatten())
     self.S_Theta_rot = ProjectionOperator.generateEllipsoidMatrixFromDiagonal(self.S_diagonal_Theta_rot.flatten())
+    self.S_g_rot = ProjectionOperator.generateEllipsoidMatrixFromDiagonal(self.S_diagonal_g_rot.flatten())
 
     # Compute epsilon values from alpha
     self.epsilon_x_tran = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_x_tran)
     self.epsilon_r_tran = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_r_tran)
     self.epsilon_Theta_tran = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_Theta_tran)
+    self.epsilon_g_tran = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_g_tran)
     self.epsilon_x_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_x_rot)
     self.epsilon_r_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_r_rot)
     self.epsilon_Theta_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_Theta_rot)
+    self.epsilon_g_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_g_rot)
+
+    # ----------------------------------------------------------------
+    #     Non-Adaptive Error Bounding Control Input Parameters
+    # ----------------------------------------------------------------
+    self.use_error_bounding_control_input = True
+
+    self.xi_bar_d_tran = 1.0e1 # 1.0e3
+    self.lambda_bar_tran = 1.0
+    self.delta_ebci_tran = 1.0e-5
+
+    self.xi_bar_d_rot = 1.0e1 # 2.0e2
+    self.lambda_bar_rot = 1.0
+    self.delta_ebci_rot = 1.0e-5
+
+    # ----------------------------------------------------------------
+    #                        Hybrid Parameters
+    # ----------------------------------------------------------------
+    self.use_hybrid = True
+
+    self.alpha_hybrid_series_tran = 1.001
+    self.tolerance_time_reset_series_hybrid_tran = 1.0e-1
+
+    self.alpha_hybrid_series_rot = 1.001
+    self.tolerance_time_reset_series_hybrid_rot = 1.0e-1
 
 

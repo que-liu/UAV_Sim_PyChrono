@@ -1,7 +1,7 @@
 import math
 import numpy as np  
 from acsl_pychrono.control.outerloop_safetymech import OuterLoopSafetyMechanism
-from acsl_pychrono.control.TwoLayerMRAC.two_layer_mrac_gains import TwoLayerMRACGains
+from acsl_pychrono.control.HybridTwoLayerMRAC.hybrid_two_layer_mrac_gains import HybridTwoLayerMRACGains
 from acsl_pychrono.simulation.ode_input import OdeInput
 from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.control.control import Control
@@ -9,10 +9,11 @@ from acsl_pychrono.control.base_mrac import BaseMRAC
 from acsl_pychrono.control.MRAC.m_mrac import M_MRAC
 from acsl_pychrono.control.TwoLayerMRAC.m_two_layer_mrac import M_TwoLayerMRAC
 from acsl_pychrono.control.NonAdaptiveEBCI.m_nonadaptive_ebci import M_NonAdaptiveEBCI
+from acsl_pychrono.control.HybridMRAC.m_hybrid_mrac import M_HybridMRAC
 from acsl_pychrono.control.projection_operator import ProjectionOperator
 
-class TwoLayerMRAC(BaseMRAC, Control):
-  def __init__(self, gains: TwoLayerMRACGains, ode_input: OdeInput, flight_params: FlightParams, timestep: float):
+class HybridTwoLayerMRAC(BaseMRAC, Control):
+  def __init__(self, gains: HybridTwoLayerMRACGains, ode_input: OdeInput, flight_params: FlightParams, timestep: float):
     super().__init__(odein=ode_input, gains=gains)
     self.gains = gains
     self.fp = flight_params
@@ -21,6 +22,14 @@ class TwoLayerMRAC(BaseMRAC, Control):
     self.dy = np.zeros((self.gains.number_of_states, 1))
     # Initial conditions
     self.y = np.zeros((self.gains.number_of_states, 1))
+    # Hybrid variables
+    self.first_controller_loop = True
+    self.summation_hybrid_P_tran = 0.0
+    self.summation_hybrid_P_rot = 0.0
+    self.s_hybrid_tran = 0
+    self.s_hybrid_rot = 0
+    self.time_of_last_trajectory_reset_tran = 0.0
+    self.time_of_last_trajectory_reset_rot = 0.0
 
   def computeControlAlgorithm(self, ode_input: OdeInput):
     """
@@ -46,9 +55,17 @@ class TwoLayerMRAC(BaseMRAC, Control):
     self.integral_e_omega_ref_cmd = self.y[103:106] # Integral of (omega_ref - omega_cmd)
     self.K_hat_g_tran = self.y[106:124] # \hat{K}_g translational (Two-layer)
     self.K_hat_g_rot = self.y[124:133] # \hat{K}_g rotational (Two-layer)
+    self.integral_eQe_tran = self.y[133] # Integral of e_tran.T * Q_tran * e_tran
+    self.integral_eQe_rot = self.y[134] # Integral of e_rot.T * Q_rot * e_rot
+
 
     # Reshapes all adaptive gains to their correct (row, col) shape as matrices
     self.reshapeAdaptiveGainsToMatricesTwoLayerMRAC()
+
+    if self.gains.use_hybrid:
+      (self.e_tran_previous,
+       self.e_rot_previous
+      ) = M_HybridMRAC.computePreviousTrajectoryTrackingErrors(self.e_tran, self.e_rot)
 
     # compute translational and rotational trajectory tracking error
     self.computeTrajectoryTrackingErrors(self.odein)
@@ -197,6 +214,8 @@ class TwoLayerMRAC(BaseMRAC, Control):
     self.dy[103:106] = self.omega_ref - self.omega_cmd
     self.dy[106:124] = self.K_hat_g_tran_dot.reshape(18,1)
     self.dy[124:133] = self.K_hat_g_rot_dot.reshape(9,1)
+    self.dy[133] = self.e_tran.T * self.gains.Q_tran * self.e_tran
+    self.dy[134] = self.e_rot.T * self.gains.Q_rot * self.e_rot
 
     return np.array(self.dy)
   
@@ -353,4 +372,53 @@ class TwoLayerMRAC(BaseMRAC, Control):
       )
 
   def computePostIntegrationAlgorithm(self):
-    pass
+    if not self.gains.use_hybrid:
+      return
+
+    # Apply Hybrid algorithm to Outer Loop
+    (self.first_controller_loop,
+     self.summation_hybrid_P_tran, 
+     self.s_hybrid_tran,
+     self.time_of_last_trajectory_reset_tran
+    ) = M_HybridMRAC.runHybridStep(
+      self.e_tran,
+      self.e_tran_previous,
+      self.gains.P_tran,
+      self.gains.Q_tran,
+      self.summation_hybrid_P_tran,
+      self.s_hybrid_tran,
+      self.time_of_last_trajectory_reset_tran,
+      self.integral_eQe_tran,
+      self.x_ref_tran,
+      self.gains.alpha_hybrid_series_tran,
+      self.odein.time_now,
+      self.gains.tolerance_time_reset_series_hybrid_tran,
+      self.y,
+      slice(4, 10),
+      133,
+      self.first_controller_loop
+    )
+
+    # Apply Hybrid algorithm to Inner Loop
+    (self.first_controller_loop,
+     self.summation_hybrid_P_rot, 
+     self.s_hybrid_rot,
+     self.time_of_last_trajectory_reset_rot
+    ) = M_HybridMRAC.runHybridStep(
+      self.e_rot,
+      self.e_rot_previous,
+      self.gains.P_rot,
+      self.gains.Q_rot,
+      self.summation_hybrid_P_rot,
+      self.s_hybrid_rot,
+      self.time_of_last_trajectory_reset_rot,
+      self.integral_eQe_rot,
+      self.omega_ref,
+      self.gains.alpha_hybrid_series_rot,
+      self.odein.time_now,
+      self.gains.tolerance_time_reset_series_hybrid_rot,
+      self.y,
+      slice(58, 61),
+      134,
+      self.first_controller_loop
+    )

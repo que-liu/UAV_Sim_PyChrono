@@ -1,13 +1,13 @@
 import numpy as np  
-from acsl_pychrono.control.TwoLayerMRAC.two_layer_mrac_gains import TwoLayerMRACGains
-from acsl_pychrono.control.TwoLayerMRAC.two_layer_mrac import TwoLayerMRAC
+from acsl_pychrono.control.NonAdaptiveEBCI.nonadaptive_ebci_gains import NonAdaptiveEBCIGains
+from acsl_pychrono.control.NonAdaptiveEBCI.nonadaptive_ebci import NonAdaptiveEBCI
 
-class TwoLayerMRACLogger:
-  def __init__(self, gains: TwoLayerMRACGains) -> None:
+class NonAdaptiveEBCILogger:
+  def __init__(self, gains: NonAdaptiveEBCIGains) -> None:
     self.gains = gains
     self.data_list = []
 
-  def collectData(self, controller: TwoLayerMRAC, simulation_time: float):
+  def collectData(self, controller: NonAdaptiveEBCI, simulation_time: float):
     DATA_vector = np.zeros((self.gains.size_DATA, 1))
 
     DATA_vector[0] = controller.odein.time_now
@@ -74,19 +74,10 @@ class TwoLayerMRACLogger:
     DATA_vector[179] = controller.dead_zone_value_tran
     DATA_vector[180] = controller.dead_zone_value_rot
 
-    if self.gains.use_projection_operator:
-      DATA_vector[181] = controller.proj_op_activated_K_hat_g_tran
-      DATA_vector[182] = controller.proj_op_activated_K_hat_g_rot
-    else:
-      DATA_vector[181:183] = False
-
-    DATA_vector[183:201] = controller.K_hat_g_tran.flatten(order='F').reshape(-1, 1)
-    DATA_vector[201:210] = controller.K_hat_g_rot.flatten(order='F').reshape(-1, 1)
-
-    DATA_vector[210:213] = controller.mu_adaptive_mrac_tran
-    DATA_vector[213:216] = controller.mu_adaptive_ebci_tran
-    DATA_vector[216:219] = controller.Moment_adaptive_mrac
-    DATA_vector[219:222] = controller.Moment_adaptive_ebci
+    DATA_vector[180:183] = controller.mu_adaptive_mrac_tran
+    DATA_vector[183:186] = controller.mu_adaptive_ebci_tran
+    DATA_vector[186:189] = controller.Moment_adaptive_mrac
+    DATA_vector[189:192] = controller.Moment_adaptive_ebci
     
     self.data_list.append(DATA_vector.flatten())
 
@@ -198,36 +189,15 @@ class TwoLayerMRACLogger:
           "ind52": DATA_np[:, 142].reshape(-1, 1),
         },
         "dead_zone_value": DATA_np[:, 179].reshape(-1, 1),
-        "proj_op_activated_K_hat_g": DATA_np[:, 181].reshape(-1, 1),
-        "K_hat_g": {
-          "ind00": DATA_np[:, 183].reshape(-1, 1),
-          "ind10": DATA_np[:, 184].reshape(-1, 1),
-          "ind20": DATA_np[:, 185].reshape(-1, 1),
-          "ind30": DATA_np[:, 186].reshape(-1, 1),
-          "ind40": DATA_np[:, 187].reshape(-1, 1),
-          "ind50": DATA_np[:, 188].reshape(-1, 1),
-          "ind01": DATA_np[:, 189].reshape(-1, 1),
-          "ind11": DATA_np[:, 190].reshape(-1, 1),
-          "ind21": DATA_np[:, 191].reshape(-1, 1),
-          "ind31": DATA_np[:, 192].reshape(-1, 1),
-          "ind41": DATA_np[:, 193].reshape(-1, 1),
-          "ind51": DATA_np[:, 194].reshape(-1, 1),
-          "ind02": DATA_np[:, 195].reshape(-1, 1),
-          "ind12": DATA_np[:, 196].reshape(-1, 1),
-          "ind22": DATA_np[:, 197].reshape(-1, 1),
-          "ind32": DATA_np[:, 198].reshape(-1, 1),
-          "ind42": DATA_np[:, 199].reshape(-1, 1),
-          "ind52": DATA_np[:, 200].reshape(-1, 1),
-        },
         "mu_adaptive_mrac": {
-          "x": DATA_np[:, 210].reshape(-1, 1),
-          "y": DATA_np[:, 211].reshape(-1, 1),
-          "z": DATA_np[:, 212].reshape(-1, 1),
+          "x": DATA_np[:, 180].reshape(-1, 1),
+          "y": DATA_np[:, 181].reshape(-1, 1),
+          "z": DATA_np[:, 182].reshape(-1, 1),
         },
         "mu_adaptive_ebci": {
-          "x": DATA_np[:, 213].reshape(-1, 1),
-          "y": DATA_np[:, 214].reshape(-1, 1),
-          "z": DATA_np[:, 215].reshape(-1, 1),
+          "x": DATA_np[:, 183].reshape(-1, 1),
+          "y": DATA_np[:, 184].reshape(-1, 1),
+          "z": DATA_np[:, 185].reshape(-1, 1),
         },
       },
       "desired_euler_angles": {
@@ -325,27 +295,15 @@ class TwoLayerMRACLogger:
           "ind52": DATA_np[:, 178].reshape(-1, 1),
         },
         "dead_zone_value": DATA_np[:, 180].reshape(-1, 1),
-        "proj_op_activated_K_hat_g": DATA_np[:, 182].reshape(-1, 1),
-        "K_hat_g": {
-          "ind00": DATA_np[:, 201].reshape(-1, 1),
-          "ind10": DATA_np[:, 202].reshape(-1, 1),
-          "ind20": DATA_np[:, 203].reshape(-1, 1),
-          "ind01": DATA_np[:, 204].reshape(-1, 1),
-          "ind11": DATA_np[:, 205].reshape(-1, 1),
-          "ind21": DATA_np[:, 206].reshape(-1, 1),
-          "ind02": DATA_np[:, 207].reshape(-1, 1),
-          "ind12": DATA_np[:, 208].reshape(-1, 1),
-          "ind22": DATA_np[:, 209].reshape(-1, 1),
-        },
         "Moment_adaptive_mrac": {
-          "x": DATA_np[:, 216].reshape(-1, 1),
-          "y": DATA_np[:, 217].reshape(-1, 1),
-          "z": DATA_np[:, 218].reshape(-1, 1),
+          "x": DATA_np[:, 186].reshape(-1, 1),
+          "y": DATA_np[:, 187].reshape(-1, 1),
+          "z": DATA_np[:, 188].reshape(-1, 1),
         },
         "Moment_adaptive_ebci": {
-          "x": DATA_np[:, 219].reshape(-1, 1),
-          "y": DATA_np[:, 220].reshape(-1, 1),
-          "z": DATA_np[:, 221].reshape(-1, 1),
+          "x": DATA_np[:, 189].reshape(-1, 1),
+          "y": DATA_np[:, 190].reshape(-1, 1),
+          "z": DATA_np[:, 191].reshape(-1, 1),
         },
       },
       "user_defined_position": {

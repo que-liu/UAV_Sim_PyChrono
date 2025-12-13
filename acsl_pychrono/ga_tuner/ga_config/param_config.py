@@ -76,14 +76,10 @@ MRAC_TUNING_SELECTION = {
     # },
     
     # Q_tran: Q matrix for Lyapunov equation (P_tran = solve_lyapunov(A_ref_tran.T, -Q_tran))
-    "q_tran": "diagonal",  # tune all 6 diagonal elements
-    "gamma_x_tran": "diagonal",
-    "gamma_r_tran": "diagonal",
-    "gamma_theta_tran": "diagonal",
-    "q_rot": "diagonal",
-    "gamma_x_rot": "diagonal",
-    "gamma_r_rot": "diagonal",
-    "gamma_theta_rot": "diagonal",
+    "q_tran": "full",  # tune all 6 diagonal elements
+    "gamma_x_tran": "full",
+    "gamma_r_tran": "full",
+    "gamma_theta_tran": "full",
 }
 
 # =============================================================================

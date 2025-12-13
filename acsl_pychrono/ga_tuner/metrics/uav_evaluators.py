@@ -43,6 +43,27 @@ def failure_penalty(multi_objective: bool, n_objectives: int = 3) -> Union[float
     return [float("inf")] * n_objectives if multi_objective else float("inf")
 
 
+# Threshold for detecting diverged/unstable simulations
+# Any raw metric exceeding this value is considered physically unreasonable
+DIVERGENCE_THRESHOLD = 1e10
+
+
+def check_metrics_diverged(metrics_array: np.ndarray) -> bool:
+    """
+    Check if any metric values indicate a diverged/unstable simulation.
+    
+    Args:
+        metrics_array: Array of raw metric values (before normalization)
+        
+    Returns:
+        True if any metric exceeds DIVERGENCE_THRESHOLD or is inf/nan
+    """
+    for value in metrics_array:
+        if np.isnan(value) or np.isinf(value) or abs(value) > DIVERGENCE_THRESHOLD:
+            return True
+    return False
+
+
 def _log_objectives(params: List[float], metrics: List[float], label: str) -> None:
     """Print objective vectors consistently."""
     trimmed_params = params[:3]
@@ -336,6 +357,16 @@ class BaseMRACEvaluator(UAVSimulationEvaluator):
         parameters: Optional[List[float]] = None,
     ) -> Union[float, List[float]]:
         """Handle common metric logging, normalization, and output."""
+        
+        # Check for diverged/unstable simulation BEFORE normalization
+        if check_metrics_diverged(metrics_array):
+            print(f"\n[DIVERGENCE DETECTED] Raw metrics contain unreasonable values (>{DIVERGENCE_THRESHOLD:.0e} or inf/nan):")
+            for idx, name in enumerate(metric_names):
+                unit = f" {units[idx]}" if units and idx < len(units) else ""
+                print(f"  {name.replace('_', ' ').title():30s} {metrics_array[idx]:.6e}{unit}")
+            print(f"  -> Returning failure penalty")
+            return self._failure_objective()
+        
         self.collected_metrics.append(metrics_array.copy())
 
         if (

@@ -180,9 +180,31 @@ class PymooGATuner(BaseGATuner):
         last_population = [ind.X for ind in res.pop]
         last_fitnesses = [ind.F for ind in res.pop]
         
-        # Extract Pareto front
-        pareto_front = [ind.X for ind in res.opt]
-        pareto_fitnesses = [ind.F for ind in res.opt]
+        # Extract Pareto front from Pymoo
+        raw_pareto_front = [ind.X for ind in res.opt]
+        raw_pareto_fitnesses = [ind.F for ind in res.opt]
+        
+        # Filter out invalid solutions (inf/nan values indicate failed/diverged simulations)
+        pareto_front = []
+        pareto_fitnesses = []
+        n_filtered = 0
+        
+        for params, fitness in zip(raw_pareto_front, raw_pareto_fitnesses):
+            is_valid = all(
+                not (np.isnan(f) or np.isinf(f)) for f in fitness
+            )
+            if is_valid:
+                pareto_front.append(params)
+                pareto_fitnesses.append(fitness)
+            else:
+                n_filtered += 1
+        
+        if n_filtered > 0:
+            print(f"\n[Pareto Filter] Removed {n_filtered} invalid solutions (inf/nan) from Pareto front")
+            print(f"[Pareto Filter] Valid Pareto solutions: {len(pareto_front)} / {len(raw_pareto_front)}")
+        
+        if not pareto_front and raw_pareto_front:
+            print("Warning: All Pareto solutions were invalid (inf/nan). No valid Pareto front.")
 
         # Use best-performing solutions (Pareto set for multi-objective, best single for single-objective)
         if pareto_front:

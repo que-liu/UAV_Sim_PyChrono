@@ -69,7 +69,7 @@ class MetricsConfig:
         outer_loop_weights: Weights for outer loop (used when evaluator_type="outer" and multi_objective=False)
         grouped_weights: Weights for grouped mode (used when multi_objective="grouped")
     """
-    multi_objective: Union[bool, Literal["full", "grouped"]] = "grouped"  # True/"full": Pareto front, "grouped": 3 objectives, False: weighted sum
+    multi_objective: Union[bool, Literal["full", "grouped"]] = "full"  # True/"full": Pareto front, "grouped": 3 objectives, False: weighted sum
     normalize_metrics: bool = True  # Normalize metrics
     inner_loop_weights: InnerLoopMetricWeights = field(default_factory=InnerLoopMetricWeights)
     outer_loop_weights: OuterLoopMetricWeights = field(default_factory=OuterLoopMetricWeights)

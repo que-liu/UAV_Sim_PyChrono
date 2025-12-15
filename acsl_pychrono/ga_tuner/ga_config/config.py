@@ -43,13 +43,19 @@ class TuningConfig:
     ga: GAConfig = field(default_factory=GAConfig)
     n_objectives_inner: int = 3
     n_objectives_outer: int = 3
+    n_objectives_grouped: int = 3
 
     def get_objective_count(self, evaluator_type: Optional[str] = None) -> int:
         evaluator = evaluator_type or self.evaluator.evaluator_type
         evaluator = evaluator.lower()
-        if evaluator not in {"inner", "outer"}:
-            raise ValueError(f"Unknown evaluator type '{evaluator}'")
-        return self.n_objectives_inner if evaluator == "inner" else self.n_objectives_outer
+        if evaluator == "inner":
+            return self.n_objectives_inner
+        elif evaluator == "outer":
+            return self.n_objectives_outer
+        elif evaluator == "grouped":
+            return self.n_objectives_grouped
+        else:
+            raise ValueError(f"Unknown evaluator type '{evaluator}'. Use 'inner', 'outer', or 'grouped'")
 
 
 _BASE_TUNING_CONFIG = TuningConfig()

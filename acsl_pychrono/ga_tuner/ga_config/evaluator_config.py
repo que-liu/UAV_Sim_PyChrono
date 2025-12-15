@@ -1,15 +1,18 @@
 """Evaluator configuration for GA tuning - configure evaluation settings.
 
 Users configure:
-- Evaluator type (inner loop or outer loop)
+- Evaluator type (inner loop, outer loop, or grouped)
 - Log directory for simulation results
 - Parallel evaluation settings
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Literal
 
-# Evaluator type: "inner" for attitude/rotational control, "outer" for position/translational control
-EVALUATOR_TYPE: str = "outer"
+# Evaluator type determines which metrics are optimized:
+#   "inner"  : Attitude/rotational control (3 objectives: attitude, angular_velocity, rotational_effort)
+#   "outer"  : Position/translational control (3 objectives: position, velocity, translational_effort)  
+#   "grouped": Combined inner+outer (3 composite objectives: translational_error, rotational_error, control_effort)
+EVALUATOR_TYPE: Literal["inner", "outer", "grouped"] = "grouped"
 
 # Directory where simulation logs will be saved
 LOG_DIRECTORY: str = "simulation_logs/Inner_and_Outer_Loop_Test"

@@ -283,11 +283,9 @@ def create_uav_ga_tuner(
     if mission_overrides:
         _apply_mission_overrides(uav_adapter, mission_overrides)
     
-    # Determine objective count expected from evaluators/GA
-    if metrics_config.multi_objective == "grouped":
-        objective_count = 3  # translational_error, rotational_error, control_effort
-    elif metrics_config.is_multi_objective:
-        objective_count = n_objectives
+    # Determine objective count: grouped/inner/outer all use 3 objectives in multi-objective mode
+    if metrics_config.multi_objective:
+        objective_count = 3  # All evaluator types use 3 objectives
     else:
         objective_count = 1
 
@@ -338,11 +336,9 @@ def create_uav_ga_tuner(
         )
         tuned_names = list(parameter_bounds.parameter_names)
         
-        # Check for grouped mode (3 composite objectives)
-        is_grouped = metrics_config.multi_objective == "grouped"
-        
-        if is_grouped:
-            # Use grouped evaluator for 3-objective optimization
+        # Select evaluator based on evaluator_type
+        if evaluator_type == "grouped":
+            # Use grouped evaluator for 3 composite objectives
             fitness_evaluator = _PartialGroupedEvaluator(
                 tuned_indices=tuned_indices,
                 template_vector=default_vector,
@@ -352,33 +348,32 @@ def create_uav_ga_tuner(
                 normalize_metrics=metrics_config.normalize_metrics,
                 metrics_config=metrics_config,
             )
-            evaluator_type = "grouped"  # Override for metadata
+        elif evaluator_type == "inner":
+            evaluator_cls = PartialMRACInnerLoopEvaluator
+            metric_weights = {
+                'attitude_tracking_error': metrics_config.inner_loop_weights.attitude_tracking_error,
+                'angular_velocity_tracking_error': metrics_config.inner_loop_weights.angular_velocity_tracking_error,
+                'rotational_control_effort': metrics_config.inner_loop_weights.rotational_control_effort,
+            }
+        elif evaluator_type == "outer":
+            evaluator_cls = PartialMRACOuterLoopEvaluator
+            metric_weights = {
+                'position_error': metrics_config.outer_loop_weights.position_error,
+                'velocity_error': metrics_config.outer_loop_weights.velocity_error,
+                'translational_control_effort': metrics_config.outer_loop_weights.translational_control_effort,
+            }
         else:
-            # Select evaluator class and weights based on loop type
-            if evaluator_type == "inner":
-                evaluator_cls = PartialMRACInnerLoopEvaluator
-                metric_weights = {
-                    'attitude_tracking_error': metrics_config.inner_loop_weights.attitude_tracking_error,
-                    'angular_velocity_tracking_error': metrics_config.inner_loop_weights.angular_velocity_tracking_error,
-                    'rotational_control_effort': metrics_config.inner_loop_weights.rotational_control_effort,
-                }
-            elif evaluator_type == "outer":
-                evaluator_cls = PartialMRACOuterLoopEvaluator
-                metric_weights = {
-                    'position_error': metrics_config.outer_loop_weights.position_error,
-                    'velocity_error': metrics_config.outer_loop_weights.velocity_error,
-                    'translational_control_effort': metrics_config.outer_loop_weights.translational_control_effort,
-                }
-            else:
-                raise ValueError(f"Unknown evaluator_type: {evaluator_type}. Use 'inner', 'outer', or set multi_objective='grouped'")
-            
+            raise ValueError(f"Unknown evaluator_type: {evaluator_type}. Use 'inner', 'outer', or 'grouped'")
+        
+        # Create evaluator for inner/outer (grouped already created above)
+        if evaluator_type in ("inner", "outer"):
             fitness_evaluator = evaluator_cls(
                 tuned_indices=tuned_indices,
                 template_vector=default_vector,
                 uav_adapter=uav_adapter,
                 log_directory=log_directory,
                 parallel_config=parallel_config,
-                multi_objective=metrics_config.is_multi_objective,
+                multi_objective=metrics_config.multi_objective,
                 metric_weights=metric_weights,
                 normalize_metrics=metrics_config.normalize_metrics,
                 metrics_config=metrics_config,

@@ -11,7 +11,7 @@ MISSION_CONFIG: Dict[str, Any] = {
     # If the trajectory_type is "piecewise_polynomial_trajectory", then choose the trajectory file to run
     # Path relative to 'current_working_directory/params/user_defined_trajectory'
     "trajectory_data_path": "rollercoaster_trajectory1p2.json",
-    "simulation_duration_seconds": 21.5,
+    "simulation_duration_seconds": 31.5,
     "visualization_flag": False,
     "wrapper_flag": True,
 }

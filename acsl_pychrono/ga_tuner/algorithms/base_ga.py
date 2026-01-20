@@ -2,8 +2,10 @@
 Base genetic algorithm class providing common functionality.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Tuple
 import numpy as np
 import time
 
@@ -216,7 +218,7 @@ class BaseGATuner(ABC):
     
     def _find_pareto_front(self, 
                           population: List[np.ndarray],
-                          fitnesses: List[List[float]]) -> tuple[List[np.ndarray], List[List[float]]]:
+                          fitnesses: List[List[float]]) -> Tuple[List[np.ndarray], List[List[float]]]:
         """Find Pareto optimal solutions (for minimization problems)."""
         pareto_front = []
         pareto_fitnesses = []

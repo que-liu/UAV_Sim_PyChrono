@@ -1,35 +1,51 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
+
+
+# Custom reference vector for iterative tuning
+# NOTE: This must match the number of parameters selected in param_config.py
+# Current param_config selects rotational-only: 39 parameters
+# For full MRAC (all matrices): 108 parameters
+# Set to None to use default gains from mrac_gains.py
+_CUSTOM_REFERENCE_VECTOR = None  # Update this when you have a reference for your selected parameters
 
 
 @dataclass
 class GAConfig:
     """Central configuration for GA tuning runs."""
 
-    controller_type: str = "MRAC"  # 'PID' or 'MRAC'
+    controller_type: str = "MRAC"  # 'PID', 'MRAC', or 'TwoLayerMRAC'
     algorithm: str = "PYMOO"  # 'DEAP' or 'PYMOO'
 
-    population_size: int = 100
-    num_generations: int = 30
-    crossover_rate: float = 0.8
-    mutation_rate: float = 0.1
+    population_size: int = 91
+    num_generations: int = 25
+    crossover_rate: float = 0.9
+    mutation_rate: float = 0.2
 
     selection_method: str = "tournament"
     tournament_size: int = 5
     random_seed: Optional[int] = None
     verbose: bool = True  # Print generation progress during optimization
 
+    # Search space configuration
+    # - 'local': Relative bounds around reference (±10× scaling) - for fine-tuning existing gains
+    # - 'global': Absolute bounds for exploring diverse parameter regions
+    search_space_type: str = "global"  # Changed to 'local' for refinement around global search results
+    
+    # Custom reference for iterative tuning (use tuned parameters as new reference point)
+    # Set to None to use default gains from mrac_gains.py
+    # Set to a list to use custom reference (see _CUSTOM_REFERENCE_VECTOR above)
+    custom_reference_vector: Optional[list] = None  # Set to _CUSTOM_REFERENCE_VECTOR to use it
+
     # Pymoo-specific parameters
-    pymoo_variant: str = "NSGA2"
+    pymoo_variant: str = "NSGA3"
+    # For NSGA3 with many objectives: manually set partitions to reduce reference directions
+    # Default partitions for 6 objectives creates 6188 ref_dirs - use n_partitions=3 for ~91 ref_dirs
     pymoo_algorithm_params: Optional[Dict[str, Any]] = None
-
-    def normalized_controller_type(self) -> str:
-        return self.controller_type.upper()
-
-    def normalized_algorithm(self) -> str:
-        return self.algorithm.upper()
-
+    
     def __post_init__(self):
         self.algorithm = self.algorithm.upper()
-        self.controller_type = self.controller_type.upper()
+        # Set default n_partitions for NSGA3 if not specified
+        if self.pymoo_variant == "NSGA3" and self.pymoo_algorithm_params is None:
+            self.pymoo_algorithm_params = {"n_partitions": 3}  # Reduces ref_dirs from 6188 to ~84
 

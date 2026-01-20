@@ -26,13 +26,9 @@ def run_from_config(config: TuningConfig) -> None:
     """Run GA tuning using the provided configuration."""
     tuner = create_uav_ga_tuner(
         ga_config=config.ga,
-        evaluator_type=config.evaluator.evaluator_type,
-        metrics_config=config.evaluator.metrics,
+        evaluator_config=config.evaluator,
         tuned_parameters=list(config.tuned_parameters) if config.tuned_parameters else None,
         mission_overrides=dict(config.mission_overrides) if config.mission_overrides else None,
-        log_directory=config.evaluator.log_directory,
-        parallel_config=dict(config.evaluator.parallel_config),
-        n_objectives=config.get_objective_count(),
     )
     
     result = tuner.optimize(verbose=config.ga.verbose)

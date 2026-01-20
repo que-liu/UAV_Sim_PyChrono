@@ -66,29 +66,6 @@ class ControllerTuningInterface(ABC):
         """
         pass
     
-    @abstractmethod
-    def get_cost_functions(self) -> Dict[str, Any]:
-        """
-        Get cost functions for evaluating controller performance.
-        
-        Returns:
-            Dictionary of cost function names and their weights
-        """
-        pass
-    
-    @abstractmethod
-    def evaluate_performance(self, log_data: Dict[str, Any]) -> Dict[str, float]:
-        """
-        Evaluate controller performance from simulation log data.
-        
-        Args:
-            log_data: Dictionary containing simulation log data
-            
-        Returns:
-            Dictionary of performance metrics
-        """
-        pass
-    
     def validate_parameters(self, parameter_vector: List[float]) -> bool:
         """
         Validate parameter vector against bounds and constraints.

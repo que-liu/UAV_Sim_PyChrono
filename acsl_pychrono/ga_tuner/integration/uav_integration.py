@@ -13,13 +13,12 @@ from acsl_pychrono.simulation.simulation import Simulation
 from acsl_pychrono.control.logging import Logging
 from acsl_pychrono.config.config import MissionConfig, WrapperParams, SimulationConfig
 
-from ..metrics.uav_evaluators import PIDSimulationEvaluator, MRACInnerLoopEvaluator, MRACOuterLoopEvaluator, MRACGroupedEvaluator
-from ..controllers.pid_tuning import PIDTuning
-from ..controllers.mrac_tuning import MRACTuning
+from ..evaluators import InnerLoopEvaluator, OuterLoopEvaluator, CombinedEvaluator
 from ..algorithms.deap_ga import DEAPGATuner
 from ..algorithms.pymoo_ga import PymooGATuner
 from ..core.parameter_bounds import ParameterBounds
 from ..ga_config import GAConfig
+from ..ga_config.config import EvaluatorConfig
 from ..ga_config.metrics_config import MetricsConfig
 
 class UAVModelAdapter:
@@ -45,6 +44,7 @@ class UAVModelAdapter:
         }
         self.log_base_dir = Path(log_base_dir)
         self.log_base_dir.mkdir(parents=True, exist_ok=True)
+        self.num_tuned_params = None  # Track partial tuning
     
     
     def create_simulation_config(self,
@@ -83,12 +83,12 @@ class UAVModelAdapter:
         wrapper_params = deepcopy(self.base_config['wrapper_params'])
         controller_params = list(parameters)
 
-        if controller_type == 'MRAC':
-            wrapper_params.external_controller_params = {'mrac_params': controller_params}
-        elif controller_type.upper() == 'PID':
-            wrapper_params.external_controller_params = {'pid_params': controller_params}
-        else:
-            raise ValueError(f"Unsupported controller type for GA tuning: {controller_type}")
+        param_key = f"{controller_type.lower()}_params"
+        wrapper_params.external_controller_params = {param_key: controller_params}
+        
+        # Add metadata for partial tuning tracking
+        if self.num_tuned_params is not None:
+            wrapper_params.external_controller_params['_num_tuned'] = self.num_tuned_params
 
         return wrapper_params
     
@@ -155,20 +155,16 @@ class _PartialEvaluatorMixin:
         return super().evaluate_individual(full_vector, use_cache)
 
 
-class PartialMRACInnerLoopEvaluator(_PartialEvaluatorMixin, MRACInnerLoopEvaluator):
-    """Partial-parameter adapter for the inner-loop MRAC evaluator."""
+class PartialInnerLoopEvaluator(_PartialEvaluatorMixin, InnerLoopEvaluator):
+    """Partial-parameter adapter for the inner-loop evaluator."""
 
 
-class PartialMRACOuterLoopEvaluator(_PartialEvaluatorMixin, MRACOuterLoopEvaluator):
-    """Partial-parameter adapter for the outer-loop MRAC evaluator."""
+class PartialOuterLoopEvaluator(_PartialEvaluatorMixin, OuterLoopEvaluator):
+    """Partial-parameter adapter for the outer-loop evaluator."""
 
 
-class _PartialGroupedEvaluator(_PartialEvaluatorMixin, MRACGroupedEvaluator):
-    """Partial-parameter adapter for the grouped (3-objective) MRAC evaluator."""
-
-
-class PartialPIDSimulationEvaluator(_PartialEvaluatorMixin, PIDSimulationEvaluator):
-    """Partial-parameter adapter for the PID evaluator."""
+class PartialCombinedEvaluator(_PartialEvaluatorMixin, CombinedEvaluator):
+    """Partial-parameter adapter for the combined evaluator."""
 
 
 def _build_partial_bounds_generic(
@@ -239,41 +235,30 @@ def _apply_mission_overrides(adapter: UAVModelAdapter, overrides: Optional[Dict[
 
 def create_uav_ga_tuner(
     ga_config: GAConfig,
-    evaluator_type: Literal["inner", "outer"] = "outer",
-    metrics_config: Optional[MetricsConfig] = None,
+    evaluator_config: EvaluatorConfig,
     tuned_parameters: Optional[Sequence[str]] = None,
     mission_overrides: Optional[Dict[str, Any]] = None,
     uav_adapter: Optional[UAVModelAdapter] = None,
-    log_directory: str = "simulation_logs/ga_optimization",
-    parallel_config: Optional[Dict[str, Any]] = None,
-    n_objectives: int = 3,
 ):
     """
     Factory function to create a GA tuner configured for UAV simulations.
     
-    Supports both PID and MRAC controllers, with inner/outer loop evaluation
-    for MRAC and partial parameter tuning.
-    
     Args:
-        ga_config: GAConfig dataclass providing controller/algorithm and GA hyperparameters
-        evaluator_type: For MRAC, 'inner' (attitude) or 'outer' (position) loop tuning
-        metrics_config: Optional MetricsConfig for metric weights (uses defaults if None)
+        ga_config: GA algorithm configuration
+        evaluator_config: Evaluator configuration (type, metrics, log directory, etc.)
         tuned_parameters: Optional list of parameter names to tune (None = all parameters)
         mission_overrides: Optional dict of mission config overrides
-        uav_adapter: UAV adapter instance (created if None)
-        log_directory: Directory for simulation logs
-        parallel_config: Optional parallel evaluation config
-        n_objectives: Number of objectives for multi-objective optimization
+        uav_adapter: Optional UAV adapter instance (created if None)
         
     Returns:
         Configured GA tuner
     """
-    controller = ga_config.controller_type.upper()
+    controller = ga_config.controller_type
     algorithm_name = ga_config.algorithm.upper()
-    
-    # Use default metrics config if not provided
-    if metrics_config is None:
-        metrics_config = MetricsConfig()
+    evaluator_type = evaluator_config.evaluator_type
+    metrics_config = evaluator_config.metrics
+    log_directory = evaluator_config.log_directory
+    parallel_config = evaluator_config.parallel_config
     
     # Create UAV adapter if not provided
     if uav_adapter is None:
@@ -283,103 +268,94 @@ def create_uav_ga_tuner(
     if mission_overrides:
         _apply_mission_overrides(uav_adapter, mission_overrides)
     
-    # Determine objective count: grouped/inner/outer all use 3 objectives in multi-objective mode
+    # Determine objective count based on evaluator type
     if metrics_config.multi_objective:
-        objective_count = 3  # All evaluator types use 3 objectives
+        objective_count = {
+            "inner": 3,      # attitude, angular_velocity, rotational_effort
+            "outer": 3,      # position, velocity, translational_effort
+            "combined": 6,   # inner (3) + outer (3)
+        }.get(evaluator_type, 3)
     else:
         objective_count = 1
 
-    # Build parameter bounds and evaluator based on controller type
-    if controller == 'PID':
-        pid_tuning = PIDTuning()
-        
-        # Build partial bounds if tuning subset of parameters
-        parameter_bounds, default_vector, tuned_indices, all_names = _build_partial_bounds_generic(
-            pid_tuning, tuned_parameters
-        )
-        tuned_names = list(parameter_bounds.parameter_names)
-        
-        cost_function_weights = {
+    # Select tuning interface based on controller type (registry-backed)
+    from .ga_utils import get_tuning_instance
+    
+    # Build tuning config from GAConfig
+    tuning_config = {}
+    if hasattr(ga_config, 'search_space_type'):
+        tuning_config['search_space_type'] = ga_config.search_space_type
+    if hasattr(ga_config, 'custom_reference_vector') and ga_config.custom_reference_vector is not None:
+        tuning_config['custom_reference_vector'] = ga_config.custom_reference_vector
+    
+    try:
+        tuning = get_tuning_instance(controller, tuning_config=tuning_config)
+    except Exception as exc:
+        raise ValueError(f"Unknown controller_type: {controller}.") from exc
+    
+    # Build partial bounds if tuning subset of parameters
+    parameter_bounds, default_vector, tuned_indices, all_names = _build_partial_bounds_generic(
+        tuning, tuned_parameters
+    )
+    tuned_names = list(parameter_bounds.parameter_names)
+    
+    # Determine if we're using partial tuning (subset of parameters)
+    is_partial_tuning = tuned_parameters and len(tuned_parameters) < len(all_names)
+    
+    # Track partial tuning info in adapter
+    if is_partial_tuning:
+        uav_adapter.num_tuned_params = len(tuned_parameters)
+    
+    # Select evaluator based on evaluator_type (controller-agnostic!)
+    if evaluator_type == "inner":
+        evaluator_cls = PartialInnerLoopEvaluator if is_partial_tuning else InnerLoopEvaluator
+        metric_weights = {
+            'attitude_tracking_error': metrics_config.inner_loop_weights.attitude_tracking_error,
+            'angular_velocity_tracking_error': metrics_config.inner_loop_weights.angular_velocity_tracking_error,
+            'rotational_control_effort': metrics_config.inner_loop_weights.rotational_control_effort,
+        }
+    elif evaluator_type == "outer":
+        evaluator_cls = PartialOuterLoopEvaluator if is_partial_tuning else OuterLoopEvaluator
+        metric_weights = {
             'position_error': metrics_config.outer_loop_weights.position_error,
             'velocity_error': metrics_config.outer_loop_weights.velocity_error,
             'translational_control_effort': metrics_config.outer_loop_weights.translational_control_effort,
         }
-        
-        # Use partial evaluator if not tuning all parameters
-        if tuned_parameters and len(tuned_parameters) < len(all_names):
-            fitness_evaluator = PartialPIDSimulationEvaluator(
-                tuned_indices=tuned_indices,
-                template_vector=default_vector,
-                uav_adapter=uav_adapter,
-                log_directory=log_directory,
-                cost_function_weights=cost_function_weights,
-                metrics_config=metrics_config,
-                parallel_config=parallel_config,
-                multi_objective=metrics_config.multi_objective,
-            )
-        else:
-            fitness_evaluator = PIDSimulationEvaluator(
-                uav_adapter=uav_adapter,
-                log_directory=log_directory,
-                cost_function_weights=cost_function_weights,
-                metrics_config=metrics_config,
-                parallel_config=parallel_config,
-                multi_objective=metrics_config.multi_objective,
-            )
-        
-    elif controller == 'MRAC':
-        mrac_tuning = MRACTuning()
-        
-        # Build partial bounds if tuning subset of parameters
-        parameter_bounds, default_vector, tuned_indices, all_names = _build_partial_bounds(
-            mrac_tuning, tuned_parameters
-        )
-        tuned_names = list(parameter_bounds.parameter_names)
-        
-        # Select evaluator based on evaluator_type
-        if evaluator_type == "grouped":
-            # Use grouped evaluator for 3 composite objectives
-            fitness_evaluator = _PartialGroupedEvaluator(
-                tuned_indices=tuned_indices,
-                template_vector=default_vector,
-                uav_adapter=uav_adapter,
-                log_directory=log_directory,
-                parallel_config=parallel_config,
-                normalize_metrics=metrics_config.normalize_metrics,
-                metrics_config=metrics_config,
-            )
-        elif evaluator_type == "inner":
-            evaluator_cls = PartialMRACInnerLoopEvaluator
-            metric_weights = {
-                'attitude_tracking_error': metrics_config.inner_loop_weights.attitude_tracking_error,
-                'angular_velocity_tracking_error': metrics_config.inner_loop_weights.angular_velocity_tracking_error,
-                'rotational_control_effort': metrics_config.inner_loop_weights.rotational_control_effort,
-            }
-        elif evaluator_type == "outer":
-            evaluator_cls = PartialMRACOuterLoopEvaluator
-            metric_weights = {
-                'position_error': metrics_config.outer_loop_weights.position_error,
-                'velocity_error': metrics_config.outer_loop_weights.velocity_error,
-                'translational_control_effort': metrics_config.outer_loop_weights.translational_control_effort,
-            }
-        else:
-            raise ValueError(f"Unknown evaluator_type: {evaluator_type}. Use 'inner', 'outer', or 'grouped'")
-        
-        # Create evaluator for inner/outer (grouped already created above)
-        if evaluator_type in ("inner", "outer"):
-            fitness_evaluator = evaluator_cls(
-                tuned_indices=tuned_indices,
-                template_vector=default_vector,
-                uav_adapter=uav_adapter,
-                log_directory=log_directory,
-                parallel_config=parallel_config,
-                multi_objective=metrics_config.multi_objective,
-                metric_weights=metric_weights,
-                normalize_metrics=metrics_config.normalize_metrics,
-                metrics_config=metrics_config,
-            )
+    elif evaluator_type == "combined":
+        evaluator_cls = PartialCombinedEvaluator if is_partial_tuning else CombinedEvaluator
+        metric_weights = {
+            # Inner loop
+            'attitude_tracking_error': metrics_config.inner_loop_weights.attitude_tracking_error,
+            'angular_velocity_tracking_error': metrics_config.inner_loop_weights.angular_velocity_tracking_error,
+            'rotational_control_effort': metrics_config.inner_loop_weights.rotational_control_effort,
+            # Outer loop
+            'position_error': metrics_config.outer_loop_weights.position_error,
+            'velocity_error': metrics_config.outer_loop_weights.velocity_error,
+            'translational_control_effort': metrics_config.outer_loop_weights.translational_control_effort,
+        }
     else:
-        raise ValueError(f"Unknown controller_type: {controller}. Use 'PID' or 'MRAC'")
+        raise ValueError(f"Unknown evaluator_type: {evaluator_type}. Use 'inner', 'outer', or 'combined'")
+    
+    # Create evaluator
+    evaluator_kwargs = {
+        'uav_adapter': uav_adapter,
+        'controller_type': controller,
+        'log_directory': log_directory,
+        'parallel_config': parallel_config,
+        'multi_objective': metrics_config.multi_objective,
+        'metric_weights': metric_weights,
+        'normalize_metrics': metrics_config.normalize_metrics,
+        'metrics_config': metrics_config,
+    }
+    
+    # Add partial evaluator arguments if using partial tuning
+    if is_partial_tuning:
+        evaluator_kwargs.update({
+            'tuned_indices': tuned_indices,
+            'template_vector': default_vector,
+        })
+    
+    fitness_evaluator = evaluator_cls(**evaluator_kwargs)
     
     # Build tuner kwargs from ga_config
     tuner_kwargs = {
@@ -418,14 +394,12 @@ def create_uav_ga_tuner(
     else:
         raise ValueError(f"Unknown algorithm: {algorithm_name}. Use 'DEAP' or 'PYMOO'")
     
-    # Fit normalizer from default gains if normalization is enabled (MRAC only)
-    if controller == 'MRAC' and metrics_config.normalize_metrics:
-        if hasattr(fitness_evaluator, 'fit_normalizer_from_reference'):
-            # Extract only the tuned subset from the full default vector
-            default_tuned_subset = [default_vector[i] for i in tuned_indices]
-            success = fitness_evaluator.fit_normalizer_from_reference(default_tuned_subset)
-            if not success:
-                print("[WARNING] Failed to fit normalizer from reference - normalization disabled")
+    # Fit normalizer from default gains if normalization is enabled and supported
+    if metrics_config.normalize_metrics and hasattr(fitness_evaluator, 'fit_normalizer_from_reference'):
+        default_tuned_subset = [default_vector[i] for i in tuned_indices]
+        success = fitness_evaluator.fit_normalizer_from_reference(default_tuned_subset)
+        if not success:
+            print("[WARNING] Failed to fit normalizer from reference - normalization disabled")
     
     # Attach metadata for result summarization
     tuner._tuned_names = tuned_names
@@ -450,20 +424,20 @@ def summarize_tuner_result(tuner, result) -> None:
     print("GA tuner run complete")
     print(f"Tuned parameters ({len(tuned_names)} / {len(all_names)} total): {list(tuned_names)}")
     
-    if evaluator_type == "grouped":
-        metrics_label = "Grouped metrics [translational_error, rotational_error, control_effort]"
-    elif evaluator_type == "inner":
-        metrics_label = "Inner loop metrics [attitude_error, angular_rate_error, control_effort]"
-    else:
-        metrics_label = "Outer loop metrics [position_error, velocity_error, control_effort]"
+    if evaluator_type == "inner":
+        metrics_label = "Inner loop metrics [attitude_error, angular_rate_error, rotational_effort]"
+    elif evaluator_type == "combined":
+        metrics_label = "Combined metrics [attitude_error, angular_rate_error, rotational_effort, position_error, velocity_error, translational_effort]"
+    elif evaluator_type == "outer":
+        metrics_label = "Outer loop metrics [position_error, velocity_error, translational_effort]"
 
     # Get normalizer to convert back to raw metrics
     evaluator = getattr(tuner, 'fitness_evaluator', None)
     normalizer = getattr(evaluator, 'normalizer', None) if evaluator else None
 
     if result.pareto_front is not None and len(result.pareto_front) > 0:
-        print(f"\nPareto front ({len(result.pareto_front)} solutions, showing up to 5):")
-        for idx, (params, metrics) in enumerate(zip(result.pareto_front[:5], result.pareto_fitnesses[:5])):
+        print(f"\nPareto front ({len(result.pareto_front)} solutions):")
+        for idx, (params, metrics) in enumerate(zip(result.pareto_front, result.pareto_fitnesses)):
             tuned_values = [f"{v:.4f}" for v in params]
             # Convert normalized metrics to raw values
             if normalizer and hasattr(normalizer, 'inverse_transform'):
@@ -518,7 +492,7 @@ def save_pareto_front_logs(tuner, result, max_solutions: int = None, clean_eval_
         config = evaluator.uav_adapter.create_simulation_config(
             full_params,
             pareto_dir,
-            controller_type=evaluator._get_controller_type(),
+            controller_type=evaluator.controller_type,
         )
         evaluator.uav_adapter.run_simulation(config)
     

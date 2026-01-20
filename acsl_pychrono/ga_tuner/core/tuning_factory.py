@@ -4,31 +4,43 @@ Factory for creating controller tuning interfaces.
 
 from typing import Dict, Any, Optional, Type, List
 from .controller_tuning import ControllerTuningInterface
-from ..controllers.pid_tuning import PIDTuning
-from ..controllers.mrac_tuning import MRACTuning
+
 
 class ControllerTuningFactory:    
-    # Registry of available tuning implementations
-    TUNING_REGISTRY = {
-        'PID': PIDTuning,
-        'MRAC': MRACTuning
-    }
+    """
+    Factory for creating controller tuning interfaces.
+    """
+    
+    @classmethod
+    def _get_registry(cls) -> Dict[str, Type[ControllerTuningInterface]]:
+        """Get the tuning registry from ga_tuner.__init__.py"""
+        from .. import tuning_classes
+        return tuning_classes
     
     @classmethod
     def register_tuner(cls, 
                       controller_type: str,
                       tuner_class: Type[ControllerTuningInterface]):
         """
-        Register a new tuning implementation.
+        Register a new tuning implementation (deprecated).
+        
+        Instead of using this method, add the tuning class to the tuning_classes
+        registry in ga_tuner/__init__.py.
         
         Args:
             controller_type: Type identifier for the controller
             tuner_class: Class implementing ControllerTuningInterface
         """
+        print(
+            "Warning: ControllerTuningFactory.register_tuner() is deprecated. "
+            "Add tuning classes to ga_tuner.__init__.py tuning_classes registry instead."
+        )
         if not issubclass(tuner_class, ControllerTuningInterface):
             raise ValueError(f"Tuner class must implement ControllerTuningInterface")
         
-        cls.TUNING_REGISTRY[controller_type.upper()] = tuner_class
+        # This will modify the main registry
+        registry = cls._get_registry()
+        registry[controller_type.upper()] = tuner_class
     
     @classmethod
     def create_tuner(cls,
@@ -36,6 +48,8 @@ class ControllerTuningFactory:
                     tuning_config: Optional[Dict[str, Any]] = None) -> ControllerTuningInterface:
         """
         Create a tuning interface for the specified controller type.
+        
+        Automatically looks up the tuning class from the main registry.
         
         Args:
             controller_type: Type of controller to tune
@@ -47,11 +61,12 @@ class ControllerTuningFactory:
         Raises:
             ValueError: If controller type is not supported
         """
-        tuner_class = cls.TUNING_REGISTRY.get(controller_type.upper())
+        registry = cls._get_registry()
+        tuner_class = registry.get(controller_type.upper())
         if tuner_class is None:
             raise ValueError(
                 f"Unsupported controller type: {controller_type}. "
-                f"Available types: {list(cls.TUNING_REGISTRY.keys())}"
+                f"Available types: {list(registry.keys())}"
             )
         
         return tuner_class(tuning_config)
@@ -59,12 +74,13 @@ class ControllerTuningFactory:
     @classmethod
     def get_available_controllers(cls) -> List[str]:
         """
-        Get list of supported controller types.
+        Get list of supported controller types from the main registry.
         
         Returns:
             List of controller type identifiers
         """
-        return list(cls.TUNING_REGISTRY.keys())
+        registry = cls._get_registry()
+        return list(registry.keys())
     
     @classmethod
     def get_tuner_info(cls, controller_type: str) -> Dict[str, Any]:
@@ -77,7 +93,8 @@ class ControllerTuningFactory:
         Returns:
             Dictionary containing tuner information
         """
-        tuner_class = cls.TUNING_REGISTRY.get(controller_type.upper())
+        registry = cls._get_registry()
+        tuner_class = registry.get(controller_type.upper())
         if tuner_class is None:
             raise ValueError(f"Unknown controller type: {controller_type}")
         

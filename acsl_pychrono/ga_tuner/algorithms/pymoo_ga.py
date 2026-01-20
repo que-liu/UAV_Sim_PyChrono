@@ -101,10 +101,12 @@ class PymooGATuner(BaseGATuner):
         
         # Setup reference directions for algorithms that need them
         if self.algorithm_name in ['NSGA3', 'MOEAD', 'RVEA']:
+            # Use n_partitions from algorithm_params if provided, otherwise use default based on objectives
+            n_partitions = self.algorithm_params.get('n_partitions', 12)
             ref_dirs = get_reference_directions(
                 "das-dennis",
                 self.n_objectives,
-                n_partitions=12
+                n_partitions=n_partitions
             )
             self.algorithm_params['ref_dirs'] = ref_dirs
         

@@ -13,58 +13,66 @@ from .cholesky_utils import (
     get_cholesky_parameter_names,
     reconstruct_from_cholesky,
 )
-from .config import (
-    GAMMA_MATRIX_CONFIGS,
-    _FALLBACK_MRAC_DEFAULTS,
-    target_names,
-    DIAGONAL_MATRIX_PARAMS,
-    SCALAR_PARAMETER_GROUPS,
-)
 
 
-def _set_diagonal_matrices_from_params(params: Dict[str, Any], mrac_gains: Dict[str, Any]) -> None:
-    """Populate diagonal matrix gains from scalar parameters."""
-    for matrix_name, keys in DIAGONAL_MATRIX_PARAMS.items():
-        if not keys or keys[0] not in params:
-            continue
-        values = [params[key] for key in keys]
-        mrac_gains[matrix_name] = np.matrix(np.diag(values))
+def _is_diagonal_matrix(value: Any) -> bool:
+    """Check if value is a diagonal matrix."""
+    if not isinstance(value, np.ndarray) or value.ndim != 2:
+        return False
+    if value.shape[0] != value.shape[1]:
+        return False
+    # Check if matrix is diagonal (all off-diagonal elements are zero)
+    return np.allclose(value, np.diag(np.diag(value)))
+
+def _discover_parameter_structure(gains: Dict[str, Any]) -> Tuple[Dict[str, Dict], Dict[str, tuple], List[str]]:
+    """
+    Discover parameter structure from loaded gains.
+    
+    Returns:
+        - spd_matrices: Dict mapping matrix names to config (prefix, size)
+        - diagonal_matrices: Dict mapping matrix names to parameter names tuple
+        - scalars: List of scalar parameter names
+    """
+    spd_matrices = {}
+    diagonal_matrices = {}
+    scalars = []
+    
+    for name, value in gains.items():
+        if isinstance(value, np.ndarray) and value.ndim == 2:
+            # Check if it's an SPD matrix (Gamma/Q matrices) - prioritize this for tuning
+            if name.startswith('Gamma_') or name in ('Q_tran', 'Q_rot'):
+                prefix = name.replace('Gamma_', 'gamma_').lower() if name.startswith('Gamma_') else name.lower()
+                spd_matrices[name] = {
+                    'prefix': prefix,
+                    'size': value.shape[0]
+                }
+            # Only treat as diagonal matrix if it's NOT a Gamma/Q matrix
+            elif _is_diagonal_matrix(value):
+                # Create parameter names for diagonal elements
+                size = value.shape[0]
+                param_names = tuple(f"{name}_{i+1}" for i in range(size))
+                diagonal_matrices[name] = param_names
+        elif isinstance(value, (int, float, np.number)):
+            scalars.append(name)
+    
+    return spd_matrices, diagonal_matrices, scalars
 
 
-def _extract_diagonal_matrices_to_params(mrac_gains: Dict[str, Any], params: Dict[str, Any]) -> None:
-    """Extract diagonal entries from MRAC gains back to scalar parameters."""
-    for matrix_name, keys in DIAGONAL_MATRIX_PARAMS.items():
-        if matrix_name not in mrac_gains:
-            continue
-        for idx, key in enumerate(keys):
-            params[key] = mrac_gains[matrix_name][idx, idx]
+_DEFAULT_GAINS_PATH = pathlib.Path(__file__).resolve().parents[2] / "control" / "MRAC" / "mrac_gains.py"
 
+def _build_spd_matrix_configs(gains: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """Build matrix configs from loaded gains dynamically."""
+    spd_matrices, _, _ = _discover_parameter_structure(gains)
+    return spd_matrices
 
-def _copy_scalar_group_from_params(params: Dict[str, Any], mrac_gains: Dict[str, Any], keys: Tuple[str, ...]) -> None:
-    if not keys or keys[0] not in params:
-        return
-    for key in keys:
-        mrac_gains[key] = params[key]
-
-
-def _extract_scalar_group_to_params(mrac_gains: Dict[str, Any], params: Dict[str, Any], keys: Tuple[str, ...]) -> None:
-    if not keys or keys[0] not in mrac_gains:
-        return
-    for key in keys:
-        params[key] = mrac_gains[key]
-
-_MRAC_GAINS_PATH = pathlib.Path(__file__).resolve().parents[2] / "MRAC" / "mrac_gains.py"
-
-def load_default_mrac_gains_from_source() -> Dict[str, Any]:
-    """Parse mrac_gains.py to extract default gain values. """
+def load_default_gains_from_source() -> Dict[str, Any]:
+    """Parse gains file to extract default gain values."""
     try:
-        source = _MRAC_GAINS_PATH.read_text()
-    except OSError:
-        return {name: (_FALLBACK_MRAC_DEFAULTS[name].copy()
-                      if isinstance(_FALLBACK_MRAC_DEFAULTS[name], np.ndarray) else _FALLBACK_MRAC_DEFAULTS[name])
-                for name in target_names if name in _FALLBACK_MRAC_DEFAULTS}
+        source = _DEFAULT_GAINS_PATH.read_text()
+    except OSError as e:
+        raise RuntimeError(f"Failed to read gains file: {e}")
 
-    tree = ast.parse(source, filename=str(_MRAC_GAINS_PATH))
+    tree = ast.parse(source, filename=str(_DEFAULT_GAINS_PATH))
     extracted: Dict[str, Any] = {}
 
     class _GainsExtractor(ast.NodeVisitor):
@@ -72,54 +80,56 @@ def load_default_mrac_gains_from_source() -> Dict[str, Any]:
             for target in node.targets:
                 if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == 'self':
                     name = target.attr
-                    if name in target_names and name not in extracted:
+                    # Extract ALL self.* assignments (no hardcoded filter)
+                    if name not in extracted:
                         expr = ast.Expression(node.value)
-                        code = compile(expr, str(_MRAC_GAINS_PATH), 'eval')
+                        code = compile(expr, str(_DEFAULT_GAINS_PATH), 'eval')
                         try:
                             extracted[name] = eval(code, {'np': np})
                         except Exception:
-                            extracted[name] = None
+                            pass
             self.generic_visit(node)
 
     _GainsExtractor().visit(tree)
 
-    if not all(name in extracted and extracted[name] is not None for name in target_names):
-        return {name: (_FALLBACK_MRAC_DEFAULTS[name].copy()
-                      if isinstance(_FALLBACK_MRAC_DEFAULTS[name], np.ndarray) else _FALLBACK_MRAC_DEFAULTS[name])
-                for name in target_names if name in _FALLBACK_MRAC_DEFAULTS}
-
+    # Normalize matrix types
     normalized = {}
     for name, value in extracted.items():
         if isinstance(value, np.matrix):
             normalized[name] = np.asarray(value)
         elif isinstance(value, np.ndarray):
             normalized[name] = value.copy()
-        else:
+        elif isinstance(value, (int, float, np.number)):
             normalized[name] = float(value)
-
+        # Skip other types (like booleans, strings, etc.)
+    
     return normalized
 
-class MRACParameterConverter:
+class ControllerParameterConverter:
     """
-    Converts between parameter vectors and MRAC gain structures.
-    Handles the full MRAC parameter set based on actual mrac_gains.py implementation.
+    Converts between parameter vectors and controller gain structures.
+    Handles controller parameters with dynamic structure discovery.
     """
     
-    def __init__(self, parameter_bounds):
+    def __init__(self, parameter_bounds, baseline_gains=None):
         self.bounds = parameter_bounds
         self.parameter_names = parameter_bounds.parameter_names
         get_groups = getattr(parameter_bounds, "get_parameter_groups", None)
         self.parameter_groups = get_groups() if callable(get_groups) else {}
+        
+        # Load gains from source and discover structure dynamically
+        self._baseline_gains = baseline_gains if baseline_gains is not None else load_default_gains_from_source()
+        self._spd_matrix_configs, self._diagonal_matrix_params, self._scalar_params = _discover_parameter_structure(self._baseline_gains)
     
-    def vector_to_mrac_gains(self, parameter_vector: List[float]) -> Dict[str, Any]:
+    def vector_to_gains(self, parameter_vector: List[float]) -> Dict[str, Any]:
         """
-        Convert parameter vector to MRAC gain structure matching mrac_gains.py.
+        Convert parameter vector to controller gain structure.
         
         Args:
             parameter_vector: List of parameter values
             
         Returns:
-            Dictionary containing MRAC gain structure
+            Dictionary containing controller gain structure
         """
         if len(parameter_vector) != len(self.parameter_names):
             raise ValueError(f"Parameter vector length {len(parameter_vector)} != expected {len(self.parameter_names)}")
@@ -127,11 +137,11 @@ class MRACParameterConverter:
         # Create parameter dictionary
         params = dict(zip(self.parameter_names, parameter_vector))
         
-        # Build MRAC gain structure based on actual mrac_gains.py
-        mrac_gains = {}
+        # Build controller gain structure
+        gains = {}
 
-        # Adaptive learning rate matrices (Gamma) represented via Cholesky factors
-        for matrix_name, config in GAMMA_MATRIX_CONFIGS.items():
+        # SPD matrices (Gamma/Q) via Cholesky factors
+        for matrix_name, config in self._spd_matrix_configs.items():
             prefix = config['prefix']
             size = config['size']
             entry_keys = get_cholesky_parameter_names(prefix, size)
@@ -140,37 +150,44 @@ class MRACParameterConverter:
                 continue
 
             cholesky_entries = [float(params[key]) for key in entry_keys]
-            gamma_matrix = reconstruct_from_cholesky(
+            spd_matrix = reconstruct_from_cholesky(
                 cholesky_entries,
                 size,
                 log_diagonals=True,
             )
-            mrac_gains[matrix_name] = np.matrix(gamma_matrix)
+            gains[matrix_name] = np.matrix(spd_matrix)
         
-        _set_diagonal_matrices_from_params(params, mrac_gains)
-        for _, group_keys in SCALAR_PARAMETER_GROUPS:
-            _copy_scalar_group_from_params(params, mrac_gains, group_keys)
+        # Diagonal matrices from individual parameters
+        for matrix_name, keys in self._diagonal_matrix_params.items():
+            if keys and keys[0] in params:
+                values = [params[key] for key in keys]
+                gains[matrix_name] = np.matrix(np.diag(values))
         
-        return mrac_gains
+        # Scalar parameters
+        for scalar_name in self._scalar_params:
+            if scalar_name in params:
+                gains[scalar_name] = params[scalar_name]
+        
+        return gains
     
-    def mrac_gains_to_vector(self, mrac_gains: Dict[str, Any]) -> List[float]:
+    def gains_to_vector(self, gains: Dict[str, Any]) -> List[float]:
         """
-        Convert MRAC gain structure to parameter vector.
+        Convert controller gain structure to parameter vector.
         
         Args:
-            mrac_gains: Dictionary containing MRAC gain structure
+            gains: Dictionary containing controller gain structure
             
         Returns:
             List of parameter values
         """
         params = {}
         
-        # Extract adaptive learning rates via Cholesky factorization
-        for matrix_name, config in GAMMA_MATRIX_CONFIGS.items():
-            if matrix_name not in mrac_gains:
+        # Extract SPD matrices via Cholesky factorization
+        for matrix_name, config in self._spd_matrix_configs.items():
+            if matrix_name not in gains:
                 continue
 
-            matrix = np.array(mrac_gains[matrix_name], dtype=float)
+            matrix = np.array(gains[matrix_name], dtype=float)
             size = config['size']
             prefix = config['prefix']
 
@@ -182,23 +199,29 @@ class MRACParameterConverter:
             for key, value in zip(entry_keys, entries):
                 params[key] = value
         
-        _extract_diagonal_matrices_to_params(mrac_gains, params)
-        for _, group_keys in SCALAR_PARAMETER_GROUPS:
-            _extract_scalar_group_to_params(mrac_gains, params, group_keys)
+        # Extract diagonal matrices to individual parameters
+        for matrix_name, keys in self._diagonal_matrix_params.items():
+            if matrix_name in gains:
+                for idx, key in enumerate(keys):
+                    params[key] = gains[matrix_name][idx, idx]
+        
+        # Extract scalar parameters
+        for scalar_name in self._scalar_params:
+            if scalar_name in gains:
+                params[scalar_name] = gains[scalar_name]
         
         # Convert to vector in correct order
         return [params[name] for name in self.parameter_names]
     
     def get_baseline_gains(self) -> Dict[str, Any]:
         """
-        Get baseline MRAC gains based on actual mrac_gains.py default values.
+        Get baseline controller gains from the source file.
 
         Returns:
-            Dictionary containing baseline MRAC gain structure
+            Dictionary containing baseline controller gain structure
         """
-        baseline_gains = load_default_mrac_gains_from_source()
         result = {}
-        for key, value in baseline_gains.items():
+        for key, value in self._baseline_gains.items():
             if isinstance(value, np.ndarray):
                 result[key] = value.copy()
             else:
@@ -216,64 +239,42 @@ class MRACParameterConverter:
             Dictionary with parameter summaries by group
         """
         params = dict(zip(self.parameter_names, parameter_vector))
-        
         summary = {}
         
-        # Adaptive learning rates
-        adaptive_summary = {}
-        for matrix_name, config in GAMMA_MATRIX_CONFIGS.items():
-            prefix = config['prefix']
-            size = config['size']
-            entry_keys = get_cholesky_parameter_names(prefix, size)
-            if not all(key in params for key in entry_keys):
-                continue
-
-            cholesky_entries = [params[key] for key in entry_keys]
-            gamma_matrix = reconstruct_from_cholesky(
-                cholesky_entries,
-                size,
-                log_diagonals=True,
-            )
-            adaptive_summary[matrix_name] = {
-                'cholesky_entries': cholesky_entries,
-                'gamma_matrix': gamma_matrix.tolist()
-            }
-
-        if adaptive_summary:
-            summary['adaptive_learning_rates'] = adaptive_summary
+        # SPD matrices (Gamma/Q)
+        if self._spd_matrix_configs:
+            adaptive_summary = {}
+            for matrix_name, config in self._spd_matrix_configs.items():
+                prefix = config['prefix']
+                size = config['size']
+                entry_keys = get_cholesky_parameter_names(prefix, size)
+                if all(key in params for key in entry_keys):
+                    cholesky_entries = [params[key] for key in entry_keys]
+                    spd_matrix = reconstruct_from_cholesky(
+                        cholesky_entries,
+                        size,
+                        log_diagonals=True,
+                    )
+                    adaptive_summary[matrix_name] = {
+                        'cholesky_entries': cholesky_entries,
+                        'matrix': spd_matrix.tolist()
+                    }
+            if adaptive_summary:
+                summary['spd_matrices'] = adaptive_summary
         
-        # Reference model gains (use DIAGONAL_MATRIX_PARAMS to avoid repeating keys)
-        ref_p_keys = DIAGONAL_MATRIX_PARAMS.get('K_P_omega_ref')
-        ref_i_keys = DIAGONAL_MATRIX_PARAMS.get('K_I_omega_ref')
-        if ref_p_keys and ref_p_keys[0] in params and ref_i_keys and ref_i_keys[0] in params:
-            summary['reference_model'] = {
-                'K_P_omega_ref': [params[k] for k in ref_p_keys],
-                'K_I_omega_ref': [params[k] for k in ref_i_keys],
-            }
-
-        # Baseline PID gains (collect available groups from DIAGONAL_MATRIX_PARAMS)
-        pid_groups = ['KP_tran', 'KD_tran', 'KI_tran', 'KP_rot']
-        baseline = {}
-        for g in pid_groups:
-            keys = DIAGONAL_MATRIX_PARAMS.get(g)
-            if keys and keys[0] in params:
-                baseline[g] = [params[k] for k in keys]
-        if baseline:
-            summary['baseline_pid'] = baseline
-
-        # Modification parameters (use SCALAR_PARAMETER_GROUPS)
-        sigma_keys = None
-        dead_zone_keys = None
-        for grp_name, keys in SCALAR_PARAMETER_GROUPS:
-            if grp_name == 'sigma_params':
-                sigma_keys = keys
-            elif grp_name == 'dead_zone_params':
-                dead_zone_keys = keys
-
-        if sigma_keys and sigma_keys[0] in params:
-            mod_params = {'sigma': [params[k] for k in sigma_keys]}
-            if dead_zone_keys and dead_zone_keys[0] in params:
-                mod_params['dead_zone'] = [params[k] for k in dead_zone_keys]
-            summary['modification_parameters'] = mod_params
+        # Diagonal matrices
+        if self._diagonal_matrix_params:
+            diag_summary = {}
+            for matrix_name, keys in self._diagonal_matrix_params.items():
+                if keys and keys[0] in params:
+                    diag_summary[matrix_name] = [params[k] for k in keys]
+            if diag_summary:
+                summary['diagonal_matrices'] = diag_summary
+        
+        # Scalar parameters
+        if self._scalar_params:
+            scalar_summary = {name: params[name] for name in self._scalar_params if name in params}
+            if scalar_summary:
+                summary['scalars'] = scalar_summary
         
         return summary

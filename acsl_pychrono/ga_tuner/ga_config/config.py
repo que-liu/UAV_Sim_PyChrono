@@ -12,14 +12,14 @@ from typing import Any, Dict, Literal, Mapping, MutableMapping, Optional, Sequen
 
 from .ga_config import GAConfig
 from .metrics_config import MetricsConfig
-from .param_config import TUNED_PARAMETERS
+from .param_config import get_tuned_parameters
 from .mission_config import MISSION_CONFIG
 from .evaluator_config import EVALUATOR_TYPE, LOG_DIRECTORY, PARALLEL_CONFIG, CLEAN_EVAL_FOLDERS
 
 @dataclass(frozen=True)
 class EvaluatorConfig:
     """Configuration for the fitness evaluator. Values loaded from evaluator_config.py."""
-    evaluator_type: Literal["inner", "outer"]
+    evaluator_type: Literal["inner", "outer", "combined"]
     log_directory: str
     parallel_config: Dict[str, Any]
     metrics: MetricsConfig
@@ -43,7 +43,7 @@ class TuningConfig:
     ga: GAConfig = field(default_factory=GAConfig)
     n_objectives_inner: int = 3
     n_objectives_outer: int = 3
-    n_objectives_grouped: int = 3
+    n_objectives_combined: int = 6  # inner (3) + outer (3)
 
     def get_objective_count(self, evaluator_type: Optional[str] = None) -> int:
         evaluator = evaluator_type or self.evaluator.evaluator_type
@@ -52,10 +52,10 @@ class TuningConfig:
             return self.n_objectives_inner
         elif evaluator == "outer":
             return self.n_objectives_outer
-        elif evaluator == "grouped":
-            return self.n_objectives_grouped
+        elif evaluator == "combined":
+            return self.n_objectives_combined
         else:
-            raise ValueError(f"Unknown evaluator type '{evaluator}'. Use 'inner', 'outer', or 'grouped'")
+            raise ValueError(f"Unknown evaluator type '{evaluator}'. Use 'inner', 'outer', or 'combined'")
 
 
 _BASE_TUNING_CONFIG = TuningConfig()
@@ -76,6 +76,7 @@ def tuning_config_from_mapping(
 
     n_objectives_inner = data.get("n_objectives_inner", base_config.n_objectives_inner)
     n_objectives_outer = data.get("n_objectives_outer", base_config.n_objectives_outer)
+    n_objectives_combined = data.get("n_objectives_combined", base_config.n_objectives_combined)
 
     return TuningConfig(
         tuned_parameters=tuned_parameters,
@@ -84,6 +85,7 @@ def tuning_config_from_mapping(
         ga=ga,
         n_objectives_inner=n_objectives_inner,
         n_objectives_outer=n_objectives_outer,
+        n_objectives_combined=n_objectives_combined,
     )
 
 def _merge_dataclass(cls, base_value, overrides: Optional[MutableMapping[str, Any]]):
@@ -124,10 +126,17 @@ def _merge_dataclass(cls, base_value, overrides: Optional[MutableMapping[str, An
 
 
 # Default multi-objective inner loop tuning config
-def _create_tuning_config() -> TuningConfig:
-    """Create default config by composing from modular config files."""
+def get_default_tuning_config() -> TuningConfig:
+    """
+    Get the default tuning config.
+    This is created fresh each time to ensure configuration changes are picked up.
+    """
+    # Import here to avoid circular import
+    from .param_config import get_tuned_parameters
+    
+    ga_config = GAConfig()
     return TuningConfig(
-        tuned_parameters=TUNED_PARAMETERS,
+        tuned_parameters=get_tuned_parameters(ga_config.controller_type),
         mission_overrides=MISSION_CONFIG,
         evaluator=EvaluatorConfig(
             evaluator_type=EVALUATOR_TYPE,
@@ -135,7 +144,15 @@ def _create_tuning_config() -> TuningConfig:
             parallel_config=PARALLEL_CONFIG,
             metrics=MetricsConfig(),
         ),
-        ga=GAConfig(),
+        ga=ga_config,
     )
 
-TUNING_CONFIG = _create_tuning_config()
+# For backward compatibility - creates config on first access
+class _LazyTuningConfig:
+    def __getattr__(self, name):
+        return getattr(get_default_tuning_config(), name)
+    
+    def __repr__(self):
+        return repr(get_default_tuning_config())
+
+TUNING_CONFIG = _LazyTuningConfig()

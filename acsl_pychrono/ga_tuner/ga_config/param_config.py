@@ -1,102 +1,130 @@
 """Parameter configuration for GA tuning.
 
-Edit the settings below to define which parameters to tune.
+Selection types:
+    1. "all": Tune all available parameters (use for scalar-only controllers)
+    
+    2. [...]: Explicit list of parameter names (use for scalar-only controllers)
+    
+    3. {matrix_name: selection, ...}: Matrix-based selection with Cholesky parameterization
+       Required for controllers with SPD (Symmetric Positive Definite) matrices.
+       Per-matrix options:
+         - "full": All Cholesky elements (lower-triangular)
+         - "diagonal": All diagonal elements
+         - {"diagonal": [1, 0, 1, ...]}: Custom diagonal mask (1=tune, 0=skip)
+         - {"selection_matrix": [[1], [0, 1], ...]}: Custom lower-triangular mask for selection
+       
+       Examples: MRAC, TwoLayerMRAC, HybridMRAC have matrices like:
+         gamma_x_tran, gamma_r_tran, gamma_theta_tran, gamma_x_rot, 
+         gamma_r_rot, gamma_theta_rot, q_tran, q_rot
 
-PID Options:
-    - "all": All 18 parameters
-    - "translational": KP/KI/KD for x, y, z (9 params)
-    - "rotational": KP/KI/KD for roll, pitch, yaw (9 params)  
-    - "proportional", "integral", "derivative": By gain type (6 params each)
-    - ["KP_tran_x", "KI_tran_y", ...]: Custom list
+PID-only string presets:
+    - "translational", "rotational", "proportional", "integral", "derivative"
 
-MRAC Options (per matrix):
-    - "full": All Cholesky elements
-    - "diagonal": Only diagonal elements
-    - {"diagonal": [1, 0, 1, ...]}: Custom diagonal mask (1=tune, 0=skip)
-    - {"selection_matrix": [[1], [0, 1], ...]}: Custom lower-triangular selection
-
-MRAC Available Matrices (with sizes):
-    - gamma_x_tran (6x6), gamma_r_tran (3x3), gamma_theta_tran (6x6)
-    - gamma_x_rot (3x3), gamma_r_rot (3x3), gamma_theta_rot (6x6)
-    - q_tran (6x6): Q matrix for Lyapunov equation (affects P_tran computation)
-    - q_rot (3x3): Q matrix for Lyapunov equation (affects P_rot computation)
+Note: Controllers with SPD matrices MUST use dict-based selection (option 3).
 """
 
-from typing import Literal
+from typing import Any, Dict, Union
 
 from .param_utils import (
     expand_pid_tuning_selection,
-    expand_mrac_tuning_selection,
-    expand_matrix_tuning_selection,  # backward compatibility
-    PID_PARAMETER_GROUPS,
-    ALL_PID_PARAMETERS,
-    MRAC_MATRIX_SIZES,
+    expand_matrix_selection,
 )
 
 # =============================================================================
-# CONFIGURATION - Edit these values
+# CONFIGURATION - Edit here
 # =============================================================================
 
-# Controller type: must match ga_config.py
-CONTROLLER_TYPE: Literal["PID", "MRAC"] = "MRAC"
-
-# PID: Which parameters to tune
-PID_TUNING_SELECTION = "translational"
-
-# MRAC: Which matrix elements to tune
-# Examples of different selection methods:
-MRAC_TUNING_SELECTION = {
-    # Simple: tune only diagonal elements (3 params)
-    #"gamma_x_rot": "diagonal",
+TUNING_SELECTIONS: Dict[str, Union[str, list, dict]] = {
+    # "PID": "translational",
     
-    # Simple: tune all lower-triangular Cholesky elements (6 params for 3x3)
-    # "gamma_r_rot": "full",
-    
-    # Custom diagonal mask: [1,1,0,1,1,0] means tune L11,L22,L44,L55 but skip L33,L66
-    # "gamma_theta_tran": {
-    #     "diagonal": [1, 1, 0, 1, 1, 0],
+    # "MRAC": {
+    #     "q_tran": "diagonal",
+    #     "gamma_x_tran": {
+    #         "selection_matrix": [
+    #             [1],
+    #             [0, 1],
+    #             [0, 0, 0],
+    #             [0, 1, 0, 0],
+    #             [0, 0, 0, 0, 0],
+    #             [0, 0, 0, 0, 0, 0],
+    #         ]
+    #     },
+    #     "gamma_r_tran": "full",
     # },
-    
-    # Custom selection matrix (lower-triangular, row by row):
-    # Row 0: [1]           -> tune L11
-    # Row 1: [0, 1]        -> skip L21, tune L22
-    # Row 2: [0, 0, 0]     -> skip all
-    # Row 3: [0, 1, 0, 0]  -> tune L42 only
-    # Row 4: [0, 0, 0, 0, 0]
-    # Row 5: [0, 0, 0, 0, 0, 0]
-    # "gamma_x_tran": {
-    #     "selection_matrix": [
-    #         [1],
-    #         [0, 1],
-    #         [0, 0, 0],
-    #         [0, 1, 0, 0],
-    #         [0, 0, 0, 0, 0],
-    #         [0, 0, 0, 0, 0, 0],
-    #     ]
-    # },
-    
-    # Q_tran: Q matrix for Lyapunov equation (P_tran = solve_lyapunov(A_ref_tran.T, -Q_tran))
-    "q_tran": "full",  # tune all 6 diagonal elements
-    "gamma_x_tran": "full",
-    "gamma_r_tran": "full",
-    "gamma_theta_tran": "full",
+    "MRAC": {
+        # Adaptive gain matrices (SPD - use Cholesky parameterization)
+        "gamma_x_tran": "diagonal",
+        "gamma_x_rot": "diagonal",
+        "gamma_r_tran": "diagonal",
+        "gamma_r_rot": "diagonal",
+        "gamma_theta_tran": "diagonal",
+        "gamma_theta_rot": "diagonal",
+
+        # Lyapunov matrices (SPD - use Cholesky parameterization)
+        "q_tran": "diagonal",
+        "q_rot": "diagonal",
+        
+        # Uncomment to also tune reference model gains and e-modification:
+        # "K_P_omega_ref": True,  # Reference model proportional gains
+        # "K_I_omega_ref": True,  # Reference model integral gains
+        # "sigma_params": True,   # E-modification robustness parameters
+    }
 }
 
-# =============================================================================
-# Computed values (do not edit below)
-# =============================================================================
 
-def get_tuned_parameters(controller_type: str = None):
-    """Get tuned parameters for the specified controller type."""
-    controller = (controller_type or CONTROLLER_TYPE).upper()
-    if controller == "PID":
-        return expand_pid_tuning_selection(PID_TUNING_SELECTION)
-    elif controller == "MRAC":
-        return expand_mrac_tuning_selection(MRAC_TUNING_SELECTION)
-    else:
-        raise ValueError(f"Unknown controller type: {controller}")
+def get_tuned_parameters(controller_type: str):
+    """Get tuned parameters for the specified controller type.
+    
+    Returns all parameters by default, or a subset based on TUNING_SELECTIONS.
+    Automatically handles Cholesky parameterization for SPD matrices.
+    """
+    # Import here to avoid circular dependency
+    from .. import tuning_classes
+    
+    if controller_type not in tuning_classes:
+        raise ValueError(f"Unknown controller type: {controller_type}. Available: {list(tuning_classes.keys())}")
+    
+    # Get all available parameters from the tuning class
+    tuning_instance = tuning_classes[controller_type]()
+    bounds = tuning_instance.get_parameter_bounds()
+    all_params = list(bounds.parameter_names)
+    
+    # Check if there's a selection config for this controller
+    selection = TUNING_SELECTIONS.get(controller_type, "all")
+    
+    # If "all", return all parameters
+    if selection == "all":
+        return all_params
+    
+    # If it's a list, validate and return it
+    if isinstance(selection, list):
+        # Validate that all requested params exist
+        unknown = set(selection) - set(all_params)
+        if unknown:
+            raise ValueError(f"Unknown parameters for {controller_type}: {sorted(unknown)}")
+        return selection
+    
+    # If it's a dict, use matrix selection (for SPD matrices with Cholesky parameterization)
+    if isinstance(selection, dict):
+        # Get matrix sizes directly from tuning class (if available)
+        matrix_sizes = tuning_instance.get_matrix_sizes() if hasattr(tuning_instance, 'get_matrix_sizes') else {}
+        selected = expand_matrix_selection(selection, matrix_sizes)
+        # Validate that all selected params exist and filter to only configured ones
+        valid_selected = [p for p in selected if p in all_params]
+        if len(valid_selected) != len(selected):
+            missing = set(selected) - set(all_params)
+            print(f"Warning: Some configured parameters not found in {controller_type}: {missing}")
+        return valid_selected
+    
+    # If it's a string (PID presets like "translational"), use PID expansion
+    if isinstance(selection, str):
+        controller_upper = controller_type.upper()
+        if controller_upper == "PID":
+            return expand_pid_tuning_selection(selection)
+        # For non-PID controllers with string selection, treat as unknown format
+        print(f"Warning: String selection '{selection}' not supported for {controller_type}, using all parameters")
+        return all_params
+    
+    # Fallback: unknown selection format, return all parameters
+    return all_params
 
-TUNED_PARAMETERS = get_tuned_parameters(CONTROLLER_TYPE)
-
-# Backward compatibility
-MATRIX_TUNING_SELECTION = MRAC_TUNING_SELECTION

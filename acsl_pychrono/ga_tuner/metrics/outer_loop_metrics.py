@@ -1,7 +1,7 @@
 """
-MRAC Outer Loop Metrics Calculator
+Outer Loop Metrics Calculator
 
-Computes performance metrics for MRAC outer loop (position/translational control).
+Computes performance metrics for  outer loop (position/translational control).
 
 Metrics:
 - position_error: RMS position tracking error
@@ -18,8 +18,8 @@ from .translational_utils import calculate_position_velocity_rmse
 
 
 @dataclass
-class MRACOuterLoopMetrics:
-    """Container for MRAC outer loop performance metrics."""
+class OuterLoopMetrics:
+    """Container for outer loop performance metrics."""
     position_error: float  # RMS position tracking error
     velocity_error: float  # RMS velocity tracking error
     translational_control_effort: float  # RMS control effort (total thrust)
@@ -41,22 +41,22 @@ class MRACOuterLoopMetrics:
         ]
 
 
-class MRACOuterLoopMetricsCalculator:
-    """Calculator for MRAC outer loop performance metrics."""
+class OuterLoopMetricsCalculator:
+    """Calculator for outer loop performance metrics."""
     
     def __init__(self):
         """Initialize the outer loop metrics calculator."""
         pass
     
-    def calculate_metrics(self, log_data: Dict) -> MRACOuterLoopMetrics:
+    def calculate_metrics(self, log_data: Dict) -> OuterLoopMetrics:
         """
-        Calculate MRAC outer loop performance metrics from simulation log.
+        Calculate outer loop performance metrics from simulation log.
         
         Args:
             log_data: Simulation log data dictionary
             
         Returns:
-            MRACOuterLoopMetrics object with computed metrics
+            OuterLoopMetrics object with computed metrics
         """
         try:
             tracking_errors = calculate_position_velocity_rmse(log_data)
@@ -68,14 +68,14 @@ class MRACOuterLoopMetricsCalculator:
             # Calculate performance metrics
             translational_control_effort = self._calculate_translational_control_effort(log_data)
             
-            return MRACOuterLoopMetrics(
+            return OuterLoopMetrics(
                 position_error=position_error,
                 velocity_error=velocity_error,
                 translational_control_effort=translational_control_effort
             )
             
         except Exception as e:
-            print(f"Error calculating MRAC outer loop metrics: {e}")
+            print(f"Error calculating outer loop metrics: {e}")
             return self._create_default_metrics()
     
     def _calculate_translational_control_effort(self, log_data: Dict) -> float:
@@ -110,9 +110,9 @@ class MRACOuterLoopMetricsCalculator:
         result = float(np.sqrt(total_effort))
         return 999.0 if np.isnan(result) or np.isinf(result) else result
     
-    def _create_default_metrics(self) -> MRACOuterLoopMetrics:
+    def _create_default_metrics(self) -> OuterLoopMetrics:
         """Create default metrics for failed calculations."""
-        return MRACOuterLoopMetrics(
+        return OuterLoopMetrics(
             position_error=999.0,
             velocity_error=999.0,
             translational_control_effort=999.0

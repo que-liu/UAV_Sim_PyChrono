@@ -1,7 +1,7 @@
 """
-MRAC Inner Loop Metrics Calculator
+ Inner Loop Metrics Calculator
 
-Computes performance metrics for MRAC inner loop (attitude/rotational control).
+Computes performance metrics for inner loop (attitude/rotational control).
 
 Metrics:
 - attitude_tracking_error: RMS error in roll/pitch/yaw tracking
@@ -20,9 +20,9 @@ from .attitude_utils import (
 
 
 @dataclass
-class MRACInnerLoopMetrics:
+class InnerLoopMetrics:
     """
-    Container for MRAC inner loop performance metrics.
+    Container for inner loop performance metrics.
     Each metric is computed separately for sensitivity analysis and multi-objective optimization.
     """
     attitude_tracking_error: Optional[float] = None      # RMS error in roll, pitch, yaw tracking
@@ -37,7 +37,7 @@ class MRACInnerLoopMetrics:
         return f"{value:.6f}"
 
     def __repr__(self):
-        return (f"MRACInnerLoopMetrics("
+        return (f"InnerLoopMetrics("
                 f"attitude_error={self._format_metric(self.attitude_tracking_error)}, "
                 f"omega_error={self._format_metric(self.angular_velocity_tracking_error)}, "
                 f"rotational_control_effort={self._format_metric(self.rotational_control_effort)}, "
@@ -64,9 +64,9 @@ class MRACInnerLoopMetrics:
         return metrics
 
 
-class MRACInnerLoopMetricsCalculator:
+class InnerLoopMetricsCalculator:
     """
-    Calculator for MRAC inner loop performance metrics.
+    Calculator for inner loop performance metrics.
     
     This class provides a centralized implementation of metric calculations
     to ensure consistency across different parts of the codebase.
@@ -91,7 +91,7 @@ class MRACInnerLoopMetricsCalculator:
             metrics['angular_velocity_tracking_error'] = self.compute_angular_velocity_tracking_error(log_data)
             metrics['rotational_control_effort'] = self.compute_rotational_control_effort(log_data)
         except Exception as e:
-            print(f"Error computing MRAC inner loop metrics: {e}")
+            print(f"Error computing inner loop metrics: {e}")
             # Return high penalty values if computation fails
             metrics = {
                 'attitude_tracking_error': 999.0,
@@ -101,19 +101,19 @@ class MRACInnerLoopMetricsCalculator:
         
         return metrics
     
-    def compute_metrics_object(self, log_data: Dict[str, Any]) -> MRACInnerLoopMetrics:
+    def compute_metrics_object(self, log_data: Dict[str, Any]) -> InnerLoopMetrics:
         """
-        Compute all metrics and return as MRACInnerLoopMetrics object.
+        Compute all metrics and return as InnerLoopMetrics object.
         
         Args:
             log_data: Simulation log data dictionary
             
         Returns:
-            MRACInnerLoopMetrics object with all metrics populated
+            InnerLoopMetrics object with all metrics populated
         """
         metrics_dict = self.compute_all_metrics(log_data)
         
-        return MRACInnerLoopMetrics(
+        return InnerLoopMetrics(
             attitude_tracking_error=metrics_dict['attitude_tracking_error'],
             angular_velocity_tracking_error=metrics_dict['angular_velocity_tracking_error'],
             rotational_control_effort=metrics_dict['rotational_control_effort'],

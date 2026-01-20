@@ -38,23 +38,6 @@ PID_PARAMETER_GROUPS = {
 
 ALL_PID_PARAMETERS = PID_PARAMETER_GROUPS["translational"] + PID_PARAMETER_GROUPS["rotational"]
 
-# MRAC matrix sizes (from encoding/config.py)
-MRAC_MATRIX_SIZES = {
-    "gamma_x_tran": 6,
-    "gamma_r_tran": 3,
-    "gamma_theta_tran": 6,
-    "gamma_x_rot": 3,
-    "gamma_r_rot": 3,
-    "gamma_theta_rot": 6,
-    "q_tran": 6,  # Q matrix for Lyapunov equation (affects P_tran)
-    "q_rot": 3,   # Q matrix for Lyapunov equation (affects P_rot)
-}
-
-
-# =============================================================================
-# PID Selection Expansion
-# =============================================================================
-
 def expand_pid_tuning_selection(
     selection: Union[str, List[str], Dict[str, Any]]
 ) -> Tuple[str, ...]:
@@ -111,7 +94,7 @@ def expand_pid_tuning_selection(
 
 
 # =============================================================================
-# MRAC Selection Expansion
+# Matrix Selection Expansion
 # =============================================================================
 
 def _get_matrix_parameter_names(
@@ -153,11 +136,12 @@ def _get_matrix_parameter_names(
     raise ValueError(f"Invalid selection for {prefix}: {selection}")
 
 
-def expand_mrac_tuning_selection(
-    matrix_selection: Dict[str, Union[str, Dict[str, Any]]]
+def expand_matrix_selection(
+    matrix_selection: Dict[str, Union[str, Dict[str, Any], bool]],
+    matrix_sizes: Dict[str, int]
 ) -> Tuple[str, ...]:
     """
-    Convert MRAC matrix selection to a tuple of parameter names.
+    Convert matrix selection to a tuple of parameter names (for SPD matrices).
     
     Args:
         matrix_selection: Dict mapping matrix names to selection specs:
@@ -165,22 +149,37 @@ def expand_mrac_tuning_selection(
             - "diagonal": Only diagonal elements
             - {"diagonal": [1, 0, 1, ...]}: Custom diagonal mask
             - {"selection_matrix": [[1], [0, 1], ...]}: Custom selection
+            - True: Include all parameters of this type (for K_P_omega_ref, sigma_params)
+        matrix_sizes: Dict mapping matrix names (lowercase) to their sizes
     
     Returns:
         Tuple of parameter names to tune
     """
-    all_params: List[str] = []
+    selected_params: List[str] = []
     for matrix_name, selection_spec in matrix_selection.items():
         matrix_name_lower = matrix_name.lower()
-        if matrix_name_lower not in MRAC_MATRIX_SIZES:
-            raise ValueError(f"Unknown matrix: {matrix_name}. Valid: {list(MRAC_MATRIX_SIZES.keys())}")
         
-        size = MRAC_MATRIX_SIZES[matrix_name_lower]
+        # Handle special parameter groups
+        if matrix_name_lower == "k_p_omega_ref" and selection_spec is True:
+            selected_params.extend([f"K_P_omega_ref_{i}" for i in range(1, 4)])
+            continue
+        elif matrix_name_lower == "k_i_omega_ref" and selection_spec is True:
+            selected_params.extend([f"K_I_omega_ref_{i}" for i in range(1, 4)])
+            continue
+        elif matrix_name_lower == "sigma_params" and selection_spec is True:
+            selected_params.extend(['sigma_x_tran', 'sigma_r_tran', 'sigma_Theta_tran',
+                                  'sigma_x_rot', 'sigma_r_rot', 'sigma_Theta_rot'])
+            continue
+        
+        # Get matrix size directly from the tuning class
+        if matrix_name_lower not in matrix_sizes:
+            raise ValueError(
+                f"Unknown matrix: '{matrix_name}'. "
+                f"Available matrices: {list(matrix_sizes.keys())}"
+            )
+        size = matrix_sizes[matrix_name_lower]
+        
         params = _get_matrix_parameter_names(matrix_name_lower, size, selection_spec)
-        all_params.extend(params)
+        selected_params.extend(params)
     
-    return tuple(all_params)
-
-
-# Backward compatibility alias
-expand_matrix_tuning_selection = expand_mrac_tuning_selection
+    return tuple(selected_params)

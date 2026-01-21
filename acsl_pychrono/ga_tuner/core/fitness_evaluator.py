@@ -53,10 +53,14 @@ class FitnessEvaluator:
             try:
                 if self.use_processes:
                     self.executor = ProcessPoolExecutor(max_workers=self.n_workers)
+                    actual_workers = self.executor._max_workers
+                    print(f"[PARALLEL INIT] ProcessPoolExecutor created: {actual_workers} workers")
                 else:
                     self.executor = ThreadPoolExecutor(max_workers=self.n_workers)
+                    actual_workers = self.executor._max_workers
+                    print(f"[PARALLEL INIT] ThreadPoolExecutor created: {actual_workers} workers")
             except Exception as e:
-                print(f"Warning: Failed to initialize parallel executor: {e}")
+                print(f"[PARALLEL INIT] ERROR: Failed to initialize parallel executor: {e}")
                 self.parallel = False
                 self.executor = None
     
@@ -132,9 +136,11 @@ class FitnessEvaluator:
             List of fitness values
         """
         if not self.parallel:
+            print(f"[EVAL] Evaluating {len(population)} individuals SEQUENTIALLY")
             return [self.evaluate_individual(ind, use_cache) for ind in population]
         
         # Parallel evaluation
+        print(f"[EVAL] Evaluating {len(population)} individuals in PARALLEL")
         return self._parallel_evaluate(population, use_cache)
     
     def _parallel_evaluate(self,

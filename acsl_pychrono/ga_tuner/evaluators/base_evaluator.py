@@ -87,7 +87,7 @@ class UAVSimulationEvaluator(FitnessEvaluator):
             parallel_config = {}
         
         parallel_enabled = parallel_config.get('enabled', False)
-        n_workers = parallel_config.get('n_workers', 1)
+        n_workers = parallel_config.get('n_workers', None)  # None = auto-detect CPU cores
         use_processes = parallel_config.get('use_processes', False)
         
         # Call parent constructor with evaluation function

@@ -18,7 +18,7 @@ class GAConfig:
     algorithm: str = "PYMOO"  # 'DEAP' or 'PYMOO'
 
     population_size: int = 91
-    num_generations: int = 25
+    num_generations: int = 50
     crossover_rate: float = 0.9
     mutation_rate: float = 0.2
 
@@ -38,7 +38,7 @@ class GAConfig:
     custom_reference_vector: Optional[list] = None  # Set to _CUSTOM_REFERENCE_VECTOR to use it
 
     # Pymoo-specific parameters
-    pymoo_variant: str = "NSGA3"
+    pymoo_variant: str = "NSGA2"
     # For NSGA3 with many objectives: manually set partitions to reduce reference directions
     # Default partitions for 6 objectives creates 6188 ref_dirs - use n_partitions=3 for ~91 ref_dirs
     pymoo_algorithm_params: Optional[Dict[str, Any]] = None

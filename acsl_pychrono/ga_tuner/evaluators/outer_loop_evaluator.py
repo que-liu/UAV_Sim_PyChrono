@@ -60,6 +60,13 @@ class OuterLoopEvaluator(UAVSimulationEvaluator):
             'translational_control_effort'
         ]
         
+        # Update n_objectives for multi-objective mode (critical for parallel evaluation!)
+        if self.multi_objective:
+            self.n_objectives = len(self.metric_names)
+            print(f"[OUTER LOOP] Multi-objective mode: {self.n_objectives} objectives")
+        else:
+            print(f"[OUTER LOOP] Single-objective mode: weighted sum")
+        
         # Initialize normalizer
         self.normalizer = MetricNormalizer(metric_names=self.metric_names)
         self.normalizer_fitted = False

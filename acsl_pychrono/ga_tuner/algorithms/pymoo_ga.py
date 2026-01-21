@@ -337,13 +337,14 @@ class PymooProblem(Problem):
         self.adaptive_sampling = adaptive_sampling
         
         # Initialize problem with enhanced features
+        # Set elementwise_evaluation=False to enable batch/parallel evaluation
         super().__init__(
             n_var=n_variables,
             n_obj=n_objectives,
             n_constr=0,
             xl=parameter_bounds.lower_bounds,
             xu=parameter_bounds.upper_bounds,
-            elementwise_evaluation=True
+            elementwise_evaluation=False  # False = batch mode for parallel evaluation
         )
         
         # Initialize adaptive sampling if enabled
@@ -356,15 +357,29 @@ class PymooProblem(Problem):
         Evaluate the objective functions with enhanced features.
         
         Args:
-            x: Individual to evaluate
+            x: Individual to evaluate or population matrix
             out: Output dictionary for objective values
         """
         if isinstance(x, np.ndarray) and x.ndim > 1:
-            # Vectorized call from pymoo: evaluate each individual separately
+            # Vectorized call from pymoo: evaluate entire population in parallel
+            population = [row.tolist() if isinstance(row, np.ndarray) else row for row in x]
+            
+            # Use evaluate_population for parallel evaluation
+            fitness_results = self.fitness_evaluator.evaluate_population(population)
+            
+            # Convert results to numpy matrix
             fitness_matrix = []
-            for row in x:
-                row_eval = self._evaluate_single(row)
-                fitness_matrix.append(row_eval)
+            for fitness in fitness_results:
+                if not isinstance(fitness, (list, np.ndarray)):
+                    fitness = [fitness]
+                fitness_array = np.array(fitness, dtype=float).flatten()
+                if fitness_array.size != self.n_obj:
+                    raise ValueError(
+                        f"Fitness evaluator returned {fitness_array.size} objectives, "
+                        f"expected {self.n_obj}"
+                    )
+                fitness_matrix.append(fitness_array)
+            
             out["F"] = np.vstack(fitness_matrix)
         else:
             out["F"] = self._evaluate_single(x)

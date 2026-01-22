@@ -141,6 +141,7 @@ class FitnessEvaluator:
         
         # Parallel evaluation
         print(f"[EVAL] Evaluating {len(population)} individuals in PARALLEL")
+        print(f"[EVAL] Parallel flag: {self.parallel}, Executor exists: {hasattr(self, 'executor')}")
         return self._parallel_evaluate(population, use_cache)
     
     def _parallel_evaluate(self,
@@ -158,8 +159,10 @@ class FitnessEvaluator:
         """
         # Check if parallel execution is available
         if not hasattr(self, 'executor') or self.executor is None:
-            print("Warning: Parallel executor not available, falling back to sequential evaluation")
+            print("[PARALLEL] WARNING: Parallel executor not available, falling back to sequential")
             return [self.evaluate_individual(ind, use_cache) for ind in population]
+        
+        print(f"[PARALLEL] Executor type: {type(self.executor).__name__}")
         
         # Filter out cached results
         to_evaluate = []
@@ -176,15 +179,23 @@ class FitnessEvaluator:
         else:
             to_evaluate = population
         
+        print(f"[PARALLEL] Pop={len(population)}, Cached={len(cached_results)}, ToEval={len(to_evaluate)}")
+        
         # Evaluate remaining individuals in parallel
         results = []
         if to_evaluate:
             try:
+                import time
+                print(f"[PARALLEL] Submitting {len(to_evaluate)} tasks to executor...")
+                start_time = time.time()
                 executor = self.executor
                 # Use evaluate_individual instead of evaluation_function directly
                 # This ensures that any overridden evaluate_individual (like _PartialEvaluatorMixin) is called
                 futures = [executor.submit(self.evaluate_individual, ind, False) for ind in to_evaluate]
+                print(f"[PARALLEL] Tasks submitted, waiting for results...")
                 results = [future.result() for future in futures]
+                elapsed = time.time() - start_time
+                print(f"[PARALLEL] Completed {len(results)} evaluations in {elapsed:.2f}s")
 
                 # Cache new results
                 if use_cache:
@@ -192,8 +203,11 @@ class FitnessEvaluator:
                         self._cache_result(self._make_hashable(ind), result)
                 
             except Exception as e:
-                print(f"Warning: Parallel evaluation failed: {e}")
-                print("Falling back to sequential evaluation")
+                import traceback
+                print(f"[PARALLEL] ERROR during parallel evaluation: {e}")
+                print("[PARALLEL] Full traceback:")
+                traceback.print_exc()
+                print("[PARALLEL] Falling back to sequential evaluation")
                 # Fallback to sequential evaluation
                 results = [self.evaluate_individual(ind, use_cache) for ind in to_evaluate]
         

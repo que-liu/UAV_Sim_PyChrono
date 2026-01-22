@@ -18,9 +18,9 @@ class GAConfig:
     algorithm: str = "PYMOO"  # 'DEAP' or 'PYMOO'
 
     population_size: int = 91
-    num_generations: int = 50
-    crossover_rate: float = 0.9
-    mutation_rate: float = 0.2
+    num_generations: int = 10
+    crossover_rate: float = 0.6
+    mutation_rate: float = 0.05
 
     selection_method: str = "tournament"
     tournament_size: int = 5
@@ -30,7 +30,7 @@ class GAConfig:
     # Search space configuration
     # - 'local': Relative bounds around reference (±10× scaling) - for fine-tuning existing gains
     # - 'global': Absolute bounds for exploring diverse parameter regions
-    search_space_type: str = "global"  # Changed to 'local' for refinement around global search results
+    search_space_type: str = "local"  # Changed to 'local' for refinement around global search results
     
     # Custom reference for iterative tuning (use tuned parameters as new reference point)
     # Set to None to use default gains from mrac_gains.py
@@ -38,7 +38,7 @@ class GAConfig:
     custom_reference_vector: Optional[list] = None  # Set to _CUSTOM_REFERENCE_VECTOR to use it
 
     # Pymoo-specific parameters
-    pymoo_variant: str = "NSGA2"
+    pymoo_variant: str = "NSGA3"
     # For NSGA3 with many objectives: manually set partitions to reduce reference directions
     # Default partitions for 6 objectives creates 6188 ref_dirs - use n_partitions=3 for ~91 ref_dirs
     pymoo_algorithm_params: Optional[Dict[str, Any]] = None

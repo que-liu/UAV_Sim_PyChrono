@@ -53,16 +53,16 @@ TUNING_SELECTIONS: Dict[str, Union[str, list, dict]] = {
     # },
     "MRAC": {
         # Adaptive gain matrices (SPD - use Cholesky parameterization)
-        # "gamma_x_tran": "full",
-        "gamma_x_rot": "full",
-        # "gamma_r_tran": "full",
-        "gamma_r_rot": "full",
-        # "gamma_theta_tran": "full",
-        "gamma_theta_rot": "full",
+        "gamma_x_tran": "diagonal",
+        "gamma_x_rot": "diagonal",
+        "gamma_r_tran": "diagonal",
+        "gamma_r_rot": "diagonal",
+        "gamma_theta_tran": "diagonal",
+        "gamma_theta_rot": "diagonal",
         
         # Lyapunov matrices (SPD - use Cholesky parameterization)
-        # "q_tran": "full",
-        "q_rot": "full",
+        "q_tran": "diagonal",
+        "q_rot": "diagonal",
 
         # Uncomment to also tune reference model gains and e-modification:
         # "K_P_omega_ref": True,  # Reference model proportional gains

@@ -193,6 +193,36 @@ class BaseFunnelGains(ABC):
   nu_funnel_rot: float
   use_eigenvalue_lambda_sat_funnel_rot: bool
 
+  def __post_init__(self):
+    if (
+      (self.delta_3_funnel_tran <= self.delta_2_funnel_tran) or
+      (self.delta_3_funnel_rot <= self.delta_2_funnel_rot)
+    ):
+      raise ValueError("delta_3 must be greater than delta_2")
+    
+    if (
+      (self.eta_max_funnel_tran <= self.delta_1_funnel_tran + self.delta_3_funnel_tran) or
+      (self.eta_max_funnel_rot <= self.delta_1_funnel_rot + self.delta_3_funnel_rot)
+    ):
+      raise ValueError("eta_max must be greater than delta_1 + delta_3")
+    
+    if (
+      (self.delta_3_funnel_tran <= self.e_min_funnel_tran) or
+      (self.delta_3_funnel_rot <= self.e_min_funnel_rot)
+    ):
+      raise ValueError("delta_3 must be greater than e_min")
+    
+    if (
+      (self.nu_funnel_tran < 0) or (self.nu_funnel_rot < 0) or
+      (self.nu_funnel_tran >= self.lambda_min_Q_tran) or (self.nu_funnel_rot >= self.lambda_min_Q_rot)
+    ):
+      raise ValueError(
+        f"Invalid nu value:\n"
+        f"nu_funnel_tran = {self.nu_funnel_tran}, lambda_min_Q_tran = {self.lambda_min_Q_tran};\n"
+        f"nu_funnel_rot = {self.nu_funnel_rot}, lambda_min_Q_rot = {self.lambda_min_Q_rot}.\n"
+        f"Each nu must be in [0, lambda_min(Q))."
+      )
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 

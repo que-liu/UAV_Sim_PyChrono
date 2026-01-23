@@ -1,4 +1,5 @@
 import numpy as np  
+from acsl_pychrono.control.logging import Logging
 from acsl_pychrono.control.MRAC.mrac_gains import MRACGains
 from acsl_pychrono.control.MRAC.mrac import MRAC
 
@@ -9,17 +10,11 @@ class MRACLogger:
     # Length of the array vector that will be exported 
     self.size_DATA = 181
 
-  def collectData(self, controller: MRAC, simulation_time: float, number_of_propellers: int):
+  def collectData(self, controller: MRAC, simulation_time: float):
     DATA_vector = np.zeros((self.size_DATA, 1))
-    
+      
     # Pad the motor thrusts with zeros if fewer than 8 propellers
-    if number_of_propellers < 8:
-      motor_thrusts = controller.motor_thrusts.reshape(number_of_propellers, 1)
-      motor_thrusts = motor_thrusts.flatten() # Flatten to 1D
-      motor_thrusts = np.pad(motor_thrusts, (0, 8 - number_of_propellers), 'constant')
-    else:
-      motor_thrusts = controller.motor_thrusts
-
+    motor_thrusts = Logging.dataVectorPadding(controller.motor_thrusts, 8)
 
     DATA_vector[0] = controller.odein.time_now
     DATA_vector[1] = simulation_time

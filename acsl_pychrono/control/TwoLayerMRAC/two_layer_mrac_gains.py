@@ -10,14 +10,14 @@ from acsl_pychrono.control.base_mrac_gains import BaseMRACGains
 class TwoLayerMRACGains(BaseMRACGains):
   def __init__(self, flight_params: FlightParams):
     # General vehicle properties
-    self.I_matrix_estimated = flight_params.uav_controller.I_matrix_estimated
-    self.mass_total_estimated = flight_params.uav_controller.mass_total_estimated
-    self.air_density_estimated = flight_params.uav_controller.air_density_estimated
-    self.surface_area_estimated = flight_params.uav_controller.surface_area_estimated
-    self.drag_coefficient_matrix_estimated = flight_params.uav_controller.drag_coefficient_matrix_estimated
+    self.I_matrix_estimated = flight_params.uav.I_matrix_estimated
+    self.mass_total_estimated = flight_params.uav.mass_total_estimated
+    self.air_density_estimated = flight_params.uav.air_density_estimated
+    self.surface_area_estimated = flight_params.uav.surface_area_estimated
+    self.drag_coefficient_matrix_estimated = flight_params.uav.drag_coefficient_matrix_estimated
 
     # Controller's numerical Parameters config filename
-    gains_config_filename = flight_params.uav_controller.controller_config_filename
+    gains_config_filename = flight_params.uav.controller_config_filename
     gains_config_file = flight_params.get_controller_config(gains_config_filename, flight_params.uav.name)
     
     # Number of states to be integrated by RK4
@@ -92,7 +92,6 @@ class TwoLayerMRACGains(BaseMRACGains):
     self.Gamma_x_rot = flight_params.get_scaled_matrix_from_config(gains_config_file, "Gamma_x_rot")
     self.Gamma_r_rot = flight_params.get_scaled_matrix_from_config(gains_config_file, "Gamma_r_rot")
     self.Gamma_Theta_rot = flight_params.get_scaled_matrix_from_config(gains_config_file, "Gamma_Theta_rot")
-    
 
     # ----------------------------------------------------------------
     #                   Two-Layer MRAC Parameters
@@ -135,7 +134,7 @@ class TwoLayerMRACGains(BaseMRACGains):
     # Mu - plane intersection
     self.planeEpsilon = flight_params.get_scalar_from_config(gains_config_file, "planeEpsilon")
     self.alphaPlane = flight_params.get_scalar_from_config(gains_config_file, "alphaPlane") # [-] coefficient for setting the 'height' of the bottom plane. Must be >0 and <1.
-
+    
     # ----------------------------------------------------------------
     #                  Dead-Zone modification Parameters
     # ----------------------------------------------------------------
@@ -227,4 +226,17 @@ class TwoLayerMRACGains(BaseMRACGains):
     self.epsilon_Theta_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_Theta_rot)
     self.epsilon_g_rot = ProjectionOperator.computeEpsilonFromAlpha(self.alpha_g_rot)
 
+    # ----------------------------------------------------------------
+    #     Non-Adaptive Error Bounding Control Input Parameters
+    # ----------------------------------------------------------------
+    self.use_error_bounding_control_input = flight_params.get_scalar_from_config(gains_config_file, "use_error_bounding_control_input")
+
+    self.xi_bar_d_tran = flight_params.get_scalar_from_config(gains_config_file, "xi_bar_d_tran")
+    self.lambda_bar_tran = flight_params.get_scalar_from_config(gains_config_file, "lambda_bar_tran")
+    self.delta_ebci_tran = flight_params.get_scalar_from_config(gains_config_file, "delta_ebci_tran")
+    
+    self.xi_bar_d_rot = flight_params.get_scalar_from_config(gains_config_file, "xi_bar_d_rot")
+    self.lambda_bar_rot = flight_params.get_scalar_from_config(gains_config_file, "lambda_bar_rot")
+    self.delta_ebci_rot = flight_params.get_scalar_from_config(gains_config_file, "delta_ebci_rot")
+    
     print(f"[INFO] Successfully loaded TwoLayerMRAC Gains")

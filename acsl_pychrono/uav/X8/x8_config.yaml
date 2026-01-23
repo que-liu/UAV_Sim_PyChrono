@@ -2,7 +2,7 @@ uav:
   number_of_propellers: 8
 
   cad:
-    pychono_export: "X8_export.py" # Must match the name of the .py file exported from pychrono in the assets/vehicles folder
+    pychono_export: "x8copter.py" # Must match the name of the .py file exported from pychrono in the assets/vehicles folder
     ground: "ground"
     frame: "drone_big_box"
     box: "box_big_200x200x100"
@@ -13,9 +13,9 @@ uav:
     orientation_ned: [0.70710678118, 0.70710678118, 0, 0] # for chrono quaternion (NED - North East Down)
     orientation_yup: [1, 0, 0, 0]                         # for chrono quaternion (YUP - Y up)
 
-  mass_total: 2.025 # [kg] 2.025 -- 3.1, Get the estimate from Solidworks
+  mass_total_estimated: 2.025 # [kg] 2.025 -- 3.1, Get the estimate from Solidworks
 
-  inertia:
+  inertia_estimated:
   # (drone frame + box + propellers) espressed in Solidworks coordinate sys (x-front, y-up, z-right), computed at the center of mass
     Lxx : 0.0227199027
     Lyy : 0.0161469360
@@ -23,6 +23,10 @@ uav:
     Lxy : 0.0010034978
     Lxz : -0.0000065570
     Lyz : -0.0000056584
+
+  environment:
+    air_density: 1.225    # Air density [kg/m^3]
+    G_acc: 9.80665        # Gravitational acceleration
 
   aerodynamics:
     surface_area: 0.07      # Surface area of the drone to account for drag [m^2]
@@ -76,6 +80,7 @@ uav:
   aerodynamic_force_application_point: [-0.006329836449057219, -0.05730872796244302, 3.945863912075595e-05]
 
 controller:
+  controller_start_time: 0.0 #0.1
   derivative_filter_gains:
     # Roll filters gains (from matlab)
     A_phi_ref: [[-15, -225],[1, 0]]
@@ -90,7 +95,12 @@ controller:
   K_omega: 0.0000014166615 # Coefficent relating the propellers'thrust to the square of the angular velocity. controller.motor_thrusts = K * omega^2
   K_torque: !!float 5e-08 # [5e-08 - 5e-10] TO BE ESTIMATED!!! Coefficent relating the propellers'torque to the square of the angular velocity. Torque = K_torque * omega^2
 
-  gain_yaml_files:  
-    PID: "PID.yaml"
+  gain_yaml_files:
+    # PID: "PID.yaml"
+    PID: "PID1.yaml"
     MRAC: "MRAC.yaml"
     TwoLayerMRAC: "TwoLayerMRAC.yaml"
+    FunnelMRAC: "FunnelMRAC.yaml"
+    HybridMRAC: "HybridMRAC.yaml"
+    HybridTwoLayerMRAC: "HybridTwoLayerMRAC.yaml"
+    NonAdaptiveEBCI: "NonAdaptiveEBCI.yaml"

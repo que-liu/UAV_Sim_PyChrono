@@ -20,10 +20,10 @@ def runSingleSimulation(cli_args):
     environment_config=env_cfg,
     wrapper_params=wrp_prms
   )
-  
+
   # Update simulation configuration from CLI arguments if provided
   update_cfg_from_cli_args(sim_cfg, cli_args)
-
+  
   git_info = Logging.getGitRepoInfo()
 
   sim = Simulation(sim_cfg)

@@ -13,9 +13,9 @@ uav:
     orientation_ned: [0.70710678118, 0.70710678118, 0, 0] # for chrono quaternion (NED - North East Down)
     orientation_yup: [1, 0, 0, 0]                         # for chrono quaternion (YUP - Y up)
 
-  mass_total: 2.025 # [kg] 2.025 -- 3.1, Get the estimate from Solidworks
+  mass_total_estimated: 2.025 # [kg] 2.025 -- 3.1, Get the estimate from Solidworks
 
-  inertia: # Get it from the center of mass of the full assembly
+  inertia_estimated:
   # (drone frame + box + propellers) espressed in Solidworks coordinate sys (x-front, y-up, z-right), computed at the center of mass
     Lxx : 0.0227199027
     Lyy : 0.0161469360
@@ -24,12 +24,14 @@ uav:
     Lxz : -0.0000065570
     Lyz : -0.0000056584
 
+  environment:
+    air_density: 1.225    # Air density [kg/m^3]
+    G_acc: 9.80665        # Gravitational acceleration
+
   aerodynamics:
     surface_area: 0.07      # Surface area of the drone to account for drag [m^2]
     drag_coefficient: 1.28  # Drag coefficient (equal to that of a plate) [-]
 
-  # FOR NOW, USE HIGH VALUES OF MAX AND MIN THRUST TO AVOID SATURATION (max_thrust = 100N)
-  # TO BE UPDATED WITH ACTUAL MOTOR-PROPELLER COMBINATION
   motor:
     # Maximum thrust produced by a single motor = 1355 grams = 1.355 kg = 1.355 kg * 9.81 m/s^2 = 13.28 N
     # Maximum thrust produced by a motors'couple without loss of efficiency due to propeller interaction = 13.28 * 2 = 26.56 N
@@ -74,11 +76,11 @@ uav:
     - [ 0.08760601358, -0.0085,  0.10859150436] # 3 & 7
     - [-0.08812691616, -0.0085,  0.10834502049] # 4 & 8
 
-  # point where to apply the aerodynamic force in local frame (try with the center of mass of the drone)
+  # point where to apply the aerodynamic force in local frame
   aerodynamic_force_application_point: [-0.006329836449057219, -0.05730872796244302, 3.945863912075595e-05]
 
 controller:
-  # These shouldn't change unless you change the mission
+  controller_start_time: 0.0 #0.1
   derivative_filter_gains:
     # Roll filters gains (from matlab)
     A_phi_ref: [[-15, -225],[1, 0]]
@@ -97,3 +99,7 @@ controller:
     PID: "PID.yaml"
     MRAC: "MRAC.yaml"
     TwoLayerMRAC: "TwoLayerMRAC.yaml"
+    FunnelMRAC: "FunnelMRAC.yaml"
+    HybridMRAC: "HybridMRAC.yaml"
+    HybridTwoLayerMRAC: "HybridTwoLayerMRAC.yaml"
+    NonAdaptiveEBCI: "NonAdaptiveEBCI.yaml"

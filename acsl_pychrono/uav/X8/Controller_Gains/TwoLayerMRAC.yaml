@@ -197,7 +197,7 @@ dead_zone_e0_rot: !!float 0.002
 # ----------------------------------------------------------------
 #                  e-modification Parameters
 # ----------------------------------------------------------------
-use_e_modification: True
+use_e_modification: False #True
 
 sigma_x_tran: !!float 0.5
 sigma_r_tran: !!float 0.5
@@ -285,3 +285,16 @@ S_diagonal_g_rot_transpose:
   scaling_factor: !!float 10.0
   matrix: [[1, 1, 1, 1, 1, 1, 1, 1, 1]]
 alpha_g_rot: !!float 0.1
+
+# ----------------------------------------------------------------
+#      Non-Adaptive Error Bounding Control Input Parameters
+# ----------------------------------------------------------------
+use_error_bounding_control_input: False
+
+xi_bar_d_tran: !!float 2.0e1
+lambda_bar_tran: !!float 1.0
+delta_ebci_tran: !!float 1.0e-5
+
+xi_bar_d_rot: !!float 1.0e1
+lambda_bar_rot: !!float 1.0
+delta_ebci_rot: !!float 1.0e-5

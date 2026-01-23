@@ -12,6 +12,15 @@ __description__ = "This repository presents a high-fidelity simulation environme
 import argparse
 from .config import config as Cfg
 
+def str2bool(v):
+  if isinstance(v, bool):
+    return v
+  if v.lower() in ("yes", "true", "t", "1", "on"):
+    return True
+  if v.lower() in ("no", "false", "f", "0", "off"):
+    return False
+  raise argparse.ArgumentTypeError("Boolean value expected.")
+
 def get_cli_args():
   """Parse CLI arguments and return them."""
   parser = argparse.ArgumentParser(
@@ -23,31 +32,70 @@ def get_cli_args():
   parser.add_argument("--uav", help="Instantiate UAV from name.")
   parser.add_argument(
     "--controller",
-    choices=["PID", "MRAC", "TwoLayerMRAC"],
+    choices=[
+      "PID", 
+      "MRAC",
+      "TwoLayerMRAC",
+      "FunnelMRAC",
+      "HybridMRAC",
+      "HybridTwoLayerMRAC",
+      "NonAdaptiveEBCI"
+      ],
     help="Instantiate controller from available type."
   )
 
   # Simulation options
   parser.add_argument("--simulation_duration", type=float, help="Total simulation duration in seconds.")
-  parser.add_argument("--no_visualize", action="store_true", help="Disable real-time rendering of the simulation with Irrlicht.")
+  parser.add_argument(
+    "--visualize",
+    type=str,
+    help="Enable/disable real-time rendering (true/false) of the simulation with Irrlicht."
+  )
 
   # Camera options
   parser.add_argument(
     "--camera_mode",
-    choices=["fixed", "default", "side", "front", "follow", "fpv"],
+    choices=[
+      "fixed",
+      "default",
+      "side",
+      "front",
+      "follow",
+      "fpv",
+      "orbit",
+      "follow_smooth",
+      "topdown",
+    ],
     help="Select dynamic camera mode."
   )
 
   # Payload options
-  parser.add_argument("--add_payload", action='store_true', help='Add payload to the UAV.')
+  parser.add_argument(
+    "--add_payload",
+    type=str,
+    help='Add payload to the UAV.'
+  )
   parser.add_argument(
     "--payload_type",
-    choices=["two_steel_balls", "ten_steel_balls_in_two_lines", "many_steel_balls_in_random_position"],
+    choices=[
+      "two_steel_balls",
+      "ten_steel_balls_in_two_lines",
+      "many_steel_balls_in_random_position",
+      "sling_ball_payload"
+    ],
     help='Specify payload type.'
   )
-  parser.add_argument("--drop_two_steel_balls", action="store_true", help="Enable dropping two steel balls payload.")
+  parser.add_argument(
+    "--drop_two_steel_balls",
+    type=str,
+    help="Enable dropping two steel balls payload."
+  )
   parser.add_argument("--two_steel_balls_drop_time", type=float, help="Time (s) at which to drop the two steel balls.")
-  parser.add_argument("--sequential_drop", action="store_true", help="Enable sequentially dropping multiple payload balls.")
+  parser.add_argument(
+    "--sequential_drop",
+    type=str,
+    help="Enable sequentially dropping multiple payload balls."
+  )
   parser.add_argument("--sequential_drop_start", type=float, help="Start time (s) for sequential ball drops.")
   parser.add_argument("--sequential_drop_interval", type=float, help="Interval (s) between each ball drop.")
 
@@ -74,11 +122,19 @@ def get_cli_args():
   )
 
   # Motor failure
-  parser.add_argument("--apply_motor_failure", action="store_true", help="Trigger a motor failure event.")
+  parser.add_argument(
+    "--apply_motor_failure",
+    type=str,
+    help="Trigger a motor failure event."
+  )
   parser.add_argument("--motor_failure_time", type=float, help="Time (s) when motor failure occurs.")
 
   # External forces
-  parser.add_argument("--apply_wind_force", action="store_true", help="Apply aerodynamic wind force to the UAV.")
+  parser.add_argument(
+    "--apply_wind_force",
+    type=str,
+    help="Apply aerodynamic wind force to the UAV."
+  )
   parser.add_argument(
     "--wind_force_vector",
     type=float,
@@ -88,7 +144,11 @@ def get_cli_args():
   )
 
   # Environment options
-  parser.add_argument("--include_environment", action='store_true', help="Include external environment in the simulation.")
+  parser.add_argument(
+    "--include_environment",
+    type=str,
+    help="Include external environment in the simulation."
+  )
   parser.add_argument(
     "--environment_path",
     choices=["environmentA/environmentA.py", "environment3/environment3.py"],
@@ -96,7 +156,11 @@ def get_cli_args():
     )
   
   # # Wrapper Flag options 
-  # parser.add_argument("--no_wrapper_mode", action='store_true', help="Runs simulation in batches for multiple parallel simulation.")
+  # parser.add_argument(
+  #   "--wrapper_mode",
+  #   type=str,
+  #   help="Runs simulation in batches for multiple parallel simulation."
+  # )
 
   return parser.parse_args()
 
@@ -115,20 +179,20 @@ def update_cfg_from_cli_args(sim_cfg: Cfg.SimulationConfig, cli_args):
     
   # Payload options
   if cli_args.add_payload:
-    sim_cfg.mission_config.add_payload_flag = cli_args.add_payload
+    sim_cfg.mission_config.add_payload_flag = str2bool(cli_args.add_payload)
     
   if cli_args.payload_type:
     sim_cfg.mission_config.payload_type = cli_args.payload_type
 
   # Payload dropping
   if cli_args.drop_two_steel_balls:
-    sim_cfg.mission_config.drop_two_steel_balls = cli_args.drop_two_steel_balls
+    sim_cfg.mission_config.drop_two_steel_balls = str2bool(cli_args.drop_two_steel_balls)
 
   if cli_args.two_steel_balls_drop_time is not None:
     sim_cfg.mission_config.two_steel_balls_drop_time = cli_args.two_steel_balls_drop_time
 
   if cli_args.sequential_drop:
-    sim_cfg.mission_config.sequentially_drop_multiple_balls = cli_args.sequential_drop
+    sim_cfg.mission_config.sequentially_drop_multiple_balls = str2bool(cli_args.sequential_drop)
 
   if cli_args.sequential_drop_start is not None:
     sim_cfg.mission_config.sequentially_drop_start_time = cli_args.sequential_drop_start
@@ -140,8 +204,8 @@ def update_cfg_from_cli_args(sim_cfg: Cfg.SimulationConfig, cli_args):
   if cli_args.simulation_duration is not None:
     sim_cfg.mission_config.simulation_duration_seconds = cli_args.simulation_duration
 
-  if cli_args.no_visualize:
-    sim_cfg.mission_config.visualization_flag = not cli_args.no_visualize
+  if cli_args.visualize:
+    sim_cfg.mission_config.visualization_flag = str2bool(cli_args.visualize)
 
   # Camera settings
   if cli_args.camera_mode:
@@ -159,26 +223,26 @@ def update_cfg_from_cli_args(sim_cfg: Cfg.SimulationConfig, cli_args):
 
   # Motor failure
   if cli_args.apply_motor_failure:
-    sim_cfg.mission_config.apply_motor_failure = cli_args.apply_motor_failure
+    sim_cfg.mission_config.apply_motor_failure = str2bool(cli_args.apply_motor_failure)
 
   if cli_args.motor_failure_time is not None:
     sim_cfg.mission_config.motor_failure_time = cli_args.motor_failure_time
 
   # External forces
   if cli_args.apply_wind_force:
-    sim_cfg.mission_config.apply_wind_force = cli_args.apply_wind_force
+    sim_cfg.mission_config.apply_wind_force = str2bool(cli_args.apply_wind_force)
 
   if cli_args.wind_force_vector is not None:
     sim_cfg.mission_config.wind_force_vector = tuple(cli_args.wind_force_vector)
     
   # Environment inclusion
   if cli_args.include_environment:
-    sim_cfg.environment_config.include = cli_args.include_environment
+    sim_cfg.environment_config.include = str2bool(cli_args.include_environment)
 
   if cli_args.environment_path:
     sim_cfg.environment_config.model_relative_path = cli_args.environment_path
     
   # # Wrapper mode
-  # if cli_args.no_wrapper_mode:
-  #   sim_cfg.mission_config.wrapper_flag = not cli_args.no_wrapper_mode
+  # if cli_args.wrapper_mode:
+  #   sim_cfg.mission_config.wrapper_flag = str2bool(cli_args.wrapper_mode)
   

@@ -9,7 +9,7 @@ class SquareTrajectory(BaseUserDefinedTrajectory):
     self.square_side_size = 5
     self.linear_velocity_trajectory = 3.5 # 1.0
     self.altitude_trajectory = -1
-    self.controller_start_time = flight_params.controller_start_time
+    self.controller_start_time = flight_params.uav.controller_start_time
     self.time_side = ( # time required to complete one side of the square
     self.square_side_size / self.linear_velocity_trajectory
     ) 
@@ -82,31 +82,31 @@ class SquareTrajectory(BaseUserDefinedTrajectory):
     mpath = chrono.ChLinePath()
 
     seg1 = chrono.ChLineSegment(
-      chrono.ChVectorD(0,abs(self.altitude_trajectory) + mfloor_Yposition,0),
-      chrono.ChVectorD(self.square_side_size,abs(self.altitude_trajectory) + mfloor_Yposition,0)
+      chrono.ChVector3d(0,abs(self.altitude_trajectory) + mfloor_Yposition,0),
+      chrono.ChVector3d(self.square_side_size,abs(self.altitude_trajectory) + mfloor_Yposition,0)
     )
     seg2 = chrono.ChLineSegment(
-      chrono.ChVectorD(self.square_side_size, abs(self.altitude_trajectory) + mfloor_Yposition, 0),
-      chrono.ChVectorD(self.square_side_size, abs(self.altitude_trajectory) + mfloor_Yposition, self.square_side_size)
+      chrono.ChVector3d(self.square_side_size, abs(self.altitude_trajectory) + mfloor_Yposition, 0),
+      chrono.ChVector3d(self.square_side_size, abs(self.altitude_trajectory) + mfloor_Yposition, self.square_side_size)
     )
     seg3 = chrono.ChLineSegment(
-      chrono.ChVectorD(self.square_side_size, abs(self.altitude_trajectory) + mfloor_Yposition, self.square_side_size),
-      chrono.ChVectorD(0, abs(self.altitude_trajectory) + mfloor_Yposition, self.square_side_size)
+      chrono.ChVector3d(self.square_side_size, abs(self.altitude_trajectory) + mfloor_Yposition, self.square_side_size),
+      chrono.ChVector3d(0, abs(self.altitude_trajectory) + mfloor_Yposition, self.square_side_size)
     )
     seg4 = chrono.ChLineSegment(
-      chrono.ChVectorD(0, abs(self.altitude_trajectory) + mfloor_Yposition, self.square_side_size),
-      chrono.ChVectorD(0,abs(self.altitude_trajectory) + mfloor_Yposition, 0)
+      chrono.ChVector3d(0, abs(self.altitude_trajectory) + mfloor_Yposition, self.square_side_size),
+      chrono.ChVector3d(0,abs(self.altitude_trajectory) + mfloor_Yposition, 0)
     )
 
     mpath.AddSubLine(seg1)
     mpath.AddSubLine(seg2)
     mpath.AddSubLine(seg3)
     mpath.AddSubLine(seg4)
-    mpath.Set_closed(True)
+    mpath.SetClosed(True)
 
-    # Create a ChLineShape, a visualization asset for lines.
+    # Create a ChVisualShapeLine, a visualization asset for lines.
     # The ChLinePath is a special type of ChLine and it can be visualized.
-    mpathasset = chrono.ChLineShape()
+    mpathasset = chrono.ChVisualShapeLine()
     mpathasset.SetLineGeometry(mpath)
     mpathasset.SetColor(chrono.ChColor(0,0,0))
     mfloor.AddVisualShape(mpathasset)

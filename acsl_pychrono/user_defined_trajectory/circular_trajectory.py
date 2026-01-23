@@ -9,7 +9,7 @@ class CircularTrajectory(BaseUserDefinedTrajectory):
     self.radius_trajectory = 3
     self.angular_velocity_trajectory = 0.2
     self.altitude_trajectory = -1
-    self.controller_start_time = flight_params.controller_start_time
+    self.controller_start_time = flight_params.uav.controller_start_time
 
     self.addVisualization(mfloor, mfloor_Yposition)
 
@@ -80,21 +80,21 @@ class CircularTrajectory(BaseUserDefinedTrajectory):
     # Create a ChLinePath geometry, and insert sub-paths 
     mpath = chrono.ChLinePath()
     marc1 = chrono.ChLineArc(
-      chrono.ChCoordsysD(
-        chrono.ChVectorD(-self.radius_trajectory, abs(self.altitude_trajectory) + mfloor_Yposition, 0),
-        chrono.ChQuaternionD(0.70710678118,0.70710678118,0,0)
+      chrono.ChCoordsysd(
+        chrono.ChVector3d(-self.radius_trajectory, abs(self.altitude_trajectory) + mfloor_Yposition, 0),
+        chrono.ChQuaterniond(0.70710678118,0.70710678118,0,0)
       ),
       self.radius_trajectory,
-      chrono.CH_C_2PI,
+      2*math.pi,
       0,
       False
     )
     mpath.AddSubLine(marc1)
-    mpath.Set_closed(True)
+    mpath.SetClosed(True)
 
-    # Create a ChLineShape, a visualization asset for lines.
+    # Create a ChVisualShapeLine, a visualization asset for lines.
     # The ChLinePath is a special type of ChLine and it can be visualized.
-    mpathasset = chrono.ChLineShape()
+    mpathasset = chrono.ChVisualShapeLine()
     mpathasset.SetLineGeometry(mpath)
     mpathasset.SetColor(chrono.ChColor(0,0,0))
     mfloor.AddVisualShape(mpathasset)

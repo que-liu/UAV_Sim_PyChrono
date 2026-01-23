@@ -1,4 +1,5 @@
 import numpy as np  
+from acsl_pychrono.control.logging import Logging
 from acsl_pychrono.control.TwoLayerMRAC.two_layer_mrac_gains import TwoLayerMRACGains
 from acsl_pychrono.control.TwoLayerMRAC.two_layer_mrac import TwoLayerMRAC
 
@@ -9,17 +10,11 @@ class TwoLayerMRACLogger:
     # Length of the array vector that will be exported 
     self.size_DATA = 222
 
-  def collectData(self, controller: TwoLayerMRAC, simulation_time: float, number_of_propellers: int):
+  def collectData(self, controller: TwoLayerMRAC, simulation_time: float):
     DATA_vector = np.zeros((self.size_DATA, 1))
-    
+      
     # Pad the motor thrusts with zeros if fewer than 8 propellers
-    if number_of_propellers < 8:
-      motor_thrusts = controller.motor_thrusts.reshape(number_of_propellers, 1)
-      motor_thrusts = motor_thrusts.flatten() # Flatten to 1D
-      motor_thrusts = np.pad(motor_thrusts, (0, 8 - number_of_propellers), 'constant')
-    else:
-      motor_thrusts = controller.motor_thrusts
-
+    motor_thrusts = Logging.dataVectorPadding(controller.motor_thrusts, 8)
 
     DATA_vector[0] = controller.odein.time_now
     DATA_vector[1] = simulation_time
@@ -50,7 +45,7 @@ class TwoLayerMRACLogger:
     DATA_vector[45] = controller.u2
     DATA_vector[46] = controller.u3
     DATA_vector[47] = controller.u4
-    DATA_vector[48:56] = motor_thrusts.reshape(8, 1)
+    DATA_vector[48:56] = motor_thrusts.reshape(8,1)
     DATA_vector[56:59] = np.zeros((3, 1))
     DATA_vector[59:62] = controller.mu_adaptive_tran
     DATA_vector[62:65] = controller.mu_PD_baseline_tran
@@ -95,9 +90,9 @@ class TwoLayerMRACLogger:
     DATA_vector[201:210] = controller.K_hat_g_rot.flatten(order='F').reshape(-1, 1)
 
     DATA_vector[210:213] = controller.mu_adaptive_mrac_tran
-    DATA_vector[213:216] = np.zeros((3, 1))
+    DATA_vector[213:216] = controller.mu_adaptive_ebci_tran
     DATA_vector[216:219] = controller.Moment_adaptive_mrac
-    DATA_vector[219:222] = np.zeros((3, 1))
+    DATA_vector[219:222] = controller.Moment_adaptive_ebci
     
     self.data_list.append(DATA_vector.flatten())
 
@@ -235,6 +230,11 @@ class TwoLayerMRACLogger:
           "y": DATA_np[:, 211].reshape(-1, 1),
           "z": DATA_np[:, 212].reshape(-1, 1),
         },
+        "mu_adaptive_ebci": {
+          "x": DATA_np[:, 213].reshape(-1, 1),
+          "y": DATA_np[:, 214].reshape(-1, 1),
+          "z": DATA_np[:, 215].reshape(-1, 1),
+        },
       },
       "desired_euler_angles": {
         "roll": DATA_np[:, 20].reshape(-1, 1),
@@ -347,6 +347,11 @@ class TwoLayerMRACLogger:
           "x": DATA_np[:, 216].reshape(-1, 1),
           "y": DATA_np[:, 217].reshape(-1, 1),
           "z": DATA_np[:, 218].reshape(-1, 1),
+        },
+        "Moment_adaptive_ebci": {
+          "x": DATA_np[:, 219].reshape(-1, 1),
+          "y": DATA_np[:, 220].reshape(-1, 1),
+          "z": DATA_np[:, 221].reshape(-1, 1),
         },
       },
       "user_defined_position": {

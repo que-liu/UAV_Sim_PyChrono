@@ -5,6 +5,11 @@ import shutil
 import argparse
 from templates import *
 from pathlib import Path
+# import warnings
+import tkinter as tk
+from tkinter import messagebox
+root = tk.Tk()
+root.withdraw()  # Hide main window
 
 # Get the absolute path to the folder containing this script
 MAIN_DIR = Path(__file__).resolve().parent
@@ -22,23 +27,28 @@ if str(MAIN_DIR.parent) not in sys.path:
 DEFAULT_UAV = "X8"
 TEMPLATE_CONFIGS = {
     "X8": "templates/X8/x8_config.yaml",
-    "QUAD": "templates/QUAD/quad_config.yaml"
+    "SIMPLE_QUAD": "templates/SIMPLE_QUAD/quad_config.yaml",
+    "QUAD": "templates/QUAD/QUAD1_config.yaml"
 }
 TEMPLATE_CLASS_FILES = {
     "X8": "templates/X8/x8.py",
-    "QUAD": "templates/QUAD/quad.py"
+    "SIMPLE_QUAD": "templates/SIMPLE_QUAD/quad.py",
+    "QUAD": "templates/QUAD/QUAD1.py"
 }
 TEMPLATE_GAINS_FILE = {
     "X8": "templates/X8/Controller_Gains",
+    "SIMPLE_QUAD": "templates/SIMPLE_QUAD/Controller_Gains",
     "QUAD": "templates/QUAD/Controller_Gains"
 }
 TEMPLATE_CHRONO_PY_FILE = {
     "X8": "templates/X8/CAD_export/x8copter.py",
-    "QUAD": "templates/QUAD/CAD_export/QUAD_export.py"
+    "SIMPLE_QUAD": "templates/SIMPLE_QUAD/CAD_export/QUAD_export.py",
+    "QUAD": "templates/QUAD/CAD_export/Q4.py"
 }
 TEMPLATE_SHAPES_FOLDER = {
     "X8": "templates/X8/CAD_export/shapes",
-    "QUAD": "templates/QUAD/CAD_export/shapes"
+    "SIMPLE_QUAD": "templates/SIMPLE_QUAD/CAD_export/shapes",
+    "QUAD": "templates/QUAD/CAD_export/Q4_shapes"
 }
 
 # ---------------------------------------------------------------------
@@ -46,65 +56,73 @@ TEMPLATE_SHAPES_FOLDER = {
 # ---------------------------------------------------------------------
 INIT_TEMPLATE = """\
 # acsl_pychrono/uav/{uav_name}/__init__.py
-from .{uav_name} import UAV_INSTANCE
+from .{uav_name} import UAV
 """
 
 UAV_CLASS_TEMPLATE = """\
 import numpy as np
 from pathlib import Path
 import acsl_pychrono.uav as UAV_module
-from acsl_pychrono.uav.uav_parent_class_file import UAV_PARENT_CLASS as UAV
+from acsl_pychrono.uav.uav_base import UAV_BASE
 
-class UAV_INSTANCE(UAV):
-    def __init__(self):
-    # --------------------------------------------------------------------------------------------------------
-    # No need to change anything here
-    # --------------------------------------------------------------------------------------------------------
-    super().__init__()
-    
-    # Get the UAV name from the class name
-    self.name = Path(__file__).stem
-    
-    # UAV specific parameters
-    cfg = UAV_module.get_uav_config(self.name) # Config Dictionary
-    
-    self.loadFromYAML(cfg)  # Load generic parameters
-    
-    # --- UAV-specific ---
-    self._load_inertia()
-    self._compute_mixer_matrix(cfg)
-    
+class UAV (UAV_BASE) :
+    def __init__(self, controller_name: str):
+        super().__init__(controller_name)
+        
+        # Get the UAV name from the class name
+        self.name = Path(__file__).stem
+        
+        # UAV specific parameters
+        cfg = UAV_module.get_uav_config(self.name) # Config Dictionary
+        
+        self.loadFromYAML(cfg)  # Load generic parameters
+        
+        # --- UAV-specific ---
+        self._load_inertia()
+        self._compute_estimated_parameters()
+        self._compute_mixer_matrix(cfg)
+        
     def _load_inertia(self):
-        # --------------------------------------------------------------------------------------------------------
-        # If the UAV CAD model is designed in SolidWorks with the yup convention, no need to change anything here
-        # Otherwise, modify this function accordingly
-        # --------------------------------------------------------------------------------------------------------
         # Inertia matrix of the system: (drone frame + box + propellers) espressed in Pixhawk coordinate sys (x-front, y-right, z-down), computed at the center of mass
         # Since the inertia_matrix_untransformed was obtained in the Solidworks coordinate sys (yup), it needs to be transformed to (ned)
         self.Inertia_mat_pixhawk = self.RotMat_X_PI_2_array @ self.inertia_matrix_untransformed @ self.RotMat_X_PI_2_tran_array  
-        
+
+    def _compute_estimated_parameters(self) -> None:
+        # If sensitivity analyses are needed, the estimated parameters can be changed in this function
+        # --- Basic UAV-level estimates ---
+        self.mass_total_estimated = self.mass_total
+        self.I_matrix_estimated = np.matrix(self.Inertia_mat_pixhawk)
+        self.surface_area_estimated = self.surface_area
+        self.drag_coefficient_estimated = self.drag_coefficient
+        self.air_density_estimated = self.air_density
+
+        self.drag_coefficient_matrix_estimated = np.matrix(
+        np.diag([self.drag_coefficient_estimated,
+                    self.drag_coefficient_estimated, 0])
+        )
+
     def _compute_mixer_matrix(self, cfg):
-        # --------------------------------------------------------------------------------------------------------
-        # Must change according to the UAV geometry configuration
-        # --------------------------------------------------------------------------------------------------------
-        # Mixer Matrix for the realization of the thrust generated by each motor
-        # (T1, T2, T3, T4) given the control inputs (u1, u2, u3, u4)
+        # Mixer Matrix for the realization of the thrust generated by each motor (T1, T2, T3, T4, T5, T6, T7, T8) given the control inputs (u1, u2, u3, u4)
         l_x = float(cfg["uav"]["mixer_matrix"]["l_x"])
         l_y = float(cfg["uav"]["mixer_matrix"]["l_y"])
         c_t = float(cfg["uav"]["mixer_matrix"]["c_t"])
-
-        # Mixer matrix for QUADcopter 
-        # U_mat = np.array([[   1,    1,    1,    1 ], 
-        #                   [ l_y,   l_y, -l_y, -l_y],
-        #                   [-l_x,   l_x,  l_x, -l_x],
-        #                   [-c_t,   c_t, -c_t,  c_t]])
+        
+        # Mixer matrix for X8copter configuration
+        # [   1,   1,    1,    1,    1,    1,    1,    1]
+        # [ l_y, l_y, -l_y, -l_y,  l_y,  l_y, -l_y, -l_y]
+        # [-l_x, l_x,  l_x, -l_x, -l_x,  l_x,  l_x, -l_x]
+        # [-c_t, c_t, -c_t,  c_t,  c_t, -c_t,  c_t, -c_t]
 
         # Moore-Penrose pseudo-inverse of X8copter mixer matrix
-        self.U_mat_inv = np.array([
-        [1/4,  1/(4*l_y),  1/(4*l_x),  1/(4*c_t)],
-        [1/4, -1/(4*l_y),  1/(4*l_x), -1/(4*c_t)],
-        [1/4, -1/(4*l_y), -1/(4*l_x),  1/(4*c_t)],
-        [1/4,  1/(4*l_y), -1/(4*l_x), -1/(4*c_t)]
+        self.U_mat_inv = (1/8)*np.array([
+            [1,  1/l_y, -1/l_x, -1/c_t],
+            [1,  1/l_y,  1/l_x,  1/c_t],
+            [1, -1/l_y,  1/l_x, -1/c_t],
+            [1, -1/l_y, -1/l_x,  1/c_t],
+            [1,  1/l_y, -1/l_x,  1/c_t],
+            [1,  1/l_y,  1/l_x, -1/c_t],
+            [1, -1/l_y,  1/l_x,  1/c_t],
+            [1, -1/l_y, -1/l_x, -1/c_t]
         ])
 """
 
@@ -143,11 +161,10 @@ def create_exported_uav(system):
 """
 
 # ---------------------------------------------------------------------
-# UAV Creator
+# UAV Create Functionality
 # ---------------------------------------------------------------------
 def create_uav_structure(
     base_dir,
-    assets_dir,
     uav_name,
     config_path=None,
     shapes_path=None,
@@ -174,11 +191,12 @@ def create_uav_structure(
 
     # === Config file ===
     cfg_dest = uav_dir / f"{uav_name}_config.yaml"
-    # print(cfg_dest, "***************************************************")
     if config_path and Path(config_path).exists():
         # print(f"[INFO] Copying config from {config_path}")
         shutil.copy(config_path, cfg_dest)
     else:
+        if template in ["QUAD", "SIMPLE_QUAD"]:
+            messagebox.showwarning("Warning", f"[WARNING] QUAD and SIMPLE_QUAD templates only have the PID controller tunned, to use the other controllers please tune them manually!")
         print(f"[INFO] No config file provided — using {template} template.")
         template_config_path = Path(TEMPLATE_CONFIGS.get(template, TEMPLATE_CONFIGS[DEFAULT_UAV]))
         if template_config_path.exists():
@@ -186,13 +204,6 @@ def create_uav_structure(
         else:
             cfg_dest.write_text(f"# Placeholder config for {uav_name}\nuav:\n  name: {uav_name}\n")
             
-    # BROKEN! no uav.name anymore
-    # old_name = get_yaml_value(cfg_dest, "uav.name")
-    # replace_in_file(cfg_dest, old_str=old_name, new_str=uav_name)
-    # replace_in_file(cfg_dest, old_str=f"{old_name}_export.py", new_str=f"{uav_name}_export.py")
-    # update_yaml_value_preserve_comments(cfg_dest, "uav.name", uav_name)
-    # update_yaml_value_preserve_comments(cfg_dest, "uav.cad.export_filename", f"{uav_name}_export.py")
-
     # === UAV Python class ===
     uav_py_dest = uav_dir / f"{uav_name}.py"
     if uav_py_path and Path(uav_py_path).exists():
@@ -207,11 +218,6 @@ def create_uav_structure(
         else:
             uav_py_dest.write_text(UAV_CLASS_TEMPLATE.format(uav_name=uav_name))
         
-    # Rename the python class inside the file
-    # old_class_name = get_class_names_from_file(uav_py_dest)[0]
-    # replace_in_file(uav_py_dest, old_str=old_class_name, new_str=uav_name)
-    # rename_internal_references(uav_dir, "X8", uav_name, exts=(".py"))
-
     # === Controller gains ===
     if gains_folder and Path(gains_folder).exists():
         # print(f"[INFO] Copying gains from {gains_folder}")
@@ -230,7 +236,7 @@ def create_uav_structure(
             (controller_gains_dir / "TwoLayerMRAC.yaml").write_text(TWOLAYER_TEMPLATE)
 
     # === Assets ===
-    vehicle_assets_dir = Path(assets_dir) / "vehicles" / uav_name
+    vehicle_assets_dir = Path(base_dir) / uav_name / "assets"
     vehicle_assets_dir.mkdir(parents=True, exist_ok=True)
 
     # --- CAD Export py file ---
@@ -266,22 +272,21 @@ def create_uav_structure(
     print("[INFO] UAV package created successfully!")
     print(f"[INFO] UAV module directory: {uav_dir}")
     print(f"[INFO] Assets directory: {vehicle_assets_dir}")
+    # warnings.warn(f"[WARNING] QUAD and SIMPLE_QUAD templates only have the PID controller tunned, to use the other controllers please tune them manually!", UserWarning)
+    # # print(f"[WARNING] QUAD and SIMPLE_QUAD templates only have the PID controller tunned, to use the other controllers please tune them manually!")
     return uav_dir
             
 # ---------------------------------------------------------------------
 # UAV Rename Functionality
 # ---------------------------------------------------------------------
 # TODO: Handle case sensitivity properly on all OSes
-def rename_uav(base_dir, assets_dir, old_name, new_name):
+def rename_uav(base_dir, old_name, new_name):
 
     old_uav_dir = Path(base_dir) / old_name
     new_uav_dir = Path(base_dir) / new_name
 
-    old_assets_dir = Path(assets_dir) / "vehicles" / old_name
-    new_assets_dir = Path(assets_dir) / "vehicles" / new_name
-    
-    # new_cfg_dir = new_uav_dir / f"{new_name}_config.yaml"
-    # new_py_dir = new_uav_dir / f"{new_name}.py"
+    # old_assets_dir = Path(assets_dir) / "vehicles" / old_name
+    # new_assets_dir = Path(assets_dir) / "vehicles" / new_name
 
     # Validate existence
     if not old_uav_dir.exists():
@@ -297,27 +302,15 @@ def rename_uav(base_dir, assets_dir, old_name, new_name):
     rename_files(new_uav_dir, f"{old_name}.py", f"{new_name}.py")
     replace_in_file(new_uav_dir / "__init__.py", f".{old_name}", f".{new_name}")
     delete_folder(new_uav_dir / "__pycache__", force=True)
-    # rename_internal_references(new_uav_dir, old_name, new_name, exts=(".py"))
-    
-    # rename_internal_folders(new_uav_dir, old_name, new_name)
 
-    # Rename internal references
-    # replace_in_file(new_cfg_dir, old_name, new_name, use_regex=False)
-    # replace_in_file(new_py_dir, f"{old_name}_export.py", f"{new_name}_export.py", use_regex=False)
-    # update_yaml_value_preserve_comments(new_cfg_dir, "uav.name", new_name)
-    # update_yaml_value_preserve_comments(new_cfg_dir, "uav.cad.export_filename", f"{new_name}_export.py")
-    
-    # old_class_name = get_class_names_from_file(uav_py_dest)[0]
-    # replace_in_file(new_uav_dir, old_str=old_name, new_str=new_name)
-
-    # Rename assets
-    if old_assets_dir.exists():
-        shutil.move(str(old_assets_dir), str(new_assets_dir))
-    # rename_files(new_assets_dir, f"{old_name}_export.py", f"{new_name}_export.py")
-    delete_folder(new_assets_dir / "__pycache__", force=True)
+    # # Rename assets
+    # if old_assets_dir.exists():
+    #     shutil.move(str(old_assets_dir), str(new_assets_dir))
+    # # rename_files(new_assets_dir, f"{old_name}_export.py", f"{new_name}_export.py")
+    # delete_folder(new_assets_dir / "__pycache__", force=True)
 
     print(f"[INFO] Updated UAV folder: {new_uav_dir}")
-    print(f"[INFO] Updated assets folder: {new_assets_dir}")
+    # print(f"[INFO] Updated assets folder: {new_assets_dir}")
     print(f"[INFO] UAV renamed successfully from '{old_name}' → '{new_name}'")
 
 # ---------------------------------------------------------------------
@@ -330,15 +323,12 @@ def case_sensitive_path(parent, name):
                 return child
         return None
     
-def delete_uav(base_dir, assets_dir, uav_name, force=False):
+def delete_uav(base_dir, uav_name, force=False):
     """Deletes a UAV's code package and its assets (case-sensitive)."""
 
     uav_dir = case_sensitive_path(base_dir, uav_name)
-    assets_dir_vehicles = Path(assets_dir) / "vehicles"
-    assets_dir_path = case_sensitive_path(assets_dir_vehicles, uav_name)
-
     # Check existence
-    if not uav_dir and not assets_dir_path:
+    if not uav_dir:
         print(f"[WARNING] UAV '{uav_name}' does not exist (case-sensitive check).")
         return
 
@@ -356,24 +346,21 @@ def delete_uav(base_dir, assets_dir, uav_name, force=False):
         shutil.rmtree(uav_dir)
         print(f"[INFO] Deleted UAV package folder: {uav_dir}")
 
-    # Delete assets folder
-    if assets_dir_path:
-        shutil.rmtree(assets_dir_path)
-        print(f"[INFO] Deleted assets folder: {assets_dir_path}")
 
     print(f"[INFO] UAV '{uav_name}' deleted successfully.")
 
 # ---------------------------------------------------------------------
 # List UAVs Functionality
 # ---------------------------------------------------------------------
-def list_uavs(base_dir, assets_dir):
+def uav_list(base_dir):
     base_dir = Path(base_dir)
-    assets_dir = Path(assets_dir) / "vehicles"
+    # assets_dir = Path(assets_dir) / "vehicles"
+    # assets_dir = Path(base_dir) / uav_name / "assets"
     if not base_dir.exists():
         print("[WARNING] No UAV directory found.")
         return
 
-    uav_dirs = [d for d in base_dir.iterdir() if d.is_dir() and not d.name.startswith("_")]
+    uav_dirs = [d for d in base_dir.iterdir() if d.is_dir() and not d.name.startswith("__")]
     if not uav_dirs:
         print("[WARNING] No UAVs found.")
         return
@@ -391,7 +378,7 @@ def list_uavs(base_dir, assets_dir):
                 gains_check_str = '❌ Missing gains yaml files' 
         else:
             gains_check_str = '❌ Missing Folder'
-        assets_path = assets_dir / name
+        assets_path = base_dir / name / "assets"
         if assets_path.exists():
             if not any(assets_path.glob("*.py")):
                 assets_check_str = '❌ Missing pychrono export ".py" file' 
@@ -419,8 +406,8 @@ if __name__ == "__main__":
     )
 
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--uav_create", help="UAV name to create (e.g., X8, QUAD)")
-    parser.add_argument("--template", choices=["X8", "QUAD"], default=DEFAULT_UAV, help=f'Template if config not provided, default="{DEFAULT_UAV}"')
+    group.add_argument("--uav_create", help="UAV name to create (e.g., X8, QUAD, SIMPLE_QUAD)")
+    parser.add_argument("--template", choices=["X8", "QUAD", "SIMPLE_QUAD"], default=DEFAULT_UAV, help=f'Template if config not provided, default="{DEFAULT_UAV}"')
     parser.add_argument("--uav_py", help="Path to UAV Python class file")
     parser.add_argument("--config", help="Path to UAV YAML config file")
     parser.add_argument("--gains_folder", help="Path to folder with predefined controller gain YAML files")
@@ -432,23 +419,22 @@ if __name__ == "__main__":
     group.add_argument("--uav_delete", help="Delete a UAV (all folder structures)")
     parser.add_argument("--force", action="store_true", help="Skip confirmation prompts (for delete)")
     
-    group.add_argument("--list_uavs", action="store_true", help="List all available UAVs")
+    group.add_argument("--uav_list", action="store_true", help="List all available UAVs")
     
     parser.add_argument("--base_dir", default="acsl_pychrono/uav", help="Base directory for UAV code packages, default='acsl_pychrono/uav/'")
-    parser.add_argument("--assets_dir", default="assets", help="Base directory for assets (where /vehicles/ is located), default='assets/'")
+    # parser.add_argument("--assets_dir", default="assets", help="Base directory for assets (where /vehicles/ is located), default='assets/'")
 
     args = parser.parse_args()
 
     if args.uav_rename:
-        rename_uav(args.base_dir, args.assets_dir, args.uav_rename[0], args.uav_rename[1])
+        rename_uav(args.base_dir, args.uav_rename[0], args.uav_rename[1])
     elif args.uav_delete:
-        delete_uav(args.base_dir, args.assets_dir, args.uav_delete, args.force)
-    elif args.list_uavs:
-        list_uavs(args.base_dir, args.assets_dir)
+        delete_uav(args.base_dir, args.uav_delete, args.force)
+    elif args.uav_list:
+        uav_list(args.base_dir)
     else:
         create_uav_structure(
             base_dir=args.base_dir,
-            assets_dir=args.assets_dir,
             uav_name=args.uav_create,
             config_path=args.config,
             shapes_path=args.shapes,

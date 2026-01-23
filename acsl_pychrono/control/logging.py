@@ -10,8 +10,8 @@ import acsl_pychrono.config.config as Cfg
 class Logging:
   @staticmethod
   def getOutputDir(sim_cfg: Cfg.SimulationConfig) -> str:
-    controller_type = Cfg.MissionConfig.controller_type
-    wrapper_flag = Cfg.MissionConfig.wrapper_flag
+    controller_type = sim_cfg.mission_config.controller_type
+    wrapper_flag = sim_cfg.mission_config.wrapper_flag
 
     # Get current time
     now = datetime.datetime.now()
@@ -20,7 +20,7 @@ class Logging:
     full_date = now.strftime("%Y%m%d")
 
     # Construct the directory path
-    if wrapper_flag:
+    if wrapper_flag and sim_cfg.mission_config.wrapper_batch_dir:
       dir_path = os.path.join(sim_cfg.mission_config.wrapper_batch_dir)
     else:
       dir_path = os.path.join("logs", year, month, full_date, controller_type, "workspaces")
@@ -158,3 +158,13 @@ class Logging:
       mat_dict["git_info"] = git_info
 
     savemat(full_path_log, mat_dict)
+    
+  @staticmethod
+  def dataVectorPadding(data_vector: np.ndarray, desired_length: int) -> np.ndarray:
+    current_length = data_vector.shape[0]
+    if current_length >= desired_length:
+      return data_vector
+    
+    data_vector = data_vector.reshape(current_length, 1).flatten() # Flatten to 1D
+    padded_vector = np.pad(data_vector, (0, desired_length - current_length), 'constant')
+    return padded_vector

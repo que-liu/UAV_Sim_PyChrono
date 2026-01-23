@@ -20,7 +20,7 @@ class PiecewisePolynomialTrajectory(BaseUserDefinedTrajectory):
       mission_config: MissionConfig
       ) -> None:
     
-    self.controller_start_time = flight_params.controller_start_time
+    self.controller_start_time = flight_params.uav.controller_start_time
     self.trajectory_data_path = mission_config.trajectory_data_path
     self.hover_after_trajectory_time_seconds = mission_config.hover_after_trajectory_time_seconds
 
@@ -230,20 +230,20 @@ class PiecewisePolynomialTrajectory(BaseUserDefinedTrajectory):
     for i in range(pos_x.size - 1):
       mpath.AddSubLine(
         chrono.ChLineSegment(
-          chrono.ChVectorD(pos_x[i],
+          chrono.ChVector3d(pos_x[i],
                            -pos_z[i] + mfloor_Yposition,
                            pos_y[i]
           ),
-          chrono.ChVectorD(pos_x[i+1],
+          chrono.ChVector3d(pos_x[i+1],
                            -pos_z[i+1] + mfloor_Yposition,
                            pos_y[i+1]
           )
         )
       )
     
-    # Create a ChLineShape, a visualization asset for lines.
+    # Create a ChVisualShapeLine, a visualization asset for lines.
     # The ChLinePath is a special type of ChLine and it can be visualized.
-    mpathasset = chrono.ChLineShape()
+    mpathasset = chrono.ChVisualShapeLine()
     mpathasset.SetLineGeometry(mpath)
     mpathasset.SetColor(chrono.ChColor(0,0,0))
     mfloor.AddVisualShape(mpathasset)

@@ -1,23 +1,19 @@
 import math
 from acsl_pychrono.simulation.flight_params import FlightParams
-# import numpy as np
-# from numpy import linalg as LA
-# import scipy
-# from scipy import linalg
 
 class PIDGains:
   def __init__(self, flight_params: FlightParams):
     # General vehicle properties
-    self.I_matrix_estimated = flight_params.uav_controller.I_matrix_estimated
-    self.mass_total_estimated = flight_params.uav_controller.mass_total_estimated
-    self.air_density_estimated = flight_params.uav_controller.air_density_estimated
-    self.surface_area_estimated = flight_params.uav_controller.surface_area_estimated
-    self.drag_coefficient_matrix_estimated = flight_params.uav_controller.drag_coefficient_matrix_estimated
+    self.I_matrix_estimated = flight_params.uav.I_matrix_estimated
+    self.mass_total_estimated = flight_params.uav.mass_total_estimated
+    self.air_density_estimated = flight_params.uav.air_density_estimated
+    self.surface_area_estimated = flight_params.uav.surface_area_estimated
+    self.drag_coefficient_matrix_estimated = flight_params.uav.drag_coefficient_matrix_estimated
 
     # Controller's numerical Parameters config filename
-    gains_config_filename = flight_params.uav_controller.controller_config_filename
+    gains_config_filename = flight_params.uav.controller_config_filename
     gains_config_file = flight_params.get_controller_config(gains_config_filename, flight_params.uav.name)
-    
+
     # Number of states to be integrated by RK4
     self.number_of_states = 10
     

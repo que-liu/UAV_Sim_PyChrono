@@ -1,7 +1,7 @@
 import numpy as np
 from pathlib import Path
 import acsl_pychrono.uav as UAV_module
-from acsl_pychrono.uav.uav_parent_class_file import UAV_PARENT_CLASS as UAV
+from acsl_pychrono.uav.uav_base import UAV_BASE
 
 # X-8 Copter Motors enumeration and Global reference frame (Reference frame acquired by SolidWorks)
 #
@@ -26,12 +26,12 @@ from acsl_pychrono.uav.uav_parent_class_file import UAV_PARENT_CLASS as UAV
 # 5                  8
 #
 
-class UAV_INSTANCE (UAV) :
-  def __init__(self):
+class UAV (UAV_BASE) :
+  def __init__(self, controller_name: str):
     # --------------------------------------------------------------------------------------------------------
     # No need to change anything here
     # --------------------------------------------------------------------------------------------------------
-    super().__init__()
+    super().__init__(controller_name)
     
     # Get the UAV name from the class name
     self.name = Path(__file__).stem
@@ -43,6 +43,7 @@ class UAV_INSTANCE (UAV) :
     
     # --- UAV-specific ---
     self._load_inertia()
+    self._compute_estimated_parameters()
     self._compute_mixer_matrix(cfg)
     
   def _load_inertia(self):
@@ -51,9 +52,28 @@ class UAV_INSTANCE (UAV) :
     # Otherwise, modify this function accordingly
     # --------------------------------------------------------------------------------------------------------
     # Inertia matrix of the system: (drone frame + box + propellers) espressed in Pixhawk coordinate sys (x-front, y-right, z-down), computed at the center of mass
-    # Since the inertia_matrix_untransformed was obtained in the Solidworks coordinate sys (yup), it needs to be transformed to (ned)
-    self.Inertia_mat_pixhawk = self.RotMat_X_PI_2_array @ self.inertia_matrix_untransformed @ self.RotMat_X_PI_2_tran_array  
-    
+    # Rotation Matrix that represents a fixed rotation of PI/2 rad about the X-Axis
+    RotMat_X_PI_2 = np.array([[1,  0,  0],
+                              [0,  0,  1],
+                              [0, -1,  0]])
+    # Rotation Matrix that represents a fixed rotation of -PI/2 rad around the X-Axis
+    RotMat_X_PI_2_tran = np.transpose(RotMat_X_PI_2)
+    # Since the I_matrix_estimated was obtained in the Solidworks coordinate sys (yup), it needs to be transformed to (ned)
+    self.I_matrix_estimated = np.matrix(RotMat_X_PI_2 @ self.I_matrix_estimated @ RotMat_X_PI_2_tran)
+
+  def _compute_estimated_parameters(self) -> None:
+    # --------------------------------------------------------------------------------------------------------
+    # If sensitivity analyses are needed, the estimated parameters can be changed in this function
+    # --------------------------------------------------------------------------------------------------------
+    self.surface_area_estimated = self.surface_area
+    self.drag_coefficient_estimated = self.drag_coefficient
+    self.air_density_estimated = self.air_density
+
+    self.drag_coefficient_matrix_estimated = np.matrix(
+      np.diag([self.drag_coefficient_estimated,
+                self.drag_coefficient_estimated, 0])
+    )
+
   def _compute_mixer_matrix(self, cfg):
     # --------------------------------------------------------------------------------------------------------
     # Must change according to the UAV geometry configuration
@@ -65,19 +85,19 @@ class UAV_INSTANCE (UAV) :
     c_t = float(cfg["uav"]["mixer_matrix"]["c_t"])
     
     # Mixer matrix for X8copter configuration
-    # U_mat = np.array([[   1,   1,    1,    1,    1,    1,    1,    1],
-    #                   [ l_y, l_y, -l_y, -l_y,  l_y,  l_y, -l_y, -l_y],
-    #                   [-l_x, l_x,  l_x, -l_x, -l_x,  l_x,  l_x, -l_x],
-    #                   [-c_t, c_t, -c_t,  c_t,  c_t, -c_t,  c_t, -c_t]])
+    # [   1,   1,    1,    1,    1,    1,    1,    1]
+    # [ l_y, l_y, -l_y, -l_y,  l_y,  l_y, -l_y, -l_y]
+    # [-l_x, l_x,  l_x, -l_x, -l_x,  l_x,  l_x, -l_x]
+    # [-c_t, c_t, -c_t,  c_t,  c_t, -c_t,  c_t, -c_t]
 
     # Moore-Penrose pseudo-inverse of X8copter mixer matrix
     self.U_mat_inv = np.array([
-        [1/8,  1/(8*l_y), -1/(8*l_x), -1/(8*c_t)],
-        [1/8,  1/(8*l_y),  1/(8*l_x),  1/(8*c_t)],
-        [1/8, -1/(8*l_y),  1/(8*l_x), -1/(8*c_t)],
-        [1/8, -1/(8*l_y), -1/(8*l_x),  1/(8*c_t)],
-        [1/8,  1/(8*l_y), -1/(8*l_x),  1/(8*c_t)],
-        [1/8,  1/(8*l_y),  1/(8*l_x), -1/(8*c_t)],
-        [1/8, -1/(8*l_y),  1/(8*l_x),  1/(8*c_t)],
-        [1/8, -1/(8*l_y), -1/(8*l_x), -1/(8*c_t)]
+      [1/8,  1/(8*l_y), -1/(8*l_x), -1/(8*c_t)],
+      [1/8,  1/(8*l_y),  1/(8*l_x),  1/(8*c_t)],
+      [1/8, -1/(8*l_y),  1/(8*l_x), -1/(8*c_t)],
+      [1/8, -1/(8*l_y), -1/(8*l_x),  1/(8*c_t)],
+      [1/8,  1/(8*l_y), -1/(8*l_x),  1/(8*c_t)],
+      [1/8,  1/(8*l_y),  1/(8*l_x), -1/(8*c_t)],
+      [1/8, -1/(8*l_y),  1/(8*l_x),  1/(8*c_t)],
+      [1/8, -1/(8*l_y), -1/(8*l_x), -1/(8*c_t)]
     ])

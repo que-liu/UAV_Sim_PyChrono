@@ -1,6 +1,5 @@
 import math
 import numpy as np
-from numpy import linalg as LA
 from scipy import linalg
 from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.control.projection_operator import ProjectionOperator
@@ -9,14 +8,14 @@ from acsl_pychrono.control.base_mrac_gains import BaseMRACGains
 class MRACGains(BaseMRACGains):
   def __init__(self, flight_params: FlightParams):
     # General vehicle properties
-    self.I_matrix_estimated = flight_params.uav_controller.I_matrix_estimated
-    self.mass_total_estimated = flight_params.uav_controller.mass_total_estimated
-    self.air_density_estimated = flight_params.uav_controller.air_density_estimated
-    self.surface_area_estimated = flight_params.uav_controller.surface_area_estimated
-    self.drag_coefficient_matrix_estimated = flight_params.uav_controller.drag_coefficient_matrix_estimated
+    self.I_matrix_estimated = flight_params.uav.I_matrix_estimated
+    self.mass_total_estimated = flight_params.uav.mass_total_estimated
+    self.air_density_estimated = flight_params.uav.air_density_estimated
+    self.surface_area_estimated = flight_params.uav.surface_area_estimated
+    self.drag_coefficient_matrix_estimated = flight_params.uav.drag_coefficient_matrix_estimated
 
     # Controller's numerical Parameters config filename
-    gains_config_filename = flight_params.uav_controller.controller_config_filename
+    gains_config_filename = flight_params.uav.controller_config_filename
     gains_config_file = flight_params.get_controller_config(gains_config_filename, flight_params.uav.name)
     
     # Number of states to be integrated by RK4
@@ -72,6 +71,15 @@ class MRACGains(BaseMRACGains):
     # **Translational** parameters Lyapunov equation
     self.Q_tran = flight_params.get_scaled_matrix_from_config(gains_config_file, "Q_tran")
     self.P_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_tran.T, -self.Q_tran))
+
+    # # **Translational** adaptive parameters (GA Tuned on rollercoaster_trajectory1p2)
+    # self.Gamma_x_tran = np.matrix(np.diag([366.4388, 1.1364 , 75.8971, 1.4661, 0.6732, 1.4233]))
+    # self.Gamma_r_tran = np.matrix(np.diag([0.0089, 0.0779, 9.4984]))
+    # self.Gamma_Theta_tran = np.matrix(np.diag([726.4229, 38.6627, 73.8380, 73.3722, 5.2841, 1934.8502]))
+
+    # # **Translational** parameters Lyapunov equation (GA Tuned on rollercoaster_trajectory1p2)
+    # self.Q_tran = np.matrix(np.diag([0.2255, 0.1624, 0.1613, 0.0315, 0.0050, 0.0717]))
+    # self.P_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_tran.T, -self.Q_tran))
 
     # ----------------------------------------------------------------
     #                   Rotational Parameters MRAC

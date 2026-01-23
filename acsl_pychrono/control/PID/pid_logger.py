@@ -1,27 +1,23 @@
-import numpy as np  
-from acsl_pychrono.control.PID.pid import PID
-from acsl_pychrono.control.PID.pid_gains import PIDGains
 import math
+import numpy as np  
+from acsl_pychrono.control.PID.pid_gains import PIDGains
+from acsl_pychrono.control.PID.pid import PID
 from acsl_pychrono.simulation.ode_input import OdeInput
 from acsl_pychrono.simulation.flight_params import FlightParams
+from acsl_pychrono.control.logging import Logging
 
 class PIDLogger:
   def __init__(self, gains: PIDGains) -> None:
     self.gains = gains
     self.data_list = []
     # Length of the array vector that will be exported 
-    self.size_DATA = 50  # Ensure size_DATA is set
+    self.size_DATA = 50
 
-  def collectData(self, controller: PID, simulation_time: float, number_of_propellers: int):
+  def collectData(self, controller: PID, simulation_time: float):
     DATA_vector = np.zeros((self.size_DATA, 1))
-    
+      
     # Pad the motor thrusts with zeros if fewer than 8 propellers
-    if number_of_propellers < 8:
-      motor_thrusts = controller.motor_thrusts.reshape(number_of_propellers, 1)
-      motor_thrusts = motor_thrusts.flatten() # Flatten to 1D
-      motor_thrusts = np.pad(motor_thrusts, (0, 8 - number_of_propellers), 'constant')
-    else:
-      motor_thrusts = controller.motor_thrusts
+    motor_thrusts = Logging.dataVectorPadding(controller.motor_thrusts, 8)
 
     DATA_vector[0] = controller.odein.time_now
     DATA_vector[1] = simulation_time
@@ -50,7 +46,7 @@ class PIDLogger:
     DATA_vector[36] = controller.u2
     DATA_vector[37] = controller.u3
     DATA_vector[38] = controller.u4
-    DATA_vector[39:47] = motor_thrusts.reshape(8, 1)
+    DATA_vector[39:47] = motor_thrusts.reshape(8,1)
     DATA_vector[47:50] = controller.angular_position_dot
     
     self.data_list.append(DATA_vector.flatten())

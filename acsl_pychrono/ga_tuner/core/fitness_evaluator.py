@@ -47,6 +47,22 @@ class FitnessEvaluator:
         # Initialize parallel executor
         self._init_parallel_executor()
     
+    def __getstate__(self):
+        """Prepare object for pickling - exclude unpicklable thread lock and executor."""
+        state = self.__dict__.copy()
+        # Remove the unpicklable thread lock
+        state['_cache_lock'] = None
+        # Remove executor (will be recreated in subprocess)
+        state['executor'] = None
+        return state
+    
+    def __setstate__(self, state):
+        """Restore object after unpickling - recreate thread lock."""
+        self.__dict__.update(state)
+        # Recreate the thread lock
+        self._cache_lock = threading.Lock()
+        # Don't recreate executor - it's only needed in the parent process
+    
     def _init_parallel_executor(self):
         """Initialize parallel execution environment."""
         if self.parallel:

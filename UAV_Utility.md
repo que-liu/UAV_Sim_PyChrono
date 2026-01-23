@@ -52,7 +52,8 @@ options:
   -h, --help            show this help message and exit
   --uav_create UAV_CREATE
                         UAV name to create (e.g., X8, QUAD, SIMPLE_QUAD)
-  --template {X8,QUAD}  Template if config not provided, default="X8"
+  --template {X8,QUAD,SIMPLE_QUAD}  
+                        Template if config not provided, default="X8"
   --uav_py UAV_PY       Path to UAV Python class file
   --config CONFIG       Path to UAV YAML config file
   --gains_folder GAINS_FOLDER

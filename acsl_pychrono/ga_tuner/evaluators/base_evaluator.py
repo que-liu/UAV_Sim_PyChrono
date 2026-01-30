@@ -104,18 +104,25 @@ class UAVSimulationEvaluator(FitnessEvaluator):
             worker_type = 'processes' if use_processes else 'threads'
             print(f"[PARALLEL] Enabled with {n_workers} {worker_type}")
             if not use_processes:
-                print("[PARALLEL] Using threads (processes disabled to avoid pickling issues)")
+                print("[PARALLEL] Using threads")
             else:
-                print("[PARALLEL] Using processes for true parallelism")
+                print("[PARALLEL] Using processes")
         else:
             print("[PARALLEL] Disabled - running sequentially")
     
     def _create_eval_log_dir(self, prefix: str) -> str:
         """Create a timestamped log directory for a single evaluation."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        eval_log_dir = os.path.join(self.log_directory, f"{prefix}_{timestamp}")
-        os.makedirs(eval_log_dir, exist_ok=True)
-        return eval_log_dir
+        while True:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            eval_log_dir = os.path.join(self.log_directory, f"{prefix}_{timestamp}")
+            try:
+                os.makedirs(eval_log_dir, exist_ok=False)
+                return eval_log_dir
+            except FileExistsError:
+                # Avoid changing the folder naming scheme expected by plotting.
+                # If a collision occurs, wait for the next second.
+                import time
+                time.sleep(0.25)
 
     def _simulate_with_logs(self, parameters: List[float], prefix: str) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]]]:
         """

@@ -39,7 +39,7 @@ class BaseMRACTuning(ControllerTuningInterface):
         
         Args:
             tuning_config: Optional configuration dictionary that can include:
-                - 'search_space_type': 'local' or 'global' (default: 'local')
+                - 'search_space_type': 'local' or 'global' 
         """
         self.config = tuning_config or {}
         
@@ -71,11 +71,11 @@ class BaseMRACTuning(ControllerTuningInterface):
         )
         self.converter = ControllerParameterConverter(
             self._parameter_bounds,
-            baseline_gains=self._baseline_gains
+            reference_gains=self._baseline_gains
         )
     
     def _load_controller_gains(self) -> Dict[str, Any]:
-        """Load baseline gains from controller implementation."""
+        """Load reference gains from controller implementation."""
         if self.GAINS_CLASS is None or self.CONTROLLER_MODULE is None:
             raise NotImplementedError(
                 "Subclass must define GAINS_CLASS and CONTROLLER_MODULE"
@@ -119,23 +119,20 @@ class BaseMRACTuning(ControllerTuningInterface):
         
         if self.search_space_type == 'global':
             # Global search: Absolute bounds independent of baseline values
-            # Based on physical constraints and stability requirements
             
             # Gamma matrices - adaptation gain bounds (in log space)
-            gamma_diag_bound_fn = lambda value: [-4.0, 4.0]  # exp(-4)=0.018 to exp(4)=54.6
-            gamma_off_diag_factor = 20.0
-            gamma_off_diag_span = 20.0
+            gamma_diag_bound_fn = lambda value: [-6.0, 10.0]  # exp(-6)=0.0025 to exp(10)=22026
+            gamma_off_diag_bound_fn = lambda value: [-100.0, 100.0]  # Absolute bounds for off-diagonal
             
             # Q matrices - Lyapunov matrix bounds (in log space)
-            q_diag_bound_fn = lambda value: [-4.0, 4.0]  # exp(-4)=0.018 to exp(4)=54.6
-            q_off_diag_factor = 20.0
-            q_off_diag_span = 20.0
+            q_diag_bound_fn = lambda value: [-6.0, 5.0]  # exp(-6)=0.0025 to exp(5)=148.4
+            q_off_diag_bound_fn = lambda value: [-100.0, 100.0]  # Absolute bounds for off-diagonal
             
             def _positive_bounds(value: float, factor: float = None,
                                *, min_lower: float = 1e-6,
                                max_upper: Optional[float] = None) -> List[float]:
                 # For global search, ignore 'value' and 'factor' - use absolute bounds
-                return [min_lower, max_upper if max_upper is not None else 1000.0]
+                return [min_lower, max_upper if max_upper is not None else 20000.0]
         
         else:
             # Local search: Relative bounds around baseline (original behavior)
@@ -149,11 +146,13 @@ class BaseMRACTuning(ControllerTuningInterface):
             
             # Gamma matrices
             gamma_diag_bound_fn = lambda value: [value - log_scale_span, value + log_scale_span]
+            gamma_off_diag_bound_fn = None  # Use relative bounds
             gamma_off_diag_factor = vector_factor
             gamma_off_diag_span = 1.0
             
             # Q matrices
             q_diag_bound_fn = lambda value: [value - q_log_scale_span, value + q_log_scale_span]
+            q_off_diag_bound_fn = None  # Use relative bounds
             q_off_diag_factor = 2.0
             q_off_diag_span = 0.5
             
@@ -187,22 +186,29 @@ class BaseMRACTuning(ControllerTuningInterface):
             if self.search_space_type == 'global':
                 # Global search: use absolute bounds
                 diag_fn = q_diag_bound_fn if is_q_matrix else gamma_diag_bound_fn
-                off_factor = q_off_diag_factor if is_q_matrix else gamma_off_diag_factor
-                off_span = q_off_diag_span if is_q_matrix else gamma_off_diag_span
+                off_diag_fn = q_off_diag_bound_fn if is_q_matrix else gamma_off_diag_bound_fn
+                
+                matrix_bounds, parameter_names = build_cholesky_parameter_bounds(
+                    baseline_matrix,
+                    prefix,
+                    diag_fn,
+                    off_diag_bound_fn=off_diag_fn,
+                    log_diagonals=True,
+                )
             else:
                 # Local search: use relative bounds
                 diag_fn = q_diag_bound_fn if is_q_matrix else gamma_diag_bound_fn
                 off_factor = q_off_diag_factor if is_q_matrix else gamma_off_diag_factor
                 off_span = q_off_diag_span if is_q_matrix else gamma_off_diag_span
-            
-            matrix_bounds, parameter_names = build_cholesky_parameter_bounds(
-                baseline_matrix,
-                prefix,
-                diag_fn,
-                off_diag_factor=off_factor,
-                min_off_diag_span=off_span,
-                log_diagonals=True,
-            )
+                
+                matrix_bounds, parameter_names = build_cholesky_parameter_bounds(
+                    baseline_matrix,
+                    prefix,
+                    diag_fn,
+                    off_diag_factor=off_factor,
+                    min_off_diag_span=off_span,
+                    log_diagonals=True,
+                )
             
             for name, bounds in matrix_bounds.items():
                 self.bounds[name] = bounds
@@ -213,7 +219,7 @@ class BaseMRACTuning(ControllerTuningInterface):
             kp_ref = np.diag(self._baseline_gains['K_P_omega_ref'])
             for i, value in enumerate(kp_ref, start=1):
                 if self.search_space_type == 'global':
-                    self.bounds[f"K_P_omega_ref_{i}"] = [0.01, 100.0]
+                    self.bounds[f"K_P_omega_ref_{i}"] = [0.001, 500.0]
                 else:
                     self.bounds[f"K_P_omega_ref_{i}"] = _positive_bounds(float(value), factor=5.0)
         
@@ -221,7 +227,7 @@ class BaseMRACTuning(ControllerTuningInterface):
             ki_ref = np.diag(self._baseline_gains['K_I_omega_ref'])
             for i, value in enumerate(ki_ref, start=1):
                 if self.search_space_type == 'global':
-                    self.bounds[f"K_I_omega_ref_{i}"] = [0.001, 50.0]
+                    self.bounds[f"K_I_omega_ref_{i}"] = [0.0001, 200.0]
                 else:
                     self.bounds[f"K_I_omega_ref_{i}"] = _positive_bounds(float(value), factor=10.0)
         
@@ -230,7 +236,7 @@ class BaseMRACTuning(ControllerTuningInterface):
                      'sigma_x_rot', 'sigma_r_rot', 'sigma_Theta_rot']:
             if name in self._baseline_gains:
                 if self.search_space_type == 'global':
-                    self.bounds[name] = [0.01, 10.0]
+                    self.bounds[name] = [0.001, 50.0]
                 else:
                     ref_value = float(self._baseline_gains[name])
                     self.bounds[name] = _positive_bounds(ref_value, factor=3.0,

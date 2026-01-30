@@ -64,11 +64,23 @@ def build_cholesky_parameter_bounds(
     prefix: str,
     diag_bound_fn: Callable[[float], List[float]],
     *,
+    off_diag_bound_fn: Callable[[float], List[float]] = None,
     off_diag_factor: float = 5.0,
     min_off_diag_span: float = 1.0,
     log_diagonals: bool = False,
 ) -> Tuple[Dict[str, List[float]], List[str]]:
-    """Build GA parameter bounds for the Cholesky entries of an SPD matrix."""
+    """Build GA parameter bounds for the Cholesky entries of an SPD matrix.
+    
+    Args:
+        baseline_matrix: The baseline SPD matrix
+        prefix: Parameter name prefix
+        diag_bound_fn: Function that takes diagonal value and returns [lower, upper] bounds
+        off_diag_bound_fn: Optional function that takes off-diagonal value and returns [lower, upper] bounds.
+                          If provided, off_diag_factor and min_off_diag_span are ignored.
+        off_diag_factor: Factor for relative off-diagonal bounds (used if off_diag_bound_fn is None)
+        min_off_diag_span: Minimum span for off-diagonal bounds (used if off_diag_bound_fn is None)
+        log_diagonals: Whether diagonal values are in log space
+    """
     matrix = np.asarray(baseline_matrix, dtype=float)
     if matrix.shape[0] != matrix.shape[1]:
         raise ValueError(f"Matrix for prefix '{prefix}' must be square, got {matrix.shape}")
@@ -91,8 +103,13 @@ def build_cholesky_parameter_bounds(
             if i == j:
                 bounds[name] = diag_bound_fn(value)
             else:
-                span = max(abs(value) * off_diag_factor, min_off_diag_span)
-                bounds[name] = [value - span, value + span]
+                if off_diag_bound_fn is not None:
+                    # Use absolute bounds function
+                    bounds[name] = off_diag_bound_fn(value)
+                else:
+                    # Use relative bounds (original behavior)
+                    span = max(abs(value) * off_diag_factor, min_off_diag_span)
+                    bounds[name] = [value - span, value + span]
 
             ordered_names.append(name)
 

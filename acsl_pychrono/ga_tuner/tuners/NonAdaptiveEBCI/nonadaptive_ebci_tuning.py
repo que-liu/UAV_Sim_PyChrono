@@ -10,7 +10,7 @@ class NonAdaptiveEBCITuning(BaseMRACTuning):
     Tuning interface for NonAdaptiveEBCI controller.
     
     NonAdaptiveEBCI uses standard MRAC matrices with Extended Berkeley Control Initiative
-    parameters. The EBCI-specific parameters are not tuned by the GA, so this class uses
+    parameters. The EBCI-specific parameters are not tuned by the GA for now, so this class uses
     the base MRAC parameter set.
     """
     

@@ -2,19 +2,16 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 
-# Custom reference vector for iterative tuning
+# Custom reference vector for iterative tuning. Set to None to use default gains from mrac_gains.py
 # NOTE: This must match the number of parameters selected in param_config.py
-# Current param_config selects rotational-only: 39 parameters
-# For full MRAC (all matrices): 108 parameters
-# Set to None to use default gains from mrac_gains.py
-_CUSTOM_REFERENCE_VECTOR = None  # Update this when you have a reference for your selected parameters
+_CUSTOM_REFERENCE_VECTOR = None
 
 
 @dataclass
 class GAConfig:
     """Central configuration for GA tuning runs."""
 
-    controller_type: str = "MRAC"  # 'PID', 'MRAC', or 'TwoLayerMRAC'
+    controller_type: str = "MRAC"  # 'PID', 'MRAC'
     algorithm: str = "PYMOO"  # 'DEAP' or 'PYMOO'
 
     population_size: int = 91
@@ -32,15 +29,13 @@ class GAConfig:
     # - 'global': Absolute bounds for exploring diverse parameter regions
     search_space_type: str = "local"  # Changed to 'local' for refinement around global search results
     
-    # Custom reference for iterative tuning (use tuned parameters as new reference point)
-    # Set to None to use default gains from mrac_gains.py
-    # Set to a list to use custom reference (see _CUSTOM_REFERENCE_VECTOR above)
+    # Custom reference for iterative tuning (use tuned parameters as new reference point for fine-tuning)
+    # Set to None to use default gains from mrac_gains.py, set to a list to use custom reference (see _CUSTOM_REFERENCE_VECTOR above)
     custom_reference_vector: Optional[list] = None  # Set to _CUSTOM_REFERENCE_VECTOR to use it
 
     # Pymoo-specific parameters
     pymoo_variant: str = "NSGA3"
     # For NSGA3 with many objectives: manually set partitions to reduce reference directions
-    # Default partitions for 6 objectives creates 6188 ref_dirs - use n_partitions=3 for ~91 ref_dirs
     pymoo_algorithm_params: Optional[Dict[str, Any]] = None
     
     def __post_init__(self):

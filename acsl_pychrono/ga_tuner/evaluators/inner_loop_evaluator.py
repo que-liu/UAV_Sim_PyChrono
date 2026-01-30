@@ -91,7 +91,7 @@ class InnerLoopEvaluator(UAVSimulationEvaluator):
             Inner loop metrics (list if multi_objective=True, float otherwise)
         """
         try:
-            config, log_data = self._simulate_with_logs(parameters, prefix="inner_loop_eval")
+            config, log_data = self._simulate_with_logs(parameters, prefix="eval")
 
             if log_data is None:
                 print(f"Warning: Simulation failed for parameters {parameters[:3]}")

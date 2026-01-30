@@ -39,16 +39,13 @@ def _discover_parameter_structure(gains: Dict[str, Any]) -> Tuple[Dict[str, Dict
     
     for name, value in gains.items():
         if isinstance(value, np.ndarray) and value.ndim == 2:
-            # Check if it's an SPD matrix (Gamma/Q matrices) - prioritize this for tuning
             if name.startswith('Gamma_') or name in ('Q_tran', 'Q_rot'):
                 prefix = name.replace('Gamma_', 'gamma_').lower() if name.startswith('Gamma_') else name.lower()
                 spd_matrices[name] = {
                     'prefix': prefix,
                     'size': value.shape[0]
                 }
-            # Only treat as diagonal matrix if it's NOT a Gamma/Q matrix
             elif _is_diagonal_matrix(value):
-                # Create parameter names for diagonal elements
                 size = value.shape[0]
                 param_names = tuple(f"{name}_{i+1}" for i in range(size))
                 diagonal_matrices[name] = param_names
@@ -111,15 +108,15 @@ class ControllerParameterConverter:
     Handles controller parameters with dynamic structure discovery.
     """
     
-    def __init__(self, parameter_bounds, baseline_gains=None):
+    def __init__(self, parameter_bounds, reference_gains=None):
         self.bounds = parameter_bounds
         self.parameter_names = parameter_bounds.parameter_names
         get_groups = getattr(parameter_bounds, "get_parameter_groups", None)
         self.parameter_groups = get_groups() if callable(get_groups) else {}
         
         # Load gains from source and discover structure dynamically
-        self._baseline_gains = baseline_gains if baseline_gains is not None else load_default_gains_from_source()
-        self._spd_matrix_configs, self._diagonal_matrix_params, self._scalar_params = _discover_parameter_structure(self._baseline_gains)
+        self._reference_gains = reference_gains if reference_gains is not None else load_default_gains_from_source()
+        self._spd_matrix_configs, self._diagonal_matrix_params, self._scalar_params = _discover_parameter_structure(self._reference_gains)
     
     def vector_to_gains(self, parameter_vector: List[float]) -> Dict[str, Any]:
         """
@@ -213,15 +210,15 @@ class ControllerParameterConverter:
         # Convert to vector in correct order
         return [params[name] for name in self.parameter_names]
     
-    def get_baseline_gains(self) -> Dict[str, Any]:
+    def get_reference_gains(self) -> Dict[str, Any]:
         """
-        Get baseline controller gains from the source file.
+        Get reference controller gains from the source file.
 
         Returns:
-            Dictionary containing baseline controller gain structure
+            Dictionary containing reference controller gain structure
         """
         result = {}
-        for key, value in self._baseline_gains.items():
+        for key, value in self._reference_gains.items():
             if isinstance(value, np.ndarray):
                 result[key] = value.copy()
             else:

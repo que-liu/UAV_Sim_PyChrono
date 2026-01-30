@@ -12,10 +12,6 @@ Selection types:
          - "diagonal": All diagonal elements
          - {"diagonal": [1, 0, 1, ...]}: Custom diagonal mask (1=tune, 0=skip)
          - {"selection_matrix": [[1], [0, 1], ...]}: Custom lower-triangular mask for selection
-       
-       Examples: MRAC, TwoLayerMRAC, HybridMRAC have matrices like:
-         gamma_x_tran, gamma_r_tran, gamma_theta_tran, gamma_x_rot, 
-         gamma_r_rot, gamma_theta_rot, q_tran, q_rot
 
 PID-only string presets:
     - "translational", "rotational", "proportional", "integral", "derivative"
@@ -63,11 +59,6 @@ TUNING_SELECTIONS: Dict[str, Union[str, list, dict]] = {
         # Lyapunov matrices (SPD - use Cholesky parameterization)
         "q_tran": "diagonal",
         "q_rot": "diagonal",
-
-        # Uncomment to also tune reference model gains and e-modification:
-        # "K_P_omega_ref": True,  # Reference model proportional gains
-        # "K_I_omega_ref": True,  # Reference model integral gains
-        # "sigma_params": True,   # E-modification robustness parameters
     }
 }
 
@@ -122,7 +113,7 @@ def get_tuned_parameters(controller_type: str):
         if controller_upper == "PID":
             return expand_pid_tuning_selection(selection)
         # For non-PID controllers with string selection, treat as unknown format
-        print(f"Warning: String selection '{selection}' not supported for {controller_type}, using all parameters")
+        print(f"Warning: String selection '{selection}' not supported for {controller_type}")
         return all_params
     
     # Fallback: unknown selection format, return all parameters

@@ -45,9 +45,9 @@ tuning_classes = {
 }
 
 evaluator_classes = {
-    'inner': InnerLoopEvaluator,  # Attitude/rotational control 
-    'outer': OuterLoopEvaluator,  # Position/translational control
-    'combined': CombinedEvaluator,  # Both inner + outer loop
+    'inner': InnerLoopEvaluator, 
+    'outer': OuterLoopEvaluator,
+    'combined': CombinedEvaluator, 
 }
 
 

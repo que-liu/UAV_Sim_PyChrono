@@ -22,9 +22,6 @@ class CombinedEvaluator(UAVSimulationEvaluator):
     Measures both:
     - Inner loop: Attitude tracking, angular velocity tracking, rotational control effort
     - Outer loop: Position tracking, velocity tracking, translational control effort
-    
-    Total: 6 objectives for multi-objective optimization.
-    Works with any controller type (PID, MRAC, TwoLayerMRAC, etc.)
     """
     
     def __init__(self, 
@@ -52,7 +49,7 @@ class CombinedEvaluator(UAVSimulationEvaluator):
         super().__init__(uav_adapter, controller_type, log_directory, parallel_config)
         
         if metrics_config is None or metric_weights is None:
-            raise ValueError("metrics_config and metric_weights must be provided for CombinedEvaluator")
+            raise ValueError("metrics_config or metric_weights must be provided for CombinedEvaluator")
         
         self.multi_objective = multi_objective
         self.normalize_metrics = normalize_metrics
@@ -70,7 +67,7 @@ class CombinedEvaluator(UAVSimulationEvaluator):
             'translational_control_effort'
         ]
         
-        # Update n_objectives for multi-objective mode (critical for parallel evaluation!)
+        # Update n_objectives for multi-objective mode
         if self.multi_objective:
             self.n_objectives = len(self.metric_names)
             print(f"[COMBINED] Multi-objective mode: {self.n_objectives} objectives")
@@ -101,7 +98,7 @@ class CombinedEvaluator(UAVSimulationEvaluator):
             Combined metrics (list if multi_objective=True, float otherwise)
         """
         try:
-            config, log_data = self._simulate_with_logs(parameters, prefix="combined_eval")
+            config, log_data = self._simulate_with_logs(parameters, prefix="eval")
 
             if log_data is None:
                 print(f"Warning: Simulation failed for parameters {parameters[:3]}")

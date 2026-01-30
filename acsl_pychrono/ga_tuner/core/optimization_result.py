@@ -241,17 +241,19 @@ class OptimizationResult:
             with open(filepath, 'wb') as f:
                 pickle.dump(self, f)
         elif format == 'json':
+            best_individual = self.get_best_individual()
+            best_fitness = self.get_best_fitness()
             # Convert numpy arrays to lists for JSON serialization
             data = {
                 'algorithm_name': self.algorithm_name,
                 'timestamp': self.timestamp,
                 'optimization_parameters': self.optimization_parameters,
                 'computation_time': self.computation_time,
-                'best_individual': self.get_best_individual().tolist(),
-                'best_fitness': self.get_best_fitness(),
+                'best_individual': best_individual.tolist() if best_individual is not None else None,
+                'best_fitness': best_fitness.tolist() if hasattr(best_fitness, "tolist") else best_fitness,
                 'convergence_metrics': self.get_convergence_metrics(),
                 'diversity_metrics': self.get_diversity_metrics(),
-                'additional_metrics': self.additional_metrics
+                'additional_metrics': self._json_safe(self.additional_metrics)
             }
             
             with open(filepath, 'w') as f:
@@ -292,6 +294,21 @@ class OptimizationResult:
             return result
         else:
             raise ValueError(f"Unsupported format: {format}")
+
+    @staticmethod
+    def _json_safe(value):
+        """Convert numpy types/arrays to JSON-serializable structures."""
+        if isinstance(value, np.ndarray):
+            return value.tolist()
+        if isinstance(value, np.generic):
+            return value.item()
+        if isinstance(value, list):
+            return [OptimizationResult._json_safe(item) for item in value]
+        if isinstance(value, tuple):
+            return [OptimizationResult._json_safe(item) for item in value]
+        if isinstance(value, dict):
+            return {str(k): OptimizationResult._json_safe(v) for k, v in value.items()}
+        return value
     
     def print_summary(self):
         """Print a summary of optimization results."""

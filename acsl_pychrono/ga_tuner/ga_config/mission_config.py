@@ -1,6 +1,7 @@
 """Mission configuration for GA tuning simulations.
 
 Configure simulation settings like trajectory type, duration, and visualization here.
+Same format as used in acsl_pychrono/config/config.py
 """
 
 from typing import Any, Dict

@@ -166,7 +166,7 @@ class PIDTuning(ControllerTuningInterface):
         return vector
     
     def get_default_gains(self) -> Dict[str, Any]:
-        """Get default PID gains from baseline tuning."""
+        """Get default PID gains."""
         return {
             'KP_tran': np.diag([77.0, 84.0, 35.0]),
             'KI_tran': np.diag([129.0, 53.0, 53.0]),

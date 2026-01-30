@@ -3,7 +3,10 @@ Pymoo-based genetic algorithm implementation
 """
 
 from typing import List, Union, Optional, Dict, Any
+import os
+import pickle
 import numpy as np
+
 from pymoo.core.problem import Problem
 from pymoo.optimize import minimize
 from pymoo.util.ref_dirs import get_reference_directions
@@ -252,8 +255,6 @@ class PymooGATuner(BaseGATuner):
     
     def _save_optimization_history(self, res, save_path: str):
         """Save optimization history"""
-        import os
-        import pickle
         
         os.makedirs(save_path, exist_ok=True)
         

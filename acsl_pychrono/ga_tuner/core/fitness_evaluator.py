@@ -258,6 +258,7 @@ class FitnessEvaluator:
     
     def __del__(self):
         """Cleanup parallel executor."""
-        if hasattr(self, 'executor'):
-            self.executor.shutdown()
+        executor = getattr(self, 'executor', None)
+        if executor is not None:
+            executor.shutdown()
     

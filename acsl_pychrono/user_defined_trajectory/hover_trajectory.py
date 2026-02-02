@@ -7,7 +7,7 @@ from acsl_pychrono.user_defined_trajectory.base_user_defined_trajectory import B
 class HoverTrajectory(BaseUserDefinedTrajectory):
   def __init__(self, flight_params: FlightParams, mfloor, mfloor_Yposition) -> None:
     self.altitude_trajectory = -1
-    self.controller_start_time = flight_params.controller_start_time
+    self.controller_start_time = flight_params.uav.controller_start_time
 
     self.addVisualization(mfloor, mfloor_Yposition)
 

@@ -15,7 +15,7 @@ class Visualization:
     vis = irr.ChVisualSystemIrrlicht()
     vis.AttachSystem(self.sim.m_sys)
     vis.SetWindowSize(1280,960) # (1024,768), (1536,1152)
-    vis.SetWindowTitle('X8-Copter - Controller: ' + self.sim.mission_config.controller_type)
+    vis.SetWindowTitle(self.sim.uav_name + '-Copter - Controller: ' + self.sim.mission_config.controller_type)
     vis.Initialize()
     vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
     vis.AddSkyBox()

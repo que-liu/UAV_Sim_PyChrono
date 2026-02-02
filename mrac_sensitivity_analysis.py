@@ -31,7 +31,6 @@ def _init_sensitivity_worker(log_root: str, controller_type: str, normalize_metr
         log_directory=log_root,
         parallel_config={'enabled': False},
         multi_objective=True,
-        metric_weights=metrics_config.get_default_weights(),
         normalize_metrics=normalize_metrics,
         metrics_config=metrics_config
     )
@@ -303,7 +302,6 @@ class MRACSensitivityFramework:
                 'use_processes': True  # Use processes for true parallelization
             },
             multi_objective=True,  # Enable multi-objective for all 6 metrics
-            metric_weights=metrics_config.get_default_weights(),
             normalize_metrics=True,
             metrics_config=metrics_config
         )
@@ -487,7 +485,7 @@ class MRACSensitivityFramework:
             expanded.append(full.tolist())
         return expanded
 
-    def get_sensitivity_bounds(self) -> Tuple[List[str], List[List[float]]]:
+    def get_sensitivity_bounds(self) -> tuple[List[str], List[List[float]]]:
         """Get parameter names and bounds for sensitivity analysis subset."""
         bounds = [[float(l), float(u)] for l, u in zip(self.sensitivity_lower_bounds, self.sensitivity_upper_bounds)]
         return self.sensitivity_parameter_names, bounds

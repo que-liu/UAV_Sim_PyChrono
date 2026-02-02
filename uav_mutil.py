@@ -41,14 +41,14 @@ TEMPLATE_GAINS_FILE = {
     "QUAD": "templates/QUAD/Controller_Gains"
 }
 TEMPLATE_CHRONO_PY_FILE = {
-    "X8": "templates/X8/CAD_export/x8copter.py",
-    "SIMPLE_QUAD": "templates/SIMPLE_QUAD/CAD_export/QUAD_export.py",
-    "QUAD": "templates/QUAD/CAD_export/Q4.py"
+    "X8": "templates/X8/assets/x8copter.py",
+    "SIMPLE_QUAD": "templates/SIMPLE_QUAD/assets/QUAD_export.py",
+    "QUAD": "templates/QUAD/assets/Q4.py"
 }
 TEMPLATE_SHAPES_FOLDER = {
-    "X8": "templates/X8/CAD_export/shapes",
-    "SIMPLE_QUAD": "templates/SIMPLE_QUAD/CAD_export/shapes",
-    "QUAD": "templates/QUAD/CAD_export/Q4_shapes"
+    "X8": "templates/X8/assets/shapes",
+    "SIMPLE_QUAD": "templates/SIMPLE_QUAD/assets/shapes",
+    "QUAD": "templates/QUAD/assets/Q4_shapes"
 }
 
 # ---------------------------------------------------------------------

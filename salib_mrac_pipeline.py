@@ -316,7 +316,10 @@ def run_sobol_subset_multi_metric(framework: MRACSensitivityFramework, full_prob
     print("\nRunning simulations...")
     Y_raw = _evaluate_list(framework, X_full.tolist())
     
-    print("\nNormalizing metrics with Morris bounds (for consistency)...")
+    if normalization_bounds is None:
+        print("\nNormalizing metrics from Sobol run (no Morris bounds)...")
+    else:
+        print("\nNormalizing metrics with Morris bounds (for consistency)...")
     Y_normalized, _ = normalize_metrics(Y_raw, normalization_bounds=normalization_bounds)
 
     print("\nComputing Sobol indices for each metric...")
@@ -357,6 +360,10 @@ def main() -> int:
                        help='Disable metric normalization in single-pass mode')
     parser.add_argument('--morris-only', action='store_true',
                        help='Run Morris only and skip Sobol analysis')
+    parser.add_argument('--sobol-only', action='store_true',
+                       help='Run Sobol only (no Morris). Uses param_config selection by default')
+    parser.add_argument('--sobol-from-param-config', action='store_true',
+                       help='Use all parameters from param_config.py for Sobol (no top-k selection)')
     parser.add_argument('--selection-metric', choices=METRIC_NAMES, default='position_error',
                        help='Which metric to use for parameter selection (default: position_error)')
     args = parser.parse_args()
@@ -379,35 +386,47 @@ def main() -> int:
         print(f"Failed to init MRACSensitivityFramework: {e}")
         return 1
 
-    # Morris screening (single-pass)
-    print('\n' + '='*80)
-    print('COMPREHENSIVE MRAC SENSITIVITY ANALYSIS')
-    print('Analyzing: ALL MRAC parameters (inner + outer loop)')
-    print('Metrics: 6 comprehensive metrics (3 inner loop + 3 outer loop)')
-    print('='*80)
+    if args.sobol_only:
+        print('\n' + '='*80)
+        print('SOBOL-ONLY MRAC SENSITIVITY ANALYSIS')
+        print('Analyzing: parameters from param_config.py')
+        print('Metrics: 6 comprehensive metrics (3 inner loop + 3 outer loop)')
+        print('='*80)
+        names, bounds = _extract_bounds(framework)
+        problem = _build_problem(names, bounds)
+        Si_morris_dict = None
+        Y_normalized = None
+        normalization_bounds = None
+    else:
+        # Morris screening (single-pass)
+        print('\n' + '='*80)
+        print('COMPREHENSIVE MRAC SENSITIVITY ANALYSIS')
+        print('Analyzing: ALL MRAC parameters (inner + outer loop)')
+        print('Metrics: 6 comprehensive metrics (3 inner loop + 3 outer loop)')
+        print('='*80)
 
-    problem, Y_normalized, Si_morris_dict, normalization_bounds = run_morris_single_pass(
-        framework,
-        N=args.morris_N,
-        num_levels=args.num_levels,
-        normalize=not args.no_normalize
-    )
+        problem, Y_normalized, Si_morris_dict, normalization_bounds = run_morris_single_pass(
+            framework,
+            N=args.morris_N,
+            num_levels=args.num_levels,
+            normalize=not args.no_normalize
+        )
 
-    names = problem['names']
-    
-    # Print summary for selected metric
-    print(f"\n{'='*80}")
-    print(f"PARAMETER SELECTION BASED ON: {args.selection_metric}")
-    print('='*80)
-    
-    Si_selected = Si_morris_dict[args.selection_metric]
-    mu = np.asarray(Si_selected.get('mu_star', []))
-    mu_conf = np.asarray(Si_selected.get('mu_star_conf', []))
+        names = problem['names']
+        
+        # Print summary for selected metric
+        print(f"\n{'='*80}")
+        print(f"PARAMETER SELECTION BASED ON: {args.selection_metric}")
+        print('='*80)
+        
+        Si_selected = Si_morris_dict[args.selection_metric]
+        mu = np.asarray(Si_selected.get('mu_star', []))
+        mu_conf = np.asarray(Si_selected.get('mu_star_conf', []))
 
-    print(f'\nMorris μ* for {args.selection_metric} (ranked):')
-    order = np.argsort(mu)[::-1]
-    for r, idx in enumerate(order[:20], 1):  # Show top 20
-        print(f"{r:2d}. {names[idx]:<30} μ*={mu[idx]: .6f} ± {mu_conf[idx]:.6f}")
+        print(f'\nMorris μ* for {args.selection_metric} (ranked):')
+        order = np.argsort(mu)[::-1]
+        for r, idx in enumerate(order[:20], 1):  # Show top 20
+            print(f"{r:2d}. {names[idx]:<30} μ*={mu[idx]: .6f} ± {mu_conf[idx]:.6f}")
 
     if args.morris_only:
         print("\nMorris-only mode enabled: skipping Sobol analysis.")
@@ -416,11 +435,15 @@ def main() -> int:
         Si_sobol_dict = None
         top_indices = []
     else:
-        # Select top-k based on selected metric
-        top_indices = select_top_by_mu_star(Si_selected, names, args.top_k)
-        print(f'\nTop {args.top_k} parameters selected for Sobol analysis:')
-        for i, idx in enumerate(top_indices, 1):
-            print(f"  {i}. {names[idx]}")
+        if args.sobol_only or args.sobol_from_param_config:
+            top_indices = list(range(len(problem['names'])))
+            print(f'\nUsing all {len(top_indices)} parameters from param_config.py for Sobol analysis')
+        else:
+            # Select top-k based on selected metric
+            top_indices = select_top_by_mu_star(Si_selected, names, args.top_k)
+            print(f'\nTop {args.top_k} parameters selected for Sobol analysis:')
+            for i, idx in enumerate(top_indices, 1):
+                print(f"  {i}. {names[idx]}")
 
         # Sobol on subset for all metrics (using same normalization bounds as Morris)
         sub_problem, Y_sobol_normalized, Si_sobol_dict = run_sobol_subset_multi_metric(
@@ -432,15 +455,16 @@ def main() -> int:
         import pickle
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        morris_path = os.path.join(args.output_dir, f'salib_morris_multi_metric_{timestamp}.pkl')
-        with open(morris_path, 'wb') as f:
-            pickle.dump({
-                'problem': problem,
-                'Y_normalized': Y_normalized,
-                'Si_dict': Si_morris_dict,
-                'metric_names': METRIC_NAMES
-            }, f)
-        print(f"\n✓ Morris results saved to {morris_path}")
+        if not args.sobol_only:
+            morris_path = os.path.join(args.output_dir, f'salib_morris_multi_metric_{timestamp}.pkl')
+            with open(morris_path, 'wb') as f:
+                pickle.dump({
+                    'problem': problem,
+                    'Y_normalized': Y_normalized,
+                    'Si_dict': Si_morris_dict,
+                    'metric_names': METRIC_NAMES
+                }, f)
+            print(f"\n✓ Morris results saved to {morris_path}")
 
         if not args.morris_only:
             sobol_path = os.path.join(args.output_dir, f'salib_sobol_multi_metric_{timestamp}.pkl')
@@ -450,7 +474,7 @@ def main() -> int:
                     'Y_normalized': Y_sobol_normalized,
                     'Si_dict': Si_sobol_dict,
                     'selected_indices': top_indices,
-                    'selected_parameter_names': [names[i] for i in top_indices],
+                    'selected_parameter_names': [problem['names'][i] for i in top_indices],
                     'selection_metric': args.selection_metric,
                     'metric_names': METRIC_NAMES
                 }, f)

@@ -10,6 +10,11 @@ import pickle
 from datetime import datetime
 
 from ..core.fitness_evaluator import FitnessEvaluator
+from .survival_penalty import (
+    SurvivalPenaltyConfig,
+    apply_survival_penalty_if_crashed,
+    DEFAULT_PENALTY_BASE,
+)
 
 
 def failure_penalty(multi_objective: bool, n_objectives: int = 3) -> Union[float, List[float]]:
@@ -61,13 +66,18 @@ class UAVSimulationEvaluator(FitnessEvaluator):
     This provides an interface between genetic algorithms and the UAV model.
     Evaluators are controller-agnostic - they measure UAV performance metrics
     (e.g., position tracking, attitude tracking) regardless of the controller type.
+    
+    Supports survival time penalty: if a simulation crashes early, penalty values
+    are assigned based on how long the UAV survived. This gives the GA a gradient
+    to follow towards solutions that survive longer, without adding a 7th objective.
     """
     
     def __init__(self, 
                  uav_adapter,  # UAVModelAdapter
                  controller_type: str,
                  log_directory="simulation_logs",
-                 parallel_config=None):
+                 parallel_config=None,
+                 survival_penalty_config: Optional[SurvivalPenaltyConfig] = None):
         """
         Initialize UAV simulation evaluator.
         
@@ -76,11 +86,18 @@ class UAVSimulationEvaluator(FitnessEvaluator):
             controller_type: Type of controller being tuned ('PID', 'MRAC', etc.)
             log_directory: Directory to store simulation logs
             parallel_config: Optional parallel configuration dict
+            survival_penalty_config: Configuration for survival time penalty.
+                                     If None, default config is used (enabled=True).
         """
         self.uav_adapter = uav_adapter
         self.controller_type = controller_type
         self.log_directory = log_directory
         os.makedirs(log_directory, exist_ok=True)
+        
+        # Configure survival time penalty
+        self.survival_penalty_config = survival_penalty_config or SurvivalPenaltyConfig()
+        if self.survival_penalty_config.enabled:
+            print(f"[SURVIVAL PENALTY] Enabled: {self.survival_penalty_config}")
         
         # Parse parallel configuration
         if parallel_config is None:
@@ -119,7 +136,6 @@ class UAVSimulationEvaluator(FitnessEvaluator):
                 os.makedirs(eval_log_dir, exist_ok=False)
                 return eval_log_dir
             except FileExistsError:
-                # Avoid changing the folder naming scheme expected by plotting.
                 # If a collision occurs, wait for the next second.
                 import time
                 time.sleep(0.25)
@@ -215,6 +231,34 @@ class UAVSimulationEvaluator(FitnessEvaluator):
             print(f"Error finding log file in {log_dir}: {e}")
             
         return None
+
+    def _check_and_apply_survival_penalty(
+        self,
+        log_data: Dict[str, Any],
+        n_objectives: int,
+    ) -> Tuple[bool, Optional[List[float]]]:
+        """
+        Check if simulation crashed early and apply survival penalty if so.
+        
+        Args:
+            log_data: Simulation log dictionary
+            n_objectives: Number of objectives (for penalty dimensions)
+            
+        Returns:
+            Tuple of (is_crashed, penalty_values).
+            If is_crashed is False, calculate actual metrics.
+            If is_crashed is True, use penalty_values instead of metrics.
+        """
+        if not self.survival_penalty_config.enabled:
+            return False, None
+        
+        return apply_survival_penalty_if_crashed(
+            log_data,
+            n_objectives=n_objectives,
+            expected_duration=self.survival_penalty_config.expected_duration,
+            penalty_base=self.survival_penalty_config.penalty_base,
+            tolerance=self.survival_penalty_config.time_tolerance,
+        )
 
     @abstractmethod
     def _get_fallback_fitness(self) -> Union[float, List[float]]:

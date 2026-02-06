@@ -348,6 +348,19 @@ def create_uav_ga_tuner(
         'metrics_config': metrics_config,
     }
     
+    # Configure survival penalty from GAConfig
+    from ..evaluators.survival_penalty import SurvivalPenaltyConfig
+    
+    survival_penalty_settings = getattr(ga_config, 'survival_penalty', None)
+    if survival_penalty_settings is not None:
+        survival_penalty_config = SurvivalPenaltyConfig(
+            enabled=survival_penalty_settings.enabled,
+            penalty_base=survival_penalty_settings.penalty_base,
+            time_tolerance=survival_penalty_settings.time_tolerance,
+            expected_duration=survival_penalty_settings.expected_duration,
+        )
+        evaluator_kwargs['survival_penalty_config'] = survival_penalty_config
+    
     # Add partial evaluator arguments if using partial tuning
     if is_partial_tuning:
         evaluator_kwargs.update({
@@ -356,6 +369,25 @@ def create_uav_ga_tuner(
         })
     
     fitness_evaluator = evaluator_cls(**evaluator_kwargs)
+    
+    # Build seed population from default gains if enabled
+    seed_population = []
+    
+    if getattr(ga_config, 'seed_with_default_gains', True):
+        # Extract the tuned subset of default gains as the primary seed
+        default_tuned_subset = [default_vector[i] for i in tuned_indices]
+        seed_population.append(default_tuned_subset)
+        print(f"[SEEDING] Added default gains as seed ({len(default_tuned_subset)} parameters)")
+    
+    # Add any additional custom seed vectors
+    additional_seeds = getattr(ga_config, 'additional_seed_vectors', None)
+    if additional_seeds:
+        for i, seed in enumerate(additional_seeds):
+            if len(seed) == len(tuned_indices):
+                seed_population.append(list(seed))
+                print(f"[SEEDING] Added additional seed {i+1} ({len(seed)} parameters)")
+            else:
+                print(f"[SEEDING] Warning: Additional seed {i+1} has wrong dimension ({len(seed)} != {len(tuned_indices)}), skipping")
     
     # Build tuner kwargs from ga_config
     tuner_kwargs = {
@@ -386,6 +418,11 @@ def create_uav_ga_tuner(
         })
         if ga_config.pymoo_algorithm_params:
             tuner_kwargs['algorithm_params'] = dict(ga_config.pymoo_algorithm_params)
+        
+        # Add seed population for Pymoo (injects hand-tuned gains into initial population)
+        if seed_population:
+            tuner_kwargs['seed_population'] = seed_population
+        
         tuner = _PymooGATunerAdapter(
             parameter_bounds=parameter_bounds,
             fitness_evaluator=fitness_evaluator,

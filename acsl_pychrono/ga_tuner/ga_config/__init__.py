@@ -1,4 +1,4 @@
-from .ga_config import GAConfig
+from .ga_config import GAConfig, SurvivalPenaltySettings
 from .config import (
     TUNING_CONFIG,
     EvaluatorConfig,
@@ -13,6 +13,7 @@ from .metrics_config import (
 
 __all__ = [
     "GAConfig",
+    "SurvivalPenaltySettings",
     "EvaluatorConfig",
     "TuningConfig",
     "TUNING_CONFIG",

@@ -20,7 +20,7 @@ class PiecewisePolynomialTrajectory(BaseUserDefinedTrajectory):
       mission_config: MissionConfig
       ) -> None:
     
-    self.controller_start_time = flight_params.controller_start_time
+    self.controller_start_time = flight_params.uav.controller_start_time
     self.trajectory_data_path = mission_config.trajectory_data_path
     self.hover_after_trajectory_time_seconds = mission_config.hover_after_trajectory_time_seconds
 

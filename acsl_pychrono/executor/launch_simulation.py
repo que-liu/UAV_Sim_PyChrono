@@ -1,8 +1,8 @@
 import acsl_pychrono.config.config as Cfg
 import acsl_pychrono.executor as Executor
 
-def launchSimulation():
-  if Cfg.MissionConfig.wrapper_flag:
+def launchSimulation(cli_args):
+  if Cfg.MissionConfig.wrapper_flag: #and not cli_args.no_wrapper_mode:
     Executor.runParallelBatch(max_parallel=Cfg.MissionConfig.wrapper_max_parallel)
   else:
-    Executor.runSingleSimulation()
+    Executor.runSingleSimulation(cli_args)

@@ -1,6 +1,6 @@
 """Controller factory with GA tuner integration."""
 
-from acsl_pychrono.control import controller_classes as CONTROLLER_CLASSES
+from acsl_pychrono.control import get_controller_classes, available_controllers
 
 from .ga_utils import (
     get_param_key,
@@ -12,17 +12,23 @@ from .ga_utils import (
 )
 
 
-def instantiateControllerWithGA(controller_type: str, ode_input, flight_params, timestep, wrapper_params=None):
+def instantiateControllerWithGA(
+    controller_type: str,
+    ode_input,
+    flight_params,
+    timestep,
+    wrapper_params=None
+):
     """
     Factory function to instantiate controllers with optional GA tuner integration.
 
     Parameter naming convention: uses "{controller_type.lower()}_params" as the key in
     external_controller_params (e.g., PID -> pid_params).
     """
-    if controller_type not in CONTROLLER_CLASSES:
+    if controller_type not in available_controllers():
         raise ValueError(f"Unknown controller type: {controller_type}")
 
-    GainsClass, ControllerClass, LoggerClass = CONTROLLER_CLASSES[controller_type]
+    GainsClass, ControllerClass, LoggerClass = get_controller_classes(controller_type)
 
     gains = GainsClass(flight_params)
 

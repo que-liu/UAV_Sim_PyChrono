@@ -17,7 +17,7 @@ class RoundedRectangleTrajectory(BaseUserDefinedTrajectory):
     self.rounding_radius = 1
     self.linear_velocity_trajectory = 1.5
     self.altitude_trajectory = -1
-    self.controller_start_time = flight_params.controller_start_time
+    self.controller_start_time = flight_params.uav.controller_start_time
     self.omega_corner = ( # Compute the constant angular velocity on smoothed corners
       self.linear_velocity_trajectory / self.rounding_radius
     )

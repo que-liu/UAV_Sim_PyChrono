@@ -1,4 +1,5 @@
 import numpy as np  
+from acsl_pychrono.control.logging import Logging
 from acsl_pychrono.control.NonAdaptiveEBCI.nonadaptive_ebci_gains import NonAdaptiveEBCIGains
 from acsl_pychrono.control.NonAdaptiveEBCI.nonadaptive_ebci import NonAdaptiveEBCI
 
@@ -6,9 +7,14 @@ class NonAdaptiveEBCILogger:
   def __init__(self, gains: NonAdaptiveEBCIGains) -> None:
     self.gains = gains
     self.data_list = []
+    # Length of the array vector that will be exported 
+    self.size_DATA = 193
 
   def collectData(self, controller: NonAdaptiveEBCI, simulation_time: float):
-    DATA_vector = np.zeros((self.gains.size_DATA, 1))
+    DATA_vector = np.zeros((self.size_DATA, 1))
+      
+    # Pad the motor thrusts with zeros if fewer than 8 propellers
+    motor_thrusts = Logging.dataVectorPadding(controller.motor_thrusts, 8)
 
     DATA_vector[0] = controller.odein.time_now
     DATA_vector[1] = simulation_time
@@ -39,7 +45,7 @@ class NonAdaptiveEBCILogger:
     DATA_vector[45] = controller.u2
     DATA_vector[46] = controller.u3
     DATA_vector[47] = controller.u4
-    DATA_vector[48:56] = controller.motor_thrusts.reshape(8,1)
+    DATA_vector[48:56] = motor_thrusts.reshape(8,1)
     DATA_vector[56:59] = np.zeros((3, 1))
     DATA_vector[59:62] = controller.mu_adaptive_tran
     DATA_vector[62:65] = controller.mu_PD_baseline_tran

@@ -12,7 +12,7 @@ class PID(Control):
     self.gains = gains
     self.fp = flight_params
     self.timestep = timestep
-    self.safety_mechanism = OuterLoopSafetyMechanism(gains, self.fp.G_acc)
+    self.safety_mechanism = OuterLoopSafetyMechanism(gains, self.fp.uav.G_acc)
     self.dy = np.zeros((self.gains.number_of_states, 1))
     # Initial conditions
     self.y = np.zeros((self.gains.number_of_states, 1))
@@ -52,7 +52,7 @@ class PID(Control):
       self.mu_y, 
       self.mu_z, 
       self.gains.mass_total_estimated,
-      self.fp.G_acc,
+      self.fp.uav.G_acc,
       self.odein.yaw_ref
     )
 

@@ -2,14 +2,22 @@ import traceback
 from acsl_pychrono.simulation.simulation import Simulation
 import acsl_pychrono.user_defined_trajectory as Traj
 import acsl_pychrono.control as Ctrl
+import acsl_pychrono.uav as UAV_Module
 from acsl_pychrono.control.logging import Logging
 from acsl_pychrono.simulation.ode_input import OdeInput
 from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.ga_tuner.integration.controller_factory import instantiateControllerWithGA
 
 def simulateMission(sim: Simulation, git_info: dict | None = None):
+  
+  # Instantiation of the UAV object
+  uav = UAV_Module.instantiateUAV(
+    sim.vehicle_config.uav_name,
+    sim.mission_config.controller_type
+  )
+  
   # Instantiation of classes
-  flight_params = FlightParams()
+  flight_params = FlightParams(uav)
   ode_input = OdeInput()
   sim.setGravitationalAcceleration(flight_params)
 

@@ -79,14 +79,14 @@ class Control(ABC):
       state_theta_ref_diff
     ):
 
-    internal_state_differentiator_phi_ref_diff = fp.A_phi_ref * state_phi_ref_diff + fp.B_phi_ref*roll_ref
-    internal_state_differentiator_theta_ref_diff = fp.A_theta_ref * state_theta_ref_diff + fp.B_theta_ref*pitch_ref
+    internal_state_differentiator_phi_ref_diff = fp.uav.A_phi_ref * state_phi_ref_diff + fp.uav.B_phi_ref*roll_ref
+    internal_state_differentiator_theta_ref_diff = fp.uav.A_theta_ref * state_theta_ref_diff + fp.uav.B_theta_ref*pitch_ref
     
-    roll_ref_dot = np.asarray(fp.C_phi_ref*state_phi_ref_diff).item()
-    pitch_ref_dot = np.asarray(fp.C_theta_ref*state_theta_ref_diff).item()
+    roll_ref_dot = np.asarray(fp.uav.C_phi_ref*state_phi_ref_diff).item()
+    pitch_ref_dot = np.asarray(fp.uav.C_theta_ref*state_theta_ref_diff).item()
     
-    roll_ref_ddot = np.asarray(fp.C_phi_ref*internal_state_differentiator_phi_ref_diff).item()
-    pitch_ref_ddot = np.asarray(fp.C_theta_ref*internal_state_differentiator_theta_ref_diff).item()
+    roll_ref_ddot = np.asarray(fp.uav.C_phi_ref*internal_state_differentiator_phi_ref_diff).item()
+    pitch_ref_ddot = np.asarray(fp.uav.C_theta_ref*internal_state_differentiator_theta_ref_diff).item()
     
     angular_position_ref_dot = np.array([roll_ref_dot, pitch_ref_dot, odein.yaw_ref_dot]).reshape(3,1)
     angular_position_ref_ddot = np.array([roll_ref_ddot, pitch_ref_ddot, odein.yaw_ref_ddot]).reshape(3,1)
@@ -178,7 +178,7 @@ class Control(ABC):
       T (8x1 np.array): thrusts for 8 motors
     """
     U = np.array([u1, u2, u3, u4])
-    motor_thrusts = np.matmul(fp.U_mat_inv, U).reshape(8,1) # array of thrust of each motor (T1, T2, T3, T4, T5, T6, T7, T8)
+    motor_thrusts = np.matmul(fp.uav.U_mat_inv, U).reshape(fp.uav.number_of_propellers,1) # array of thrust of each motor (T1, T2, T3, T4, ...)
     return motor_thrusts
   
   @staticmethod

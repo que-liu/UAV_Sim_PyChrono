@@ -9,7 +9,7 @@ class SquareTrajectory(BaseUserDefinedTrajectory):
     self.square_side_size = 5
     self.linear_velocity_trajectory = 3.5 # 1.0
     self.altitude_trajectory = -1
-    self.controller_start_time = flight_params.controller_start_time
+    self.controller_start_time = flight_params.uav.controller_start_time
     self.time_side = ( # time required to complete one side of the square
     self.square_side_size / self.linear_velocity_trajectory
     ) 

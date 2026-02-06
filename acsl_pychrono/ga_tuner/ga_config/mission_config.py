@@ -5,7 +5,6 @@ Same format as used in acsl_pychrono/config/config.py
 """
 
 from typing import Any, Dict
-
 # Mission configuration: configure simulation settings
 MISSION_CONFIG: Dict[str, Any] = {
     "trajectory_type": "piecewise_polynomial_trajectory",

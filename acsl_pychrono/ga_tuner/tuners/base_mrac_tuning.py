@@ -83,13 +83,21 @@ class BaseMRACTuning(ControllerTuningInterface):
         
         # Dynamic import to avoid circular dependencies
         module_parts = self.CONTROLLER_MODULE.rsplit('.', 1)
-        module = __import__(module_parts[0], fromlist=[module_parts[1]])
+        controller_name = module_parts[1]
+        module = __import__(self.CONTROLLER_MODULE, fromlist=[controller_name])
         gains_class = getattr(module, self.GAINS_CLASS.__name__)
         
         # Import FlightParams
+        import acsl_pychrono.uav as UAV_Module
+        from acsl_pychrono.config.config import VehicleConfig
         from acsl_pychrono.simulation.flight_params import FlightParams
         
-        flight_params = FlightParams()
+        # Instantiation of the UAV object
+        uav = UAV_Module.instantiateUAV(
+            uav_name=VehicleConfig().uav_name,
+            controller_name=controller_name
+        )
+        flight_params = FlightParams(uav)
         gains_obj = gains_class(flight_params)
         
         return self._extract_gains_from_object(gains_obj)

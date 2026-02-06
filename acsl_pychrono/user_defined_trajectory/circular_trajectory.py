@@ -9,7 +9,7 @@ class CircularTrajectory(BaseUserDefinedTrajectory):
     self.radius_trajectory = 3
     self.angular_velocity_trajectory = 0.2
     self.altitude_trajectory = -1
-    self.controller_start_time = flight_params.controller_start_time
+    self.controller_start_time = flight_params.uav.controller_start_time
 
     self.addVisualization(mfloor, mfloor_Yposition)
 

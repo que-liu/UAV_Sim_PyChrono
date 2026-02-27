@@ -17,37 +17,38 @@ class FunnelTwoLayerMRACGains(BaseMRACGains):
     self.drag_coefficient_matrix_estimated = flight_params.uav.drag_coefficient_matrix_estimated
 
     # Controller's numerical Parameters config filename
-    gains_config_filename = flight_params.uav.controller_config_filename
+    gains_config_filename = str(flight_params.uav.controller_config_filename)
+
+    print("Controller config filename:", gains_config_filename)
+    
     gains_config_file = flight_params.get_controller_config(gains_config_filename, flight_params.uav.name)
 
     # Number of states to be integrated by RK4
     self.number_of_states = 135
-    # Length of the array vector that will be exported 
-    self.size_DATA = 238
 
     # ----------------------------------------------------------------
     #                     Baseline Parameters
     # ----------------------------------------------------------------
 
     # **Translational** baseline parameters to let the reference model follow the user-defined model (mu_baseline_tran)
-    self.KP_tran = np.matrix(1 * np.diag([5,5,6]))
-    self.KD_tran = np.matrix(1 * np.diag([8,8,3]))
-    self.KI_tran = np.matrix(1 * np.diag([1,1,0.1]))
+    self.KP_tran = flight_params.get_scaled_matrix_from_config(gains_config_file, "KP_tran")
+    self.KD_tran = flight_params.get_scaled_matrix_from_config(gains_config_file, "KD_tran")
+    self.KI_tran = flight_params.get_scaled_matrix_from_config(gains_config_file, "KI_tran")
 
     # **Translational** parameters for the PD baseline controller (mu_PD_baseline_tran)
-    self.KP_tran_PD_baseline = np.matrix(1 * np.diag([5,5,6]))
-    self.KD_tran_PD_baseline = np.matrix(1 * np.diag([8,8,3]))
+    self.KP_tran_PD_baseline = flight_params.get_scaled_matrix_from_config(gains_config_file, "KP_tran_PD_baseline")
+    self.KD_tran_PD_baseline = flight_params.get_scaled_matrix_from_config(gains_config_file, "KD_tran_PD_baseline")
 
     # **Rotational** baseline parameters
-    self.KP_rot = np.matrix(3e0 * np.diag([10,10,5]))
-    self.KI_rot = np.matrix(2e0 * np.diag([1,1,1]))
+    self.KP_rot = flight_params.get_scaled_matrix_from_config(gains_config_file, "KP_rot")
+    self.KI_rot = flight_params.get_scaled_matrix_from_config(gains_config_file, "KI_rot")
 
-    # **Rotational** parameters for the PI baseline controller (Moment_baseline_PI)       
-    self.KP_rot_PI_baseline = np.matrix(4.5e1 * np.diag([1,1,0.5]))
-    self.KI_rot_PI_baseline = np.matrix(5.5e1 * np.diag([1,1,0.5]))
+    # **Rotational** parameters for the PID baseline controller (Moment_baseline_PI)
+    self.KP_rot_PI_baseline = flight_params.get_scaled_matrix_from_config(gains_config_file, "KP_rot_PI_baseline")
+    self.KI_rot_PI_baseline = flight_params.get_scaled_matrix_from_config(gains_config_file, "KI_rot_PI_baseline")
 
-    self.K_P_omega_ref = np.matrix(3.8e1 * np.diag([0.8,0.8,1.2]))
-    self.K_I_omega_ref = np.matrix(1e-1 * np.diag([5,5,1]))
+    self.K_P_omega_ref = flight_params.get_scaled_matrix_from_config(gains_config_file, "K_P_omega_ref")
+    self.K_I_omega_ref = flight_params.get_scaled_matrix_from_config(gains_config_file, "K_I_omega_ref")
 
     # ----------------------------------------------------------------
     #                   Translational Parameters MRAC
@@ -68,12 +69,12 @@ class FunnelTwoLayerMRACGains(BaseMRACGains):
                                       [(1/self.mass_total_estimated)*np.identity(3)]]))
 
     # **Translational** adaptive parameters
-    self.Gamma_x_tran = np.matrix(3e3 * np.diag([1,1,10,1,1,10])) # Adaptive rates
-    self.Gamma_r_tran = np.matrix(5e2 * np.diag([1,1,4])) # Adaptive rates
-    self.Gamma_Theta_tran = np.matrix(1e3 * np.diag([1,1,2,1,1,2])) # Adaptive rates
+    self.Gamma_x_tran = flight_params.get_scaled_matrix_from_config(gains_config_file, "Gamma_x_tran") # Adaptive rates
+    self.Gamma_r_tran = flight_params.get_scaled_matrix_from_config(gains_config_file, "Gamma_r_tran") # Adaptive rates
+    self.Gamma_Theta_tran = flight_params.get_scaled_matrix_from_config(gains_config_file, "Gamma_Theta_tran") # Adaptive rates
 
     # **Translational** parameters Lyapunov equation
-    self.Q_tran = np.matrix(2e-2 * np.diag([1,1,12,1,1,2]))
+    self.Q_tran = flight_params.get_scaled_matrix_from_config(gains_config_file, "Q_tran")
     
     # ----------------------------------------------------------------
     #                   Rotational Parameters MRAC
@@ -88,12 +89,12 @@ class FunnelTwoLayerMRACGains(BaseMRACGains):
     self.B_ref_rot = np.matrix(np.eye(3))
 
     # **Rotational** parameters Lyapunov equation
-    self.Q_rot = np.matrix(1e-3 * np.diag([1,1,1]))
+    self.Q_rot = flight_params.get_scaled_matrix_from_config(gains_config_file, "Q_rot")
     
     # **Rotational** adaptive parameters
-    self.Gamma_x_rot = np.matrix(1e4 * np.diag([1,1,1])) # Adaptive rates
-    self.Gamma_r_rot = np.matrix(5e0 * np.diag([1,1,1])) # Adaptive rates
-    self.Gamma_Theta_rot = np.matrix(2e3 * np.diag([1,1,1,1,1,1])) # Adaptive rates
+    self.Gamma_x_rot = flight_params.get_scaled_matrix_from_config(gains_config_file, "Gamma_x_rot") # Adaptive rates
+    self.Gamma_r_rot = flight_params.get_scaled_matrix_from_config(gains_config_file, "Gamma_r_rot") # Adaptive rates
+    self.Gamma_Theta_rot = flight_params.get_scaled_matrix_from_config(gains_config_file, "Gamma_Theta_rot") # Adaptive rates
 
     # ----------------------------------------------------------------
     #                   Two-Layer MRAC Parameters
@@ -107,7 +108,8 @@ class FunnelTwoLayerMRACGains(BaseMRACGains):
     self.A_transient_tran = self.A_tran - self.B_ref_tran*K_transient_tran 
 
     self.P_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_transient_tran.T, -self.Q_tran))
-    self.Gamma_g_tran = np.matrix(1e4 * np.diag([1,1,1,1,1,1])) # Adaptive rates
+    self.Gamma_g_tran = flight_params.get_scaled_matrix_from_config(gains_config_file, "Gamma_g_tran") # Adaptive rates
+
 
     # **Rotational** second layer parameters
     poles_ref_rot = LA.eig(self.A_ref_rot)[0]
@@ -117,152 +119,144 @@ class FunnelTwoLayerMRACGains(BaseMRACGains):
     self.A_transient_rot = self.A_rot - self.B_ref_rot*K_transient_rot
     
     self.P_rot = np.matrix(linalg.solve_continuous_lyapunov(self.A_transient_rot.T, -self.Q_rot))
-    self.Gamma_g_rot = np.matrix(1e2 * np.diag([2,2,1])) # Adaptive rates
+    self.Gamma_g_rot = flight_params.get_scaled_matrix_from_config(gains_config_file, "Gamma_g_rot") # Adaptive rates
 
     # ----------------------------------------------------------------
     #                   Funnel Parameters MRAC
     # ----------------------------------------------------------------
     # **Translational** Funnel parameters     
-    self.Q_M_funnel_tran = 1.5 * np.matrix([
-      [2.000,  0,     0,     0,     0,    -0.001],
-      [0,      2.000, 0,    -0.001, 0.001, 0.002],
-      [0,      0,     2.000, -0.001, 0.002, 0.003],
-      [0,     -0.001, -0.001, 2.488, 0,     0],
-      [0,      0.001, 0.002,  0,     4.559, 0.001],
-      [-0.001, 0.002, 0.003,  0,     0.001, 5.725]
-    ])
-    self.M_funnel_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_transient_tran.T, -self.Q_M_funnel_tran))
-    self.xi_bar_d_funnel_tran = 1e-2
+    self.Q_M_funnel_tran = flight_params.get_scaled_matrix_from_config(gains_config_file, "Q_M_funnel_tran")
+    self.M_funnel_tran = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_tran.T, -self.Q_M_funnel_tran))
+    self.xi_bar_d_funnel_tran = flight_params.get_scalar_from_config(gains_config_file, "xi_bar_d_funnel_tran")
     self.lambda_max_M_funnel_tran = float(np.max(np.linalg.eigvals(self.M_funnel_tran)))
     self.lambda_min_Q_M_funnel_tran = float(np.min(np.linalg.eigvals(self.Q_M_funnel_tran)))
-    self.e_min_funnel_tran = getattr(self.wrapper_params, "e_min_funnel_tran", 0.0001)
-    self.H_max_funnel_tran = getattr(self.wrapper_params, "H_max_funnel_tran", 14.9)
-    self.delta_1_funnel_tran = 0.1
-    self.eta_max_funnel_tran = self.H_max_funnel_tran + self.delta_1_funnel_tran
-    self.delta_2_funnel_tran = getattr(self.wrapper_params, "delta_2_funnel_tran", 0.1)
-    self.delta_3_funnel_tran = getattr(self.wrapper_params, "delta_3_funnel_tran", 0.15)
+    self.e_min_funnel_tran = flight_params.get_scalar_from_config(gains_config_file, "e_min_funnel_tran")
+    self.eta_max_funnel_tran = flight_params.get_scalar_from_config(gains_config_file, "eta_max_funnel_tran")
+    self.delta_1_funnel_tran = flight_params.get_scalar_from_config(gains_config_file, "delta_1_funnel_tran")
+    self.delta_2_funnel_tran = flight_params.get_scalar_from_config(gains_config_file, "delta_2_funnel_tran")
+    self.delta_3_funnel_tran = flight_params.get_scalar_from_config(gains_config_file, "delta_3_funnel_tran")
     self.lambda_max_P_tran = float(np.max(np.linalg.eigvals(self.P_tran)))
     self.lambda_min_Q_tran = float(np.min(np.linalg.eigvals(self.Q_tran)))
-    self.initial_cond_diameter_funnel_tran = getattr(self.wrapper_params, "initial_cond_diameter_funnel_tran", 0.5)
+    self.initial_cond_diameter_funnel_tran = flight_params.get_scalar_from_config(gains_config_file, "initial_cond_diameter_funnel_tran")
     self.initial_cond_eta_funnel_tran = math.sqrt(self.eta_max_funnel_tran - self.initial_cond_diameter_funnel_tran)
-
-    # print("[INFO] H_max_funnel_tran: ", self.H_max_funnel_tran)
     
-    self.u_max = 45.0
-    self.u_min = 2.4
-    self.Delta_u_min = 1.0
-    self.nu_funnel_tran = 0.0 # 0.01
+    self.u_max = flight_params.get_scalar_from_config(gains_config_file, "u_max")
+    self.u_min = flight_params.get_scalar_from_config(gains_config_file, "u_min")
+    self.Delta_u_min = flight_params.get_scalar_from_config(gains_config_file, "Delta_u_min")
+    self.nu_funnel_tran = flight_params.get_scalar_from_config(gains_config_file, "nu_funnel_tran")
 
-    self.use_funnel_romoco_old_tran = False # True for old RoMoCo paper method of computing eta_dot
-    self.use_eigenvalue_lambda_sat_funnel_tran = True # True for eigenvalue-based method, False for conservative method
-
+    self.use_funnel_romoco_old_tran = flight_params.get_scalar_from_config(gains_config_file, "use_funnel_romoco_old_tran") # True for old RoMoCo paper method of computing eta_dot
+    self.use_eigenvalue_lambda_sat_funnel_tran = flight_params.get_scalar_from_config(gains_config_file, "use_eigenvalue_lambda_sat_funnel_tran") # Set to True to use the eigenvalue-based method
+    
     # **Rotational** Funnel parameters            
-    self.Q_M_funnel_rot = np.matrix(1e-3 * np.diag([1,1,1]))
-    self.M_funnel_rot = np.matrix(linalg.solve_continuous_lyapunov(self.A_transient_rot.T, -self.Q_M_funnel_rot))
-    self.xi_bar_d_funnel_rot = 0.1
+    self.Q_M_funnel_rot = flight_params.get_scaled_matrix_from_config(gains_config_file, "Q_M_funnel_rot")
+    self.M_funnel_rot = np.matrix(linalg.solve_continuous_lyapunov(self.A_ref_rot.T, -self.Q_M_funnel_rot))
     self.lambda_max_M_funnel_rot = float(np.max(np.linalg.eigvals(self.M_funnel_rot)))
     self.lambda_min_Q_M_funnel_rot = float(np.min(np.linalg.eigvals(self.Q_M_funnel_rot)))
-    self.e_min_funnel_rot = (2 * self.xi_bar_d_funnel_rot * self.lambda_max_M_funnel_rot) / self.lambda_min_Q_M_funnel_rot
-    self.eta_max_funnel_rot = 2*self.e_min_funnel_rot + 1
-    self.delta_1_funnel_rot = 0.05 * self.eta_max_funnel_rot
-    self.delta_2_funnel_rot = self.e_min_funnel_rot
-    self.delta_3_funnel_rot = self.e_min_funnel_rot + (0.05 * self.eta_max_funnel_rot)
+        
+    self.xi_bar_d_funnel_rot = flight_params.get_scalar_from_config(gains_config_file, "xi_bar_d_funnel_rot")
+    self.e_min_funnel_rot = flight_params.get_scalar_from_config(gains_config_file, "e_min_funnel_rot") #(2 * self.xi_bar_d_funnel_rot * self.lambda_max_M_funnel_rot) / self.lambda_min_Q_M_funnel_rot #YAML
+    self.eta_max_funnel_rot = flight_params.get_scalar_from_config(gains_config_file, "eta_max_funnel_rot") #2*self.e_min_funnel_rot + 1 #YAML
+    self.delta_1_funnel_rot = flight_params.get_scalar_from_config(gains_config_file, "delta_1_funnel_rot") #0.05 * self.eta_max_funnel_rot #YAML
+    self.delta_2_funnel_rot = flight_params.get_scalar_from_config(gains_config_file, "delta_2_funnel_rot") #self.e_min_funnel_rot #YAML
+    self.delta_3_funnel_rot = flight_params.get_scalar_from_config(gains_config_file, "delta_3_funnel_rot") #self.e_min_funnel_rot + (0.05 * self.eta_max_funnel_rot) #YAML
+    
     self.lambda_max_P_rot = float(np.max(np.linalg.eigvals(self.P_rot)))
     self.lambda_min_Q_rot = float(np.min(np.linalg.eigvals(self.Q_rot)))
     
-    self.Moment_max = 5.0
-    self.Moment_min = 0.0
-    self.Delta_Moment_min = 0.01
-    self.nu_funnel_rot = 0.0
+    self.Moment_max = flight_params.get_scalar_from_config(gains_config_file, "Moment_max")
+    self.Moment_min = flight_params.get_scalar_from_config(gains_config_file, "Moment_min")
+    self.Delta_Moment_min = flight_params.get_scalar_from_config(gains_config_file, "Delta_Moment_min")
+    self.nu_funnel_rot = flight_params.get_scalar_from_config(gains_config_file, "nu_funnel_rot")
     
     # ----------------------------------------------------------------
     #                   Safety Mechanism Parameters
     # ----------------------------------------------------------------
-    self.use_safety_mechanism = True
+    self.use_safety_mechanism = flight_params.get_scalar_from_config(gains_config_file, "use_safety_mechanism")
     
     # Mu - sphere intersection
-    self.sphereEpsilon = 1e-2
-    self.maximumThrust = 85 # [N] 85
+    self.sphereEpsilon = flight_params.get_scalar_from_config(gains_config_file, "sphereEpsilon")
+    self.maximumThrust = flight_params.get_scalar_from_config(gains_config_file, "maximumThrust") # [N] 85
     
     # Mu - elliptic cone intersection
-    self.EllipticConeEpsilon = 1e-2
-    self.maximumRollAngle = math.radians(60) # [rad] 25 - 32
-    self.maximumPitchAngle = math.radians(60) # [rad] 25 - 32
+    self.EllipticConeEpsilon = flight_params.get_scalar_from_config(gains_config_file, "EllipticConeEpsilon")
+    self.maximumRollAngle = math.radians(flight_params.get_scalar_from_config(gains_config_file, "maximumRollAngle_deg")) # [rad] 25 - 32
+    self.maximumPitchAngle = math.radians(flight_params.get_scalar_from_config(gains_config_file, "maximumPitchAngle_deg")) # [rad] 25 - 32
     
     # Mu - plane intersection
-    self.planeEpsilon = 1e-2
-    self.alphaPlane = 0.6 # [-] coefficient for setting the 'height' of the bottom plane. Must be >0 and <1.
+    self.planeEpsilon = flight_params.get_scalar_from_config(gains_config_file, "planeEpsilon")
+    self.alphaPlane = flight_params.get_scalar_from_config(gains_config_file, "alphaPlane") # [-] coefficient for setting the 'height' of the bottom plane. Must be >0 and <1.
 
     # ----------------------------------------------------------------
     #                  Dead-Zone modification Parameters
     # ----------------------------------------------------------------
-    self.use_dead_zone_modification = True
+    self.use_dead_zone_modification = flight_params.get_scalar_from_config(gains_config_file, "use_dead_zone_modification")
 
-    self.dead_zone_delta_tran = 0.5
-    self.dead_zone_e0_tran = 0.01
+    self.dead_zone_delta_tran = flight_params.get_scalar_from_config(gains_config_file, "dead_zone_delta_tran")
+    self.dead_zone_e0_tran = flight_params.get_scalar_from_config(gains_config_file, "dead_zone_e0_tran")
 
-    self.dead_zone_delta_rot = 0.5
-    self.dead_zone_e0_rot = 0.002
+    self.dead_zone_delta_rot = flight_params.get_scalar_from_config(gains_config_file, "dead_zone_delta_rot")
+    self.dead_zone_e0_rot = flight_params.get_scalar_from_config(gains_config_file, "dead_zone_e0_rot")
 
     # ----------------------------------------------------------------
     #                  e-modification Parameters
     # ----------------------------------------------------------------
-    self.use_e_modification = False
+    self.use_e_modification = flight_params.get_scalar_from_config(gains_config_file, "use_e_modification")
 
-    self.sigma_x_tran = 0.5
-    self.sigma_r_tran = 0.5
-    self.sigma_Theta_tran = 0.5
-    self.sigma_g_tran = 0.5
+    self.sigma_x_tran = flight_params.get_scalar_from_config(gains_config_file, "sigma_x_tran")
+    self.sigma_r_tran = flight_params.get_scalar_from_config(gains_config_file, "sigma_r_tran")
+    self.sigma_Theta_tran = flight_params.get_scalar_from_config(gains_config_file, "sigma_Theta_tran")
+    self.sigma_g_tran = flight_params.get_scalar_from_config(gains_config_file, "sigma_g_tran")
 
-    self.sigma_x_rot = 0.5
-    self.sigma_r_rot = 0.5
-    self.sigma_Theta_rot = 0.5
-    self.sigma_g_rot = 0.5
+    self.sigma_x_rot = flight_params.get_scalar_from_config(gains_config_file, "sigma_x_rot")
+    self.sigma_r_rot = flight_params.get_scalar_from_config(gains_config_file, "sigma_r_rot")
+    self.sigma_Theta_rot = flight_params.get_scalar_from_config(gains_config_file, "sigma_Theta_rot")
+    self.sigma_g_rot = flight_params.get_scalar_from_config(gains_config_file, "sigma_g_rot")
 
     # ----------------------------------------------------------------
     #                  Projection Operator Parameters
     # ----------------------------------------------------------------
-    self.use_projection_operator = True
+    self.use_projection_operator = flight_params.get_scalar_from_config(gains_config_file, "use_projection_operator")
 
     # K_x_hat translational
-    self.x_e_x_tran = np.zeros((18, 1))
-    self.S_diagonal_x_tran = 30 * np.ones((18, 1))
-    self.alpha_x_tran = 0.1
+    self.x_e_x_tran = np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "x_e_x_tran_transpose"))
+    self.S_diagonal_x_tran = np.array(np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "S_diagonal_x_tran_transpose")))
+    self.alpha_x_tran = flight_params.get_scalar_from_config(gains_config_file, "alpha_x_tran")
 
     # K_r_hat translational
-    self.x_e_r_tran = np.zeros((9, 1))
-    self.S_diagonal_r_tran = 2.5 * np.ones((9, 1))
-    self.alpha_r_tran = 0.1
+    self.x_e_r_tran = np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "x_e_r_tran_transpose"))
+    self.S_diagonal_r_tran = np.array(np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "S_diagonal_r_tran_transpose")))
+    self.alpha_r_tran = flight_params.get_scalar_from_config(gains_config_file, "alpha_r_tran")
 
     # Theta_hat translational
-    self.x_e_Theta_tran = np.zeros((18, 1))
-    self.S_diagonal_Theta_tran = 7.5 * np.ones((18, 1))
-    self.alpha_Theta_tran = 0.1
+    self.x_e_Theta_tran = np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "x_e_Theta_tran_transpose"))
+    self.S_diagonal_Theta_tran = np.array(np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "S_diagonal_Theta_tran_transpose")))
+    self.alpha_Theta_tran = flight_params.get_scalar_from_config(gains_config_file, "alpha_Theta_tran")
 
     # K_g_hat translational
-    self.x_e_g_tran = np.zeros((18, 1))
-    self.S_diagonal_g_tran = 60 * np.ones((18, 1))
-    self.alpha_g_tran = 0.1
+    self.x_e_g_tran = np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "x_e_g_tran_transpose"))
+    self.S_diagonal_g_tran = np.array(np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "S_diagonal_g_tran_transpose")))
+    self.alpha_g_tran = flight_params.get_scalar_from_config(gains_config_file, "alpha_g_tran")
 
     # K_x_hat rotational
-    self.x_e_x_rot = np.zeros((9, 1))
-    self.S_diagonal_x_rot = 5.0 * np.ones((9, 1))
-    self.alpha_x_rot = 0.1
+    self.x_e_x_rot = np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "x_e_x_rot_transpose"))
+    self.S_diagonal_x_rot = np.array(np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "S_diagonal_x_rot_transpose")))
+    self.alpha_x_rot = flight_params.get_scalar_from_config(gains_config_file, "alpha_x_rot")
 
     # K_r_hat rotational
-    self.x_e_r_rot = np.zeros((9, 1))
-    self.S_diagonal_r_rot = 0.1 * np.ones((9, 1))
-    self.alpha_r_rot = 0.1
+    self.x_e_r_rot = np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "x_e_r_rot_transpose"))
+    self.S_diagonal_r_rot = np.array(np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "S_diagonal_r_rot_transpose")))
+    self.alpha_r_rot = flight_params.get_scalar_from_config(gains_config_file, "alpha_r_rot")
 
     # Theta_hat rotational
-    self.x_e_Theta_rot = np.zeros((18, 1))
-    self.S_diagonal_Theta_rot = 10 * np.ones((18, 1))
-    self.alpha_Theta_rot = 0.1
+    self.x_e_Theta_rot = np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "x_e_Theta_rot_transpose"))
+    self.S_diagonal_Theta_rot = np.array(np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "S_diagonal_Theta_rot_transpose")))
+    self.alpha_Theta_rot = flight_params.get_scalar_from_config(gains_config_file, "alpha_Theta_rot")
 
     # K_g_hat rotational
-    self.x_e_g_rot = np.zeros((9, 1))
-    self.S_diagonal_g_rot = 10.0 * np.ones((9, 1))
-    self.alpha_g_rot = 0.1
+    self.x_e_g_rot = np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "x_e_g_rot_transpose"))
+    self.S_diagonal_g_rot = np.array(np.transpose(flight_params.get_scaled_matrix_from_config(gains_config_file, "S_diagonal_g_rot_transpose")))
+    self.alpha_g_rot = flight_params.get_scalar_from_config(gains_config_file, "alpha_g_rot")
 
     # Generate S matrices from diagonal
     self.S_x_tran = ProjectionOperator.generateEllipsoidMatrixFromDiagonal(self.S_diagonal_x_tran.flatten())
@@ -287,14 +281,16 @@ class FunnelTwoLayerMRACGains(BaseMRACGains):
     # ----------------------------------------------------------------
     #     Non-Adaptive Error Bounding Control Input Parameters
     # ----------------------------------------------------------------
-    self.use_error_bounding_control_input = False
+    self.use_error_bounding_control_input = flight_params.get_scalar_from_config(gains_config_file, "use_error_bounding_control_input")
 
-    self.xi_bar_d_tran = 2.0e1
-    self.lambda_bar_tran = 1.0
-    self.delta_ebci_tran = 1.0e-5
-
-    self.xi_bar_d_rot = 1.0e1
-    self.lambda_bar_rot = 1.0
-    self.delta_ebci_rot = 1.0e-5
+    self.xi_bar_d_tran = flight_params.get_scalar_from_config(gains_config_file, "xi_bar_d_tran")
+    self.lambda_bar_tran = flight_params.get_scalar_from_config(gains_config_file, "lambda_bar_tran")
+    self.delta_ebci_tran = flight_params.get_scalar_from_config(gains_config_file, "delta_ebci_tran")
+    
+    self.xi_bar_d_rot = flight_params.get_scalar_from_config(gains_config_file, "xi_bar_d_rot")
+    self.lambda_bar_rot = flight_params.get_scalar_from_config(gains_config_file, "lambda_bar_rot")
+    self.delta_ebci_rot = flight_params.get_scalar_from_config(gains_config_file, "delta_ebci_rot")
+    
+    print(f"[INFO] Successfully loaded FunnelTwoLayerMRACGains Gains")
 
 

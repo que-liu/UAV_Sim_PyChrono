@@ -19,6 +19,9 @@ from pymoo.algorithms.moo.moead import MOEAD
 from pymoo.algorithms.moo.sms import SMSEMOA
 from pymoo.algorithms.moo.rvea import RVEA
 
+# Seeded sampling for injecting hand-tuned gains
+from .seeded_sampling import SeededSampling
+
 from .base_ga import BaseGATuner
 from ..core.parameter_bounds import ParameterBounds
 from ..core.fitness_evaluator import FitnessEvaluator
@@ -48,7 +51,8 @@ class PymooGATuner(BaseGATuner):
                  algorithm: str = 'NSGA2',
                  algorithm_params: Optional[Dict[str, Any]] = None,
                  n_objectives: int = 3,
-                 adaptive_sampling: bool = False):
+                 adaptive_sampling: bool = False,
+                 seed_population: Optional[List[List[float]]] = None):
         """
         Initialize Pymoo GA tuner
         
@@ -62,6 +66,10 @@ class PymooGATuner(BaseGATuner):
             algorithm_params: Additional parameters for the algorithm
             n_objectives: Number of objectives
             adaptive_sampling: Whether to use adaptive sampling
+            seed_population: Optional list of seed vectors (e.g., hand-tuned gains)
+                            to include in the initial population. The first seed(s)
+                            replace the first individual(s) in the randomly generated
+                            population, ensuring at least one known-good solution.
         """
         super().__init__(parameter_bounds, fitness_evaluator, population_size, n_generations, random_seed)
         
@@ -69,6 +77,7 @@ class PymooGATuner(BaseGATuner):
         self.algorithm_params = algorithm_params or {}
         self.n_objectives = n_objectives
         self.adaptive_sampling = adaptive_sampling
+        self.seed_population = seed_population
         
         # Set random seed for Pymoo
         if random_seed is not None:
@@ -83,7 +92,7 @@ class PymooGATuner(BaseGATuner):
             adaptive_sampling=adaptive_sampling
         )
         
-        # Create algorithm
+        # Create algorithm with optional seeded sampling
         self.algorithm = self._create_algorithm()
         
         # Store configuration
@@ -91,11 +100,12 @@ class PymooGATuner(BaseGATuner):
             'algorithm': algorithm,
             'algorithm_params': algorithm_params,
             'n_objectives': n_objectives,
-            'adaptive_sampling': adaptive_sampling
+            'adaptive_sampling': adaptive_sampling,
+            'seed_population_count': len(seed_population) if seed_population else 0,
         })
     
     def _create_algorithm(self):
-        """Create the specified optimization algorithm"""
+        """Create the specified optimization algorithm with optional seeded sampling."""
         if self.algorithm_name not in self.AVAILABLE_ALGORITHMS:
             raise ValueError(f"Unknown algorithm: {self.algorithm_name}. "
                           f"Available algorithms: {list(self.AVAILABLE_ALGORITHMS.keys())}")
@@ -113,10 +123,19 @@ class PymooGATuner(BaseGATuner):
             )
             self.algorithm_params['ref_dirs'] = ref_dirs
         
-        return algorithm_class(
-            pop_size=self.population_size,
+        # Setup seeded sampling if seed population is provided
+        # This injects hand-tuned gains into the initial population
+        algorithm_kwargs = {
+            'pop_size': self.population_size,
             **self.algorithm_params
-        )
+        }
+        
+        if self.seed_population and len(self.seed_population) > 0:
+            seeded_sampling = SeededSampling(seeds=self.seed_population)
+            algorithm_kwargs['sampling'] = seeded_sampling
+            print(f"[SEEDED POPULATION] Will inject {len(self.seed_population)} hand-tuned solution(s) into initial population")
+        
+        return algorithm_class(**algorithm_kwargs)
     
     def optimize(self,
                 verbose: bool = True,

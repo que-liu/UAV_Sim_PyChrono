@@ -32,7 +32,8 @@ class CombinedEvaluator(UAVSimulationEvaluator):
                  multi_objective: bool = True,
                  metric_weights: Optional[Dict[str, float]] = None,
                  normalize_metrics: bool = True,
-                 metrics_config: Optional[MetricsConfig] = None):
+                 metrics_config: Optional[MetricsConfig] = None,
+                 survival_penalty_config=None):
         """
         Initialize combined evaluator.
         
@@ -45,8 +46,10 @@ class CombinedEvaluator(UAVSimulationEvaluator):
             metric_weights: Weights for different metrics (for single-objective mode)
             normalize_metrics: Whether to normalize metrics
             metrics_config: Metrics configuration
+            survival_penalty_config: Configuration for survival time penalty
         """
-        super().__init__(uav_adapter, controller_type, log_directory, parallel_config)
+        super().__init__(uav_adapter, controller_type, log_directory, parallel_config,
+                         survival_penalty_config=survival_penalty_config)
         
         if metrics_config is None or metric_weights is None:
             raise ValueError("metrics_config or metric_weights must be provided for CombinedEvaluator")
@@ -124,6 +127,20 @@ class CombinedEvaluator(UAVSimulationEvaluator):
         Returns:
             Fitness values (list for multi-objective, float for single-objective)
         """
+        # Check for early crash and apply survival penalty if needed
+        is_crashed, penalty = self._check_and_apply_survival_penalty(
+            log_data, n_objectives=len(self.metric_names)
+        )
+        
+        if is_crashed:
+            # Return penalty values - don't calculate actual metrics for crashed simulations
+            if self.multi_objective:
+                return penalty
+            else:
+                # For single-objective, return weighted sum of penalties
+                return sum(penalty) / len(penalty)
+        
+        # Simulation completed - calculate actual metrics
         # Calculate inner loop metrics
         inner_metrics_dict = self.inner_metrics_calculator.compute_all_metrics(log_data)
         

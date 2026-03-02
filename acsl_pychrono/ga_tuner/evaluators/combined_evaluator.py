@@ -51,8 +51,10 @@ class CombinedEvaluator(UAVSimulationEvaluator):
         super().__init__(uav_adapter, controller_type, log_directory, parallel_config,
                          survival_penalty_config=survival_penalty_config)
         
-        if metrics_config is None or metric_weights is None:
-            raise ValueError("metrics_config or metric_weights must be provided for CombinedEvaluator")
+        if metrics_config is None:
+            raise ValueError("metrics_config must be provided for CombinedEvaluator")
+        if not multi_objective and metric_weights is None:
+            raise ValueError("metric_weights must be provided for single-objective CombinedEvaluator")
         
         self.multi_objective = multi_objective
         self.normalize_metrics = normalize_metrics

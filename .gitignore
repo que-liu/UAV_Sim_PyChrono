@@ -21,13 +21,8 @@ __pycache__/
 *.cmd text eol=crlf
 
 
-# Shell scripts
-*.sh text eol=LF
-
-# Batch files (Windows)
-*.bat text eol=crlf
-*.cmd text eol=crlf
-
-
 assets/.DS_Store
 .DS_Store
+
+./load_pid_gains.py
+./experiments.py

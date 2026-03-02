@@ -96,6 +96,8 @@ class MissionConfig:
 @dataclass
 class VehicleConfig:
   # UAV types:
+  # "Q"
+  # "SQ"
   # "X8"
   uav_name: str = "X8"
 
